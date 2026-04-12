@@ -1,0 +1,52 @@
+{
+  "name": "renachem-pos",
+  "version": "1.0.0",
+  "description": "Secure Pharmacy Point of Sale and Inventory Management System",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "dev": "nodemon --watch main.js --watch server.js --watch database.js electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.15.0",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.8.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.1",
+    "electron-updater": "^6.8.3",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.2",
+    "express-validator": "^7.3.2",
+    "helmet": "^8.1.0",
+    "node-machine-id": "^1.1.12"
+  },
+  "devDependencies": {
+    "electron": "^41.2.0",
+    "electron-builder": "^26.8.1",
+    "nodemon": "^3.1.14"
+  },
+  "build": {
+    "appId": "com.renachem.pos",
+    "productName": "Renachem Pharmacy POS",
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.png"
+    },
+    "files": [
+      "!**/*.db",
+      "!**/*.renabackup",
+      "!**/*.log",
+      "!.env",
+      "!logs/**",
+      "!backups/**",
+      "**/*"
+    ],
+    "asar": true
+  }
+}

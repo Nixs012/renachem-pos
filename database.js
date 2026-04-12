@@ -1,0 +1,693 @@
+const Database = require('better-sqlite3');
+const path = require('path');
+const { app } = require('electron');
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+
+let db;
+
+/**
+ * Initialize the database: open connection, set pragmas, create tables, and seed.
+ */
+function initialize() {
+    try {
+        const dbPath = path.join(app.getPath('userData'), 'renachem.db');
+        db = new Database(dbPath);
+
+        // Pragmas
+        db.pragma('journal_mode = WAL');
+        db.pragma('foreign_keys = ON');
+        db.pragma('synchronous = NORMAL');
+
+        // Integrity Check
+        const integrityCheck = db.prepare('PRAGMA integrity_check').get();
+        if (integrityCheck.integrity_check !== 'ok') {
+            throw new Error('Database integrity check failed. Please restore from backup.');
+        }
+
+        // CREATE TABLES
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY, 
+                username TEXT UNIQUE NOT NULL, 
+                password_hash TEXT NOT NULL, 
+                role TEXT NOT NULL CHECK(role IN ('Admin','Pharmacist','Cashier')), 
+                is_active INTEGER DEFAULT 1, 
+                is_temp_password INTEGER DEFAULT 1, 
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS login_attempts (
+                id INTEGER PRIMARY KEY, 
+                username TEXT, 
+                attempts INTEGER DEFAULT 0, 
+                locked_until DATETIME
+            );
+
+            CREATE TABLE IF NOT EXISTS medicines (
+                id TEXT PRIMARY KEY, 
+                name TEXT NOT NULL, 
+                batch TEXT, 
+                expiry TEXT, 
+                stock INTEGER DEFAULT 0, 
+                reorder_level INTEGER DEFAULT 10, 
+                price REAL DEFAULT 0, 
+                barcode TEXT, 
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS patients (
+                id TEXT PRIMARY KEY, 
+                name TEXT NOT NULL, 
+                age TEXT, 
+                gender TEXT, 
+                diagnosis TEXT, 
+                prescriptions TEXT, 
+                history TEXT, 
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS customers (
+                id TEXT PRIMARY KEY, 
+                name TEXT NOT NULL, 
+                phone TEXT, 
+                prescriptions TEXT, 
+                history TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS suppliers (
+                id TEXT PRIMARY KEY, 
+                name TEXT NOT NULL, 
+                contact TEXT, 
+                items TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS purchases (
+                id INTEGER PRIMARY KEY, 
+                med_name TEXT, 
+                batch TEXT, 
+                qty INTEGER, 
+                date TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS sales (
+                id INTEGER PRIMARY KEY, 
+                date TEXT, 
+                date_time TEXT, 
+                items_json TEXT, 
+                total REAL, 
+                payment_mode TEXT, 
+                customer_name TEXT, 
+                mpesa_code TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS audit_log (
+                id INTEGER PRIMARY KEY, 
+                user_id INTEGER, 
+                username TEXT, 
+                action TEXT, 
+                module TEXT, 
+                details TEXT, 
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, 
+                row_hash TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY, 
+                value TEXT
+            );
+
+            CREATE TRIGGER IF NOT EXISTS prevent_audit_delete 
+            BEFORE DELETE ON audit_log 
+            BEGIN 
+                SELECT RAISE(ABORT, 'Audit log deletion not permitted'); 
+            END;
+        `);
+
+        // Seed Data
+        seedData();
+
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function seedData() {
+    // Admin user
+    const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+    if (userCount === 0) {
+        const adminHash = bcrypt.hashSync('Admin@1234', 12);
+        db.prepare(`
+            INSERT INTO users (username, password_hash, role, is_temp_password) 
+            VALUES (?, ?, ?, ?)
+        `).run('admin', adminHash, 'Admin', 1);
+    }
+
+    // Medicines
+    const medCount = db.prepare('SELECT COUNT(*) as count FROM medicines').get().count;
+    if (medCount === 0) {
+        const meds = [
+            ['PAR-001', 'Paracetamol 500mg', 'B2301', '2026-12-31', 45, 20, 5.5, '890123456789'],
+            ['AMX-001', 'Amoxicillin 250mg', 'AMX242', '2026-08-15', 12, 15, 8.2, '890987654321'],
+            ['CTZ-001', 'Cetirizine 10mg', 'CTZ101', '2026-12-15', 8, 10, 3.9, '890112233445'],
+            ['IBU-001', 'Ibuprofen 400mg', 'IBU567', '2027-03-20', 100, 25, 7.2, '890998877665'],
+            ['OME-001', 'Omeprazole 20mg', 'OME890', '2026-11-10', 30, 12, 9.5, '890554433221']
+        ];
+        const insertMed = db.prepare(`
+            INSERT INTO medicines (id, name, batch, expiry, stock, reorder_level, price, barcode) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        meds.forEach(m => insertMed.run(...m));
+    }
+
+    // Patients
+    const patientCount = db.prepare('SELECT COUNT(*) as count FROM patients').get().count;
+    if (patientCount === 0) {
+        const patients = [
+            ['P-001', 'James Otieno', '45', 'Male', 'Hypertension', 'Amlodipine 5mg', 'Follow up every month'],
+            ['P-002', 'Mary Wanjiku', '32', 'Female', 'Malaria', 'Artemether/Lumefantrine', 'Recovered']
+        ];
+        const insertPatient = db.prepare(`
+            INSERT INTO patients (id, name, age, gender, diagnosis, prescriptions, history) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `);
+        patients.forEach(p => insertPatient.run(...p));
+    }
+
+    // Customers
+    const customerCount = db.prepare('SELECT COUNT(*) as count FROM customers').get().count;
+    if (customerCount === 0) {
+        const customers = [
+            ['C-001', 'John Mwangi', '+254712345678', '', ''],
+            ['C-002', 'Alice Wanjiku', '+254722334455', '', '']
+        ];
+        const insertCustomer = db.prepare(`
+            INSERT INTO customers (id, name, phone, prescriptions, history) 
+            VALUES (?, ?, ?, ?, ?)
+        `);
+        customers.forEach(c => insertCustomer.run(...c));
+    }
+
+    // Suppliers
+    const supplierCount = db.prepare('SELECT COUNT(*) as count FROM suppliers').get().count;
+    if (supplierCount === 0) {
+        const suppliers = [
+            ['S-001', 'MediKen Ltd', 'info@mediken.co.ke', 'Paracetamol/Amoxicillin'],
+            ['S-002', 'HealthPlus Distributors', 'sales@healthplus.co.ke', 'Cetirizine/Ibuprofen']
+        ];
+        const insertSupplier = db.prepare(`
+            INSERT INTO suppliers (id, name, contact, items) 
+            VALUES (?, ?, ?, ?)
+        `);
+        suppliers.forEach(s => insertSupplier.run(...s));
+    }
+}
+
+// --- Auth Functions ---
+
+function verifyLogin(username, password) {
+    try {
+        const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+        if (!user || user.is_active === 0) return null;
+
+        const isValid = bcrypt.compareSync(password, user.password_hash);
+        if (!isValid) return null;
+
+        return { 
+            id: user.id, 
+            username: user.username, 
+            role: user.role, 
+            is_temp_password: user.is_temp_password 
+        };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function createUser(username, password, role) {
+    try {
+        if (password.length < 8) throw new Error('Password too short (min 8 chars)');
+        const hash = bcrypt.hashSync(password, 12);
+        const result = db.prepare(`
+            INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)
+        `).run(username, hash, role);
+        return { success: true, id: result.lastInsertRowid };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function getAllUsers() {
+    try {
+        const users = db.prepare('SELECT id, username, role, is_active, is_temp_password, created_at FROM users').all();
+        return { success: true, data: users };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function updateUserRole(id, role) {
+    try {
+        db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function resetUserPassword(id, newPassword) {
+    try {
+        if (newPassword.length < 8) throw new Error('Password too short');
+        const hash = bcrypt.hashSync(newPassword, 12);
+        db.prepare('UPDATE users SET password_hash = ?, is_temp_password = 1 WHERE id = ?').run(hash, id);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function deactivateUser(id) {
+    try {
+        db.prepare('UPDATE users SET is_active = 0 WHERE id = ?').run(id);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function reactivateUser(id) {
+    try {
+        db.prepare('UPDATE users SET is_active = 1 WHERE id = ?').run(id);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function getLoginAttempts(username) {
+    try {
+        const row = db.prepare('SELECT * FROM login_attempts WHERE username = ?').get(username);
+        return row || null;
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function incrementLoginAttempts(username) {
+    try {
+        const exists = db.prepare('SELECT 1 FROM login_attempts WHERE username = ?').get(username);
+        if (exists) {
+            db.prepare('UPDATE login_attempts SET attempts = attempts + 1 WHERE username = ?').run(username);
+        } else {
+            db.prepare('INSERT INTO login_attempts (username, attempts) VALUES (?, 1)').run(username);
+        }
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function resetLoginAttempts(username) {
+    try {
+        db.prepare('UPDATE login_attempts SET attempts = 0, locked_until = NULL WHERE username = ?').run(username);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function lockAccount(username, minutes) {
+    try {
+        const until = new Date(Date.now() + minutes * 60000).toISOString();
+        db.prepare('UPDATE login_attempts SET locked_until = ? WHERE username = ?').run(until, username);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+// --- Medicine Functions ---
+
+function getMedicines() {
+    try {
+        const rows = db.prepare('SELECT * FROM medicines').all();
+        return { success: true, data: rows };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function addMedicine(data) {
+    try {
+        const id = Date.now().toString();
+        db.prepare(`
+            INSERT INTO medicines (id, name, batch, expiry, stock, reorder_level, price, barcode)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(id, data.name, data.batch, data.expiry, data.stock || 0, data.reorder_level || 10, data.price || 0, data.barcode);
+        return { success: true, id };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function updateMedicine(id, data) {
+    try {
+        db.prepare(`
+            UPDATE medicines 
+            SET name = ?, batch = ?, expiry = ?, stock = ?, reorder_level = ?, price = ?, barcode = ?
+            WHERE id = ?
+        `).run(data.name, data.batch, data.expiry, data.stock, data.reorder_level, data.price, data.barcode, id);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function deleteMedicine(id) {
+    try {
+        db.prepare('DELETE FROM medicines WHERE id = ?').run(id);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+// --- Patient Functions ---
+
+function getPatients() {
+    try {
+        const rows = db.prepare('SELECT * FROM patients').all();
+        return { success: true, data: rows };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function addPatient(data) {
+    try {
+        const id = 'P-' + Date.now();
+        db.prepare(`
+            INSERT INTO patients (id, name, age, gender, diagnosis, prescriptions, history)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(id, data.name, data.age, data.gender, data.diagnosis, data.prescriptions, data.history);
+        return { success: true, id };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function updatePatient(id, data) {
+    try {
+        db.prepare(`
+            UPDATE patients SET name = ?, age = ?, gender = ?, diagnosis = ?, prescriptions = ?, history = ?
+            WHERE id = ?
+        `).run(data.name, data.age, data.gender, data.diagnosis, data.prescriptions, data.history, id);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function deletePatient(id) {
+    try {
+        db.prepare('DELETE FROM patients WHERE id = ?').run(id);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+// --- Customer Functions ---
+
+function getCustomers() {
+    try {
+        const rows = db.prepare('SELECT * FROM customers').all();
+        return { success: true, data: rows };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function addCustomer(data) {
+    try {
+        const id = 'C-' + Date.now();
+        db.prepare(`
+            INSERT INTO customers (id, name, phone, prescriptions, history)
+            VALUES (?, ?, ?, ?, ?)
+        `).run(id, data.name, data.phone, data.prescriptions, data.history);
+        return { success: true, id };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function updateCustomer(id, data) {
+    try {
+        db.prepare(`
+            UPDATE customers SET name = ?, phone = ?, prescriptions = ?, history = ?
+            WHERE id = ?
+        `).run(data.name, data.phone, data.prescriptions, data.history, id);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function deleteCustomer(id) {
+    try {
+        db.prepare('DELETE FROM customers WHERE id = ?').run(id);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+// --- Supplier Functions ---
+
+function getSuppliers() {
+    try {
+        const rows = db.prepare('SELECT * FROM suppliers').all();
+        return { success: true, data: rows };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function addSupplier(data) {
+    try {
+        const id = 'S-' + Date.now();
+        db.prepare(`
+            INSERT INTO suppliers (id, name, contact, items)
+            VALUES (?, ?, ?, ?)
+        `).run(id, data.name, data.contact, data.items);
+        return { success: true, id };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function updateSupplier(id, data) {
+    try {
+        db.prepare('UPDATE suppliers SET name = ?, contact = ?, items = ? WHERE id = ?').run(data.name, data.contact, data.items, id);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+// --- Purchase Functions ---
+
+function getPurchases() {
+    try {
+        const rows = db.prepare('SELECT * FROM purchases').all();
+        return { success: true, data: rows };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function addPurchase(data) {
+    try {
+        const result = db.prepare(`
+            INSERT INTO purchases (med_name, batch, qty, date)
+            VALUES (?, ?, ?, ?)
+        `).run(data.med_name, data.batch, data.qty, data.date);
+        return { success: true, id: result.lastInsertRowid };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+// --- Sale Functions ---
+
+function getSales() {
+    try {
+        const rows = db.prepare('SELECT * FROM sales').all();
+        return { success: true, data: rows };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function addSale(data) {
+    try {
+        const result = db.prepare(`
+            INSERT INTO sales (date, date_time, items_json, total, payment_mode, customer_name, mpesa_code)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(data.date, data.date_time, data.items_json, data.total, data.payment_mode, data.customer_name, data.mpesa_code);
+        return { success: true, id: result.lastInsertRowid };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+// --- Audit Functions ---
+
+function getLastAuditHash() {
+    try {
+        const row = db.prepare('SELECT row_hash FROM audit_log ORDER BY id DESC LIMIT 1').get();
+        return row ? row.row_hash : 'GENESIS';
+    } catch (e) {
+        return 'GENESIS';
+    }
+}
+
+function insertAuditLog(userId, username, action, module, details) {
+    try {
+        const timestamp = new Date().toISOString();
+        const prevHash = getLastAuditHash();
+        
+        // Strict formula: previousHash + action + String(userId) + timestamp
+        const dataToHash = prevHash + action + String(userId) + timestamp;
+        const rowHash = crypto.createHash('sha256').update(dataToHash).digest('hex');
+
+        db.prepare(`
+            INSERT INTO audit_log (user_id, username, action, module, details, timestamp, row_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(userId, username, action, module, details, timestamp, rowHash);
+        
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function getAuditLog(filters = {}) {
+    try {
+        let query = 'SELECT * FROM audit_log WHERE 1=1';
+        const params = [];
+
+        if (filters.username) {
+            query += ' AND username = ?';
+            params.push(filters.username);
+        }
+        if (filters.module) {
+            query += ' AND module = ?';
+            params.push(filters.module);
+        }
+        if (filters.dateFrom) {
+            query += ' AND timestamp >= ?';
+            params.push(filters.dateFrom);
+        }
+        if (filters.dateTo) {
+            query += ' AND timestamp <= ?';
+            params.push(filters.dateTo);
+        }
+
+        query += ' ORDER BY id DESC';
+        const rows = db.prepare(query).all(...params);
+        return { success: true, data: rows };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function verifyAuditChain() {
+    try {
+        // Fetch last 100 rows to verify chain integrity
+        const rows = db.prepare('SELECT * FROM audit_log ORDER BY id DESC LIMIT 100').all();
+        
+        // The chain is verified from bottom up (older to newer) within the set
+        // Since we order DESC, rows[i+1] is older than rows[i]
+        for (let i = 0; i < rows.length - 1; i++) {
+            const current = rows[i];
+            const previous = rows[i+1];
+            
+            const expectedHash = crypto.createHash('sha256')
+                .update(previous.row_hash + current.action + String(current.user_id) + current.timestamp)
+                .digest('hex');
+
+            if (current.row_hash !== expectedHash) {
+                return { success: true, valid: false, brokenAt: current.id };
+            }
+        }
+        return { success: true, valid: true, brokenAt: null };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+// --- Settings Functions ---
+
+function getSetting(key) {
+    try {
+        const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+        return row ? row.value : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function setSetting(key, value) {
+    try {
+        db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+process.on('exit', () => {
+    if (db) db.close();
+});
+
+module.exports = {
+    initialize,
+    verifyLogin,
+    createUser,
+    getAllUsers,
+    updateUserRole,
+    resetUserPassword,
+    deactivateUser,
+    reactivateUser,
+    getLoginAttempts,
+    incrementLoginAttempts,
+    resetLoginAttempts,
+    lockAccount,
+    getMedicines,
+    addMedicine,
+    updateMedicine,
+    deleteMedicine,
+    getPatients,
+    addPatient,
+    updatePatient,
+    deletePatient,
+    getCustomers,
+    addCustomer,
+    updateCustomer,
+    deleteCustomer,
+    getSuppliers,
+    addSupplier,
+    updateSupplier,
+    getPurchases,
+    addPurchase,
+    getSales,
+    addSale,
+    insertAuditLog,
+    getAuditLog,
+    getLastAuditHash,
+    verifyAuditChain,
+    getSetting,
+    setSetting
+};
