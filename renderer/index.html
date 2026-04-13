@@ -8,8 +8,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Chart.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Local Libs -->
+    <script src="chart.umd.min.js"></script>
     <!-- Local Styles -->
     <link rel="stylesheet" href="style.css">
 </head>
@@ -64,8 +64,8 @@
         </div>
         <div class="nav-menu">
             <div class="nav-item active" data-page="dashboard"><i class="fas fa-chart-line"></i> <span>Dashboard</span></div>
-            <div class="nav-item" data-page="inventory"><i class="fas fa-capsules"></i> <span>Inventory</span></div>
             <div class="nav-item" data-page="pos"><i class="fas fa-cash-register"></i> <span>POS Billing</span></div>
+            <div class="nav-item" data-page="inventory"><i class="fas fa-capsules"></i> <span>Inventory</span></div>
             <div class="nav-item" data-page="patients"><i class="fas fa-notes-medical"></i> <span>Patient Mgmt</span></div>
             <div class="nav-item" data-page="customers"><i class="fas fa-users"></i> <span>Customers</span></div>
             <div class="nav-item" data-page="suppliers"><i class="fas fa-truck"></i> <span>Suppliers</span></div>
@@ -137,6 +137,9 @@
 
 <!-- Toast UI -->
 <div id="toastContainer" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;"></div>
+
+<!-- Hidden iframe for reliable printing -->
+<iframe id="printFrame" style="display:none;"></iframe>
 
 <!-- App Logic -->
 <script src="app.js"></script>
