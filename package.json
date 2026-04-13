@@ -6,7 +6,7 @@
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --win",
-    "dev": "nodemon --watch main.js --watch server.js --watch database.js electron .",
+    "dev": "nodemon --watch main.js --watch server.js --watch database.js --exec electron .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

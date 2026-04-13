@@ -3,9 +3,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 let sessionToken = null;
 
 const auth = {
-    login: async (username, password) => {
+    login: async (creds) => {
         try {
-            const result = await ipcRenderer.invoke('auth:login', { username, password });
+            const result = await ipcRenderer.invoke('auth:login', creds);
             if (result.success) sessionToken = result.sessionToken;
             return result;
         } catch (error) {
@@ -52,6 +52,27 @@ const auth = {
     deactivateUser: async (id) => {
         try {
             return await ipcRenderer.invoke('auth:deactivateUser', sessionToken, id);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+    reactivateUser: async (id) => {
+        try {
+            return await ipcRenderer.invoke('auth:reactivateUser', sessionToken, id);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+    deleteUser: async (id) => {
+        try {
+            return await ipcRenderer.invoke('auth:deleteUser', sessionToken, id);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+    createUser: async (data) => {
+        try {
+            return await ipcRenderer.invoke('auth:createUser', sessionToken, data);
         } catch (error) {
             return { success: false, error: error.message };
         }
@@ -160,6 +181,20 @@ const db = {
     addPurchase: async (data) => {
         try {
             return await ipcRenderer.invoke('db:addPurchase', sessionToken, data);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+    getSettings: async () => {
+        try {
+            return await ipcRenderer.invoke('db:getSettings', sessionToken);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+    updateSetting: async (key, value) => {
+        try {
+            return await ipcRenderer.invoke('db:updateSetting', sessionToken, { key, value });
         } catch (error) {
             return { success: false, error: error.message };
         }

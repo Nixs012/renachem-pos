@@ -14,16 +14,14 @@ const sensitiveVars = [
     process.env.MPESA_CONSUMER_KEY,
     process.env.MPESA_CONSUMER_SECRET,
     process.env.MPESA_PASSKEY
-].filter(Boolean);
+].filter(v => typeof v === 'string' && v.trim() !== '');
 
 function redactValue(val) {
     if (val === null || val === undefined) return val;
     if (typeof val === 'string') {
         let redacted = val;
         sensitiveVars.forEach(v => {
-            if (v && v.trim() !== '') {
-                redacted = redacted.split(v).join('[REDACTED]');
-            }
+            redacted = redacted.split(v).join('[REDACTED]');
         });
         return redacted;
     }

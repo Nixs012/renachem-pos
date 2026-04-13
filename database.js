@@ -124,6 +124,16 @@ function initialize() {
             END;
         `);
 
+        // --- Migrations & Self-Healing ---
+        const tableInfo = db.prepare("PRAGMA table_info('users')").all();
+        const hasRoleColumn = tableInfo.some(col => col.name === 'role');
+        if (!hasRoleColumn) {
+            console.log('MIGRATION: Adding role column to users table');
+            db.prepare("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'Cashier'").run();
+            // Special Case: Update default admin to Admin role
+            db.prepare("UPDATE users SET role = 'Admin' WHERE username = 'admin'").run();
+        }
+
         // Seed Data
         seedData();
 
@@ -135,13 +145,16 @@ function initialize() {
 
 function seedData() {
     // Admin user
-    const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
-    if (userCount === 0) {
+    const admin = db.prepare('SELECT * FROM users WHERE username = ?').get('admin');
+    if (!admin) {
         const adminHash = bcrypt.hashSync('Admin@1234', 12);
         db.prepare(`
             INSERT INTO users (username, password_hash, role, is_temp_password) 
             VALUES (?, ?, ?, ?)
-        `).run('admin', adminHash, 'Admin', 1);
+        `).run('admin', adminHash, 'Admin', 0);
+    } else if (!admin.role || admin.role === '') {
+        // Repair admin role if it exists but is blank/missing
+        db.prepare("UPDATE users SET role = 'Admin' WHERE username = 'admin'").run();
     }
 
     // Medicines
@@ -230,7 +243,7 @@ function createUser(username, password, role) {
         if (password.length < 8) throw new Error('Password too short (min 8 chars)');
         const hash = bcrypt.hashSync(password, 12);
         const result = db.prepare(`
-            INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)
+            INSERT INTO users (username, password_hash, role, is_temp_password) VALUES (?, ?, ?, 0)
         `).run(username, hash, role);
         return { success: true, id: result.lastInsertRowid };
     } catch (error) {
@@ -279,6 +292,15 @@ function deactivateUser(id) {
 function reactivateUser(id) {
     try {
         db.prepare('UPDATE users SET is_active = 1 WHERE id = ?').run(id);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function deleteUser(id) {
+    try {
+        db.prepare('DELETE FROM users WHERE id = ?').run(id);
         return { success: true };
     } catch (error) {
         return { success: false, error: error.message };

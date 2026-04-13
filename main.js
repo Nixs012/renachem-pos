@@ -1,10 +1,15 @@
 require('dotenv').config();
+console.log('--- SYSTEM BREADCRUMB: DOTENV LOADED ---');
 const { app, BrowserWindow, ipcMain, dialog, session } = require('electron');
+console.log('--- SYSTEM BREADCRUMB: ELECTRON DEPS LOADED ---');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
+console.log('--- SYSTEM BREADCRUMB: CORE DEPS LOADED ---');
 const db = require('./database.js');
+console.log('--- SYSTEM BREADCRUMB: DATABASE MODULE LOADED ---');
 const { startServer } = require('./server.js');
+console.log('--- SYSTEM BREADCRUMB: SERVER MODULE LOADED ---');
 
 let mainWindow = null;
 let currentSessionToken = null;
@@ -141,6 +146,9 @@ async function runAutoBackup() {
 // Global Handling
 function logError(error) {
     try {
+        console.error('App Error:', error);
+        if (!app.isReady()) return; // Prevent app.getPath crash if error occurs during init
+
         const today = new Date().toISOString().split('T')[0];
         const logPath = path.join(app.getPath('userData'), 'logs');
         if (!fs.existsSync(logPath)) fs.mkdirSync(logPath, { recursive: true });
@@ -153,10 +161,14 @@ function logError(error) {
 }
 
 process.on('uncaughtException', error => {
+    console.error('--- CRITICAL UNCAUGHT EXCEPTION ---');
+    console.error(error);
     logError(error);
-    dialog.showErrorBox('Fatal Error', 'An unexpected error occurred. The app will restart.');
-    app.relaunch();
-    app.exit(0);
+    if (dialog) {
+        dialog.showErrorBox('Fatal Error', `An unexpected error occurred: ${error.message}`);
+    }
+    // app.relaunch(); // DISABLED FOR DIAGNOSTICS
+    // app.exit(0);    // DISABLED FOR DIAGNOSTICS
 });
 
 process.on('unhandledRejection', reason => {
@@ -164,7 +176,10 @@ process.on('unhandledRejection', reason => {
 });
 
 app.whenReady().then(() => {
+    console.log('--- SYSTEM BREADCRUMB: APP READY ---');
     const dbInit = db.initialize();
+    console.log('--- SYSTEM BREADCRUMB: DB INIT RESULT:', dbInit);
+    
     if (dbInit.success === false) {
         dialog.showErrorBox('Database Error', `Database failed to initialize: ${dbInit.error}. The app cannot start.`);
         app.exit(1);
@@ -172,6 +187,7 @@ app.whenReady().then(() => {
     }
 
     try {
+        console.log('--- SYSTEM BREADCRUMB: ATTEMPTING SERVER START ---');
         startServer();
     } catch (error) {
         dialog.showMessageBox({
@@ -284,6 +300,11 @@ ipcMain.handle('auth:deactivateUser', wrapHandler(async (event, t, id) => {
 }, { adminOnly: true }));
 
 ipcMain.handle('auth:reactivateUser', wrapHandler(async (event, t, id) => db.reactivateUser(id), { adminOnly: true }));
+ipcMain.handle('auth:deleteUser', wrapHandler(async (event, t, id) => {
+    if (id === currentSessionUserId) throw new Error('Cannot delete yourself');
+    db.insertAuditLog(currentSessionUserId, null, 'USER_DELETED', 'AUTH', `Permanently deleted user ${id}`);
+    return db.deleteUser(id);
+}, { adminOnly: true }));
 
 // Database Handlers
 ipcMain.handle('db:getMedicines', wrapHandler(async () => db.getMedicines()));
@@ -339,6 +360,13 @@ ipcMain.handle('db:addSale', wrapHandler(async (event, t, data) => {
 
     db.insertAuditLog(currentSessionUserId, null, 'SALE_COMPLETED', 'SALES', `Sale Total: ${data.total}, Mode: ${data.payment_mode}`);
     return db.addSale(data);
+}));
+
+ipcMain.handle('db:getSettings', wrapHandler(async () => db.getSettings()));
+ipcMain.handle('db:updateSetting', wrapHandler(async (event, t, { key, value }) => {
+    const res = db.setSetting(key, value);
+    if (res.success) db.insertAuditLog(currentSessionUserId, null, 'SETTING_UPDATED', 'SYSTEM', `Updated setting: ${key}`);
+    return res;
 }));
 
 ipcMain.handle('db:getAuditLog', wrapHandler(async (event, t, filters) => db.getAuditLog(filters), { adminOnly: true }));

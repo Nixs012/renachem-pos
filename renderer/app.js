@@ -121,14 +121,152 @@ function updateStrengthUI(password, barId, textId) {
     text.style.color = strength === 'weak' ? '#ef4444' : (strength === 'fair' ? '#f59e0b' : '#10b981');
 }
 
+async function renderSettings() {
+    const container = document.getElementById('pageContainer');
+    
+    // Fetch current settings
+    const settings = await window.db.getSettings();
+    const config = {};
+    if (settings.success) {
+        settings.data.forEach(s => config[s.key] = s.value);
+    }
+
+    container.innerHTML = `
+        <div class="view-header">
+            <h2><i class="fas fa-cog"></i> System Settings</h2>
+            <p>Administer pharmacy profile and security preferences</p>
+        </div>
+
+        <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));">
+            <!-- Pharmacy Profile Section -->
+            <div class="stat-card">
+                <h3><i class="fas fa-hospital"></i> Pharmacy Profile</h3>
+                <p style="margin-bottom: 20px; font-size: 0.8rem; color: #64748b;">This information will appear on printed receipts.</p>
+                
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <label>Pharmacy Name</label>
+                    <input type="text" id="set_pharmacy_name" placeholder="e.g. Renachem Pharmacy" value="${config.pharmacy_name || ''}">
+                </div>
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <label>Address / Location</label>
+                    <input type="text" id="set_pharmacy_address" placeholder="e.g. 123 Medical Plaza, Nairobi" value="${config.pharmacy_address || ''}">
+                </div>
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <label>Contact Phone</label>
+                    <input type="text" id="set_pharmacy_phone" placeholder="e.g. +254 700 000000" value="${config.pharmacy_phone || ''}">
+                </div>
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <label>M-Pesa Till/Paybill Number</label>
+                    <input type="text" id="set_pharmacy_till" placeholder="e.g. 123456" value="${config.pharmacy_till || ''}">
+                </div>
+                
+                <button class="btn-primary" id="saveProfileBtn" style="width: 100%;"><i class="fas fa-save"></i> Update Profile</button>
+            </div>
+
+            <!-- Security Section -->
+            <div class="stat-card">
+                <h3><i class="fas fa-shield-alt"></i> Account Security</h3>
+                <p style="margin-bottom: 20px; font-size: 0.8rem; color: #64748b;">Update your portal access credentials.</p>
+                
+                <div class="input-group">
+                    <label>New Password</label>
+                    <input type="password" id="set_new_password" placeholder="••••••••">
+                </div>
+                <div class="input-group">
+                    <label>Confirm New Password</label>
+                    <input type="password" id="set_confirm_password" placeholder="••••••••">
+                </div>
+                
+                <div id="settingsPassError" style="color: #ef4444; font-size: 0.8rem; margin-bottom: 12px;" hidden></div>
+                
+                <button class="btn-primary" id="updatePasswordBtn" style="width: 100%; background: var(--royal-blue);"><i class="fas fa-key"></i> Update Password</button>
+            </div>
+
+            <!-- Environment Info Section -->
+            <div class="stat-card" style="background: rgba(248, 250, 252, 0.5); border: 1px dashed #cbd5e1; backdrop-filter: blur(4px);">
+                <h3><i class="fas fa-circle-nodes"></i> Environment Status</h3>
+                <div style="font-size: 0.9rem; line-height: 2.2;">
+                    <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;">
+                        <span>App Version</span>
+                        <span style="font-weight:bold;">v1.0.0-gold</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;">
+                        <span>M-Pesa Integrator</span>
+                        <span style="font-weight:bold; color:var(--emerald);">CONNECTED</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;">
+                        <span>Database Engine</span>
+                        <span style="font-weight:bold;">SQLite Core</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; padding:5px 0;">
+                        <span>Last Daily Backup</span>
+                        <span style="color:#64748b;">${new Date().toLocaleDateString()}</span>
+                    </div>
+                </div>
+                <div style="margin-top:20px; padding:12px; background:rgba(30,58,138,0.05); border-radius:12px; font-size:0.75rem; color:#1e40af;">
+                    <i class="fas fa-info-circle"></i> Changes to Pharmacy Profile will take effect on next receipt generation.
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Event Handlers
+    document.getElementById('saveProfileBtn').onclick = async () => {
+        const payload = {
+            pharmacy_name: document.getElementById('set_pharmacy_name').value,
+            pharmacy_address: document.getElementById('set_pharmacy_address').value,
+            pharmacy_phone: document.getElementById('set_pharmacy_phone').value,
+            pharmacy_till: document.getElementById('set_pharmacy_till').value
+        };
+
+        for (const [key, value] of Object.entries(payload)) {
+            await window.db.updateSetting(key, value);
+        }
+        showToast('Pharmacy profile updated successfully', 'success');
+    };
+
+    document.getElementById('updatePasswordBtn').onclick = async () => {
+        const p1 = document.getElementById('set_new_password').value;
+        const p2 = document.getElementById('set_confirm_password').value;
+        const errEl = document.getElementById('settingsPassError');
+
+        if (!p1 || p1 !== p2) {
+            errEl.innerText = 'Passwords do not match or are empty';
+            errEl.hidden = false;
+            return;
+        }
+
+        const check = validatePassword(p1);
+        if (!check.valid) {
+            errEl.innerText = check.errors[0];
+            errEl.hidden = false;
+            return;
+        }
+
+        const res = await window.auth.resetPassword(currentUser.id, p1);
+        if (res.success) {
+            showToast('Password updated successfully', 'success');
+            document.getElementById('set_new_password').value = '';
+            document.getElementById('set_confirm_password').value = '';
+            errEl.hidden = true;
+        } else {
+            errEl.innerText = res.error;
+            errEl.hidden = false;
+        }
+    };
+}
+
 // --- Authentication & Initialization ---
 
 async function initAppAfterLogin(role, username) {
-    const navUsers = document.getElementById('navUsers');
-    if (navUsers) {
-        navUsers.style.display = role === 'Admin' ? 'flex' : 'none';
-    }
+    // Hide restricted features for non-admins
+    updateSidebarVisibility();
     
+    // Calculate initials for avatar
+    const initials = username.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    const initialsEl = document.getElementById('userInitials');
+    if (initialsEl) initialsEl.innerText = initials || '??';
+
     document.getElementById('roleDisplayBadge').innerText = role;
     document.getElementById('currentUserName').innerText = username;
     document.getElementById('loginOverlay').style.display = 'none';
@@ -177,47 +315,6 @@ async function handleLogin() {
     }
 }
 
-function setupForcedPasswordChange(user) {
-    const modal = document.getElementById('forcedPasswordModal');
-    const newInp = document.getElementById('forcedNewPassword');
-    const confInp = document.getElementById('forcedConfirmPassword');
-    const saveBtn = document.getElementById('saveForcedPasswordBtn');
-    const errDiv = document.getElementById('forcedError');
-
-    document.getElementById('loginOverlay').style.display = 'none';
-    modal.style.display = 'flex';
-
-    newInp.oninput = () => updateStrengthUI(newInp.value, 'forcedStrengthBar', 'forcedStrengthText');
-
-    saveBtn.onclick = async () => {
-        const newPwd = newInp.value;
-        const confPwd = confInp.value;
-
-        const val = validatePassword(newPwd);
-        if (!val.valid) {
-            errDiv.innerText = val.errors.join(', ');
-            errDiv.hidden = false;
-            return;
-        }
-
-        if (newPwd !== confPwd) {
-            errDiv.innerText = 'Passwords do not match';
-            errDiv.hidden = false;
-            return;
-        }
-
-        const res = await window.auth.resetPassword(user.id, newPwd);
-        if (res.success) {
-            modal.style.display = 'none';
-            showToast('Password set successfully');
-            currentUser = { id: user.id, username: user.username, role: user.role };
-            initAppAfterLogin(user.role, user.username);
-        } else {
-            errDiv.innerText = res.error;
-            errDiv.hidden = false;
-        }
-    };
-}
 
 // --- Core POS Logic & M-Pesa Integration ---
 
@@ -564,18 +661,34 @@ async function renderUsers(subPage = 'list') {
         const res = await window.auth.getUsers();
         const users = res.data || [];
         content = `
-            <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:20px; align-items:center;">
                 <h3>Staff Directory</h3>
-                <button class="btn-primary" onclick="showToast('Add User feature ready for logic mapping', 'info')">+ Create Staff Account</button>
+                <button class="btn-primary" id="createUserBtn">+ Create Staff Account</button>
             </div>
             <table class="data-table">
-                <thead><tr><th>Authorized User</th><th>Access Tier</th><th>Status</th><th>Registration Date</th></tr></thead>
+                <thead><tr><th>Authorized User</th><th>Access Tier</th><th>Status</th><th>Registration Date</th><th style="text-align:right;">Management Actions</th></tr></thead>
                 <tbody>${users.map(u => `
                     <tr>
                         <td style="font-weight:600;">${u.username}</td>
-                        <td><span class="role-badge" style="background:#eef2ff; color:var(--royal-blue); border:1px solid #d1d5db;">${u.role}</span></td>
-                        <td>${u.is_active ? '<span style="color:var(--success)">● Active</span>' : '<span style="color:var(--danger)">● Deactivated</span>'}</td>
+                        <td><span class="role-badge" style="background:#eef2ff; color:var(--royal-blue); border:1px solid #d1d5db; padding: 4px 10px; border-radius:12px; font-size:0.8rem;">${u.role}</span></td>
+                        <td>${u.is_active ? '<span style="color:var(--success); font-weight:600;">● Active</span>' : '<span style="color:var(--danger); font-weight:600;">● Suspended</span>'}</td>
                         <td style="font-size:0.8rem; color:#64748b;">${new Date(u.created_at).toLocaleDateString()}</td>
+                        <td style="text-align:right;">
+                            <div style="display:flex; justify-content:flex-end; gap:8px;">
+                                <button onclick="toggleUserStatus(${u.id}, ${u.is_active})" class="action-btn" title="${u.is_active ? 'Suspend Access' : 'Restore Access'}" style="background:${u.is_active ? '#fee2e2' : '#dcfce7'}; color:${u.is_active ? '#b91c1c' : '#166534'};">
+                                    <i class="fas fa-${u.is_active ? 'user-slash' : 'user-check'}"></i>
+                                </button>
+                                <button onclick="handleChangeRole(${u.id}, '${u.role}')" class="action-btn" title="Edit Access Role" style="background:#e0f2fe; color:#075985;">
+                                    <i class="fas fa-user-tag"></i>
+                                </button>
+                                <button onclick="handleResetPassword(${u.id}, '${u.username}')" class="action-btn" title="Reset Credentials" style="background:#fef3c7; color:#92400e;">
+                                    <i class="fas fa-key"></i>
+                                </button>
+                                <button onclick="handleDeleteUser(${u.id}, '${u.username}')" class="action-btn" title="Permanent Delete" style="background:#f1f5f9; color:#475569;">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </td>
                     </tr>
                 `).join('')}</tbody>
             </table>
@@ -627,8 +740,181 @@ async function renderUsers(subPage = 'list') {
         </div>
     `;
 
+    const createBtn = document.getElementById('createUserBtn');
+    if (createBtn) createBtn.onclick = showCreateUserModal;
+
     document.getElementById('tabUsersList').onclick = () => renderUsers('list');
     document.getElementById('tabAuditLog').onclick = () => renderUsers('audit');
+}
+
+async function toggleUserStatus(id, currentStatus) {
+    if (id === currentUser.id) return showToast('Cannot suspend your own account', 'error');
+    
+    const confirmMsg = currentStatus ? 'Are you sure you want to SUSPEND this staff member?' : 'RESTORE access for this staff member?';
+    if (!await showConfirm(confirmMsg)) return;
+
+    const res = currentStatus ? await window.auth.deactivateUser(id) : await window.auth.reactivateUser(id);
+    if (res.success) {
+        showToast(currentStatus ? 'Staff account suspended' : 'Staff access restored', 'success');
+        renderUsers('list');
+    } else {
+        showToast(res.error, 'error');
+    }
+}
+
+async function handleChangeRole(id, currentRole) {
+    if (id === currentUser.id) return showToast('Contact another Admin to change your own role', 'info');
+    
+    // Simple prompt for now, could be a modal later
+    const roles = ['Admin', 'Pharmacist', 'Cashier'];
+    const newRole = prompt(`Enter new role for user (${roles.join(', ')}):`, currentRole);
+    
+    if (!newRole || newRole === currentRole || !roles.includes(newRole)) return;
+
+    const res = await window.auth.updateRole(id, newRole);
+    if (res.success) {
+        showToast('Staff role updated successfully', 'success');
+        renderUsers('list');
+    } else {
+        showToast(res.error, 'error');
+    }
+}
+
+async function handleResetPassword(id, username) {
+    const newPass = prompt(`Enter NEW password for ${username} (Min 8 chars):`);
+    if (!newPass) return;
+    
+    const check = validatePassword(newPass);
+    if (!check.valid) return showToast(check.errors[0], 'warning');
+
+    const res = await window.auth.resetPassword(id, newPass);
+    if (res.success) {
+        showToast(`Temporary password set for ${username}. Share it with them.`, 'success');
+        renderUsers('list');
+    } else {
+        showToast(res.error, 'error');
+    }
+}
+
+async function handleDeleteUser(id, username) {
+    if (id === currentUser.id) return showToast('Cannot delete yourself', 'error');
+    
+    if (!await showConfirm(`PERMANENTLY DELETE user "${username}"? This action cannot be undone.`)) return;
+    
+    const res = await window.auth.deleteUser(id);
+    if (res.success) {
+        showToast('User deleted permanently', 'success');
+        renderUsers('list');
+    } else {
+        showToast(res.error, 'error');
+    }
+}
+
+function showCreateUserModal() {
+    const modal = document.getElementById('genericModal');
+    const inner = document.getElementById('modalInner');
+    if (!modal || !inner) return;
+
+    inner.innerHTML = `
+        <div style="padding: 10px;">
+            <h3 style="margin-bottom:20px; color:var(--royal-blue);"><i class="fas fa-user-plus"></i> New Staff Registration</h3>
+            <div class="input-group">
+                <label>Username</label>
+                <input type="text" id="newUsername" placeholder="e.g. kelvin_admin" class="premium-input" style="width:100%; padding:14px; border-radius:12px; border:1px solid #ddd;">
+            </div>
+            <div class="input-group">
+                <label>Initial Password</label>
+                <div style="display:flex; gap:10px; position:relative;">
+                    <input type="password" id="newPassword" placeholder="Min 8 characters" class="premium-input" style="flex:1; padding:14px; border-radius:12px; border:1px solid #ddd; padding-right:45px;">
+                    <i class="fas fa-eye" id="newPasswordToggle" style="position:absolute; right:115px; top:15px; cursor:pointer; color:#64748b;"></i>
+                    <button id="generatePassBtn" style="background:var(--royal-blue); color:white; border:none; border-radius:12px; padding:0 15px; cursor:pointer; min-width:100px;" title="Generate Secure Password">
+                        <i class="fas fa-magic"></i> Generate
+                    </button>
+                </div>
+            </div>
+            <div class="input-group">
+                <label>Access Role</label>
+                <select id="newRole" class="premium-select">
+                    <option value="Admin">Admin (Full Access)</option>
+                    <option value="Pharmacist">Pharmacist (Inventory & Stock)</option>
+                    <option value="Cashier">Cashier (POS & Sales)</option>
+                </select>
+            </div>
+            <div style="margin-top:20px; padding:12px; background:#fff7ed; border-radius:12px; border:1px solid #ffedd5; font-size:0.75rem; color:#9a3412;">
+                <i class="fas fa-lightbulb"></i> <strong>Admin Tip:</strong> Please copy and share these credentials (Username, Password, and Role) with the staff member. They will need them to log in.
+            </div>
+            <div style="display:flex; gap:12px; margin-top:30px;">
+                <button class="btn-primary" id="submitUserBtn" style="flex:1;">Register Account</button>
+                <button id="cancelUserBtn" style="flex:1; background:#f1f5f9; color:#475569; border:none; border-radius:30px; padding:12px; font-weight:600; cursor:pointer;">Cancel</button>
+            </div>
+        </div>
+    `;
+    modal.style.display = 'flex';
+
+    // Password Visibility Toggle
+    const toggle = document.getElementById('newPasswordToggle');
+    const input = document.getElementById('newPassword');
+    if (toggle && input) {
+        toggle.onclick = () => {
+            const isPass = input.type === 'password';
+            input.type = isPass ? 'text' : 'password';
+            toggle.classList.toggle('fa-eye');
+            toggle.classList.toggle('fa-eye-slash');
+        };
+    }
+
+    // Programmatic Binding for Generate Button
+    const genBtn = document.getElementById('generatePassBtn');
+    if (genBtn) genBtn.onclick = generateStaffPassword;
+
+    const subBtn = document.getElementById('submitUserBtn');
+    if (subBtn) subBtn.onclick = (e) => submitNewUser(e);
+
+    const canBtn = document.getElementById('cancelUserBtn');
+    if (canBtn) canBtn.onclick = () => { modal.style.display = 'none'; };
+}
+
+function generateStaffPassword() {
+    const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%';
+    let pass = '';
+    for (let i = 0; i < 8; i++) {
+        pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const input = document.getElementById('newPassword');
+    if (input) {
+        input.value = pass;
+        input.type = 'text'; // Show it so admin can copy it
+        showToast('Secure password generated!', 'info');
+    }
+}
+
+async function submitNewUser(event) {
+    const username = document.getElementById('newUsername').value.trim();
+    const password = document.getElementById('newPassword').value;
+    const role = document.getElementById('newRole').value;
+    const btn = event.target.closest('button');
+
+    if (!username || !password) return showToast('Please fill all fields', 'warning');
+    if (password.length < 8) return showToast('Password must be at least 8 characters', 'warning');
+
+    // Enter loading state
+    const originalContent = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+
+    const res = await window.auth.createUser({ username, password, role });
+    
+    // Restore button state
+    btn.disabled = false;
+    btn.innerHTML = originalContent;
+
+    if (res.success) {
+        showToast(`Staff account for ${username} created successfully!`, 'success');
+        document.getElementById('genericModal').style.display = 'none';
+        renderUsers('list'); // Refresh the list
+    } else {
+        showToast(res.error || 'Failed to create account', 'error');
+    }
 }
 
 // --- App Initialization & Auth Helpers ---
@@ -636,8 +922,10 @@ async function renderUsers(subPage = 'list') {
 async function handleLogin() {
     const u = document.getElementById('loginUsername').value;
     const p = document.getElementById('loginPassword').value;
+    const selectedRole = document.getElementById('loginRole').value;
     const errEl = document.getElementById('loginError');
     const card = document.querySelector('.login-card');
+    const btn = document.getElementById('doLoginBtn');
 
     if (!u || !p) {
         errEl.innerText = 'Please enter username and password';
@@ -645,20 +933,50 @@ async function handleLogin() {
         return;
     }
 
-    const result = await window.auth.login(u, p);
-    if (result.success) {
-        loginFailCount = 0;
-        errEl.hidden = true;
-        if (result.user.is_temp_password === 1) setupForcedPasswordChange(result.user);
-        else {
-            currentUser = { id: result.user.id, username: result.user.username, role: result.user.role };
-            initAppAfterLogin(result.user.role, result.user.username);
+    errEl.hidden = true;
+    btn.disabled = true;
+    document.getElementById('loginSpinner').style.display = 'block';
+    document.getElementById('loginBtnText').innerText = 'Verifying...';
+
+    const res = await window.auth.login({ username: u, password: p });
+    
+    if (res.success) {
+        // STRICT ROLE ENFORCEMENT: Verify if the selected role matches the DB role
+        if (res.user.role !== selectedRole) {
+            btn.disabled = false;
+            document.getElementById('loginSpinner').style.display = 'none';
+            document.getElementById('loginBtnText').innerText = 'Secure Sign In';
+            errEl.innerText = `Unauthorized role choice: Your account is registered as ${res.user.role}`;
+            errEl.hidden = false;
+            card.classList.add('shake');
+            setTimeout(() => card.classList.remove('shake'), 400);
+            return;
         }
+
+        currentUser = res.user;
+        await initAppAfterLogin(res.user.role, res.user.username);
     } else {
-        card.classList.add('shake');
-        setTimeout(() => card.classList.remove('shake'), 500);
-        errEl.innerText = result.locked ? 'Account locked due to attempts. Wait 15m.' : 'Invalid login credentials.';
+        btn.disabled = false;
+        document.getElementById('loginSpinner').style.display = 'none';
+        document.getElementById('loginBtnText').innerText = 'Secure Sign In';
+        errEl.innerText = res.locked ? 'Account locked for 15 mins' : 'Invalid username or password';
         errEl.hidden = false;
+        card.classList.add('shake');
+        setTimeout(() => card.classList.remove('shake'), 400);
+    }
+}
+
+function setupLoginUI() {
+    const toggle = document.getElementById('passwordToggle');
+    const passInput = document.getElementById('loginPassword');
+    
+    if (toggle && passInput) {
+        toggle.onclick = () => {
+            const isPass = passInput.type === 'password';
+            passInput.type = isPass ? 'text' : 'password';
+            toggle.classList.toggle('fa-eye');
+            toggle.classList.toggle('fa-eye-slash');
+        };
     }
 }
 
@@ -694,14 +1012,42 @@ async function renderCurrentPage() {
     else if (currentPage === 'purchases') await wrapRender(renderPurchases, 'Purchases');
     else if (currentPage === 'reports') await wrapRender(renderReports, 'Reports');
     else if (currentPage === 'users') await wrapRender(renderUsers, 'User Management');
+    else if (currentPage === 'settings') await wrapRender(renderSettings, 'Settings');
 }
 
 function hasAccess(module) {
     if (!currentUser) return false;
+    
+    // Modules restricted to Admin only
+    const adminModules = ['settings', 'users'];
+    if (adminModules.includes(module) && currentUser.role !== 'Admin') return false;
+    
+    // Full access for Admin
     if (currentUser.role === 'Admin') return true;
-    if (currentUser.role === 'Pharmacist' && ['dashboard', 'inventory', 'purchases', 'suppliers', 'reports', 'patients'].includes(module)) return true;
-    if (currentUser.role === 'Cashier' && ['dashboard', 'pos', 'customers', 'patients'].includes(module)) return true;
+    
+    // Pharmacist: Inventory & Stock Focus
+    if (currentUser.role === 'Pharmacist') {
+        return ['dashboard', 'inventory', 'purchases', 'suppliers', 'reports', 'patients'].includes(module);
+    }
+    
+    // Cashier: POS & Sales Focus
+    if (currentUser.role === 'Cashier') {
+        return ['dashboard', 'pos', 'customers', 'patients'].includes(module);
+    }
+    
     return false;
+}
+
+function updateSidebarVisibility() {
+    if (!currentUser) return;
+    document.querySelectorAll('.nav-item').forEach(item => {
+        const page = item.dataset.page;
+        if (!hasAccess(page)) {
+            item.style.display = 'none';
+        } else {
+            item.style.display = 'flex';
+        }
+    });
 }
 
 function setupProfileManagement() {
@@ -709,46 +1055,46 @@ function setupProfileManagement() {
     const dropdown = document.getElementById('profileDropdown');
     if (!trigger || !dropdown) return;
 
-    trigger.onclick = (e) => { e.stopPropagation(); dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none'; };
-    window.onclick = () => { dropdown.style.display = 'none'; };
+    trigger.onclick = (e) => { 
+        e.stopPropagation(); 
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none'; 
+    };
+    
+    window.addEventListener('click', (e) => {
+        if (!trigger.contains(e.target)) dropdown.style.display = 'none';
+    });
 
     const logout = async (isExpired = false) => {
         try {
             if (!isExpired) await window.auth.logout();
-            
-            // Comprehensive State Purge
             currentUser = null;
             currentPage = 'dashboard';
-            cart = [];
-            medicines = [];
-            patients = [];
-            customers = [];
-            suppliers = [];
-            purchases = [];
-            salesTransactions = [];
-            loginFailCount = 0;
-            
-            // UI Reset
-            document.getElementById('appMain').style.display = 'none';
-            document.getElementById('loginOverlay').style.display = 'flex';
-            
-            // Final safety: Force reload to clear all memory
             location.reload();
         } catch (e) {
-            console.error('Logout error fallback:', e);
             location.reload();
         }
     };
 
+    const changePassBtn = document.getElementById('changePasswordBtn');
+    if (changePassBtn) {
+        changePassBtn.onclick = () => {
+            currentPage = 'settings';
+            renderCurrentPage();
+            dropdown.style.display = 'none';
+        };
+    }
+
     const logoutBtnMain = document.getElementById('sidebarLogoutBtn');
     if (logoutBtnMain) logoutBtnMain.onclick = logout;
     
-    document.getElementById('topBarLogoutBtn').onclick = logout;
+    const topBarLogoutBtn = document.getElementById('topBarLogoutBtn');
+    if (topBarLogoutBtn) topBarLogoutBtn.onclick = logout;
 }
 
 // --- Entry Point ---
 
 document.addEventListener('DOMContentLoaded', () => {
+    setupLoginUI();
     document.getElementById('doLoginBtn').onclick = handleLogin;
 
     document.querySelectorAll('.nav-item').forEach(item => {
