@@ -31,6 +31,14 @@ These modules have been deeply polished, hardened, and are production-ready.
 - **Functionality:** High-performance CRUD UI, Bulk CSV Data Pipelines, Barcode Scanner interception macros, and dynamic Supplier Database synchronization.
 - **Next Bridge:** The backend is fully mapped and waiting for the Purchases module to inject stock increments.
 
+### 6. Purchase & Stock
+- **Status:** Complete
+- **Functionality:** Log Incoming Stock (invoices from suppliers), automatically update the quantities natively in the main Inventory tab via seamless atomic IPC pipelines, auto-calculates total costs, and tracks financial metrics visually.
+
+### 7. Reports & Analytics
+- **Status:** Complete
+- **Functionality:** Business Intelligence Dashboard featuring Sales Reports (with detailed Cash/M-Pesa/Credit payment breakdowns), comprehensive Stock Valuation Reports, temporal Expiry Reports (Flagging < 90 Days alerts), and accurate Profit/Loss estimations tracking Top Performers.
+
 ---
 
 ## 🔴 Not Completed (Requires Immediate Development)
@@ -47,11 +55,3 @@ These are primary tabs dynamically listed in the Navigation Menu but have zero f
 ### 3. Suppliers
 - **Status:** Not Completed
 - **Functionality:** Needs a lightweight directory to store corporate contacts and tracking for where bulk stock is ordered from.
-
-### 4. Purchase & Stock
-- **Status:** Critical / Not Completed
-- **Functionality:** This is the most vital missing bridge. We need a module to log *Incoming Stock* (invoices from suppliers), which should automatically update the quantities in the main Inventory tab.
-
-### 5. Reports & Analytics
-- **Status:** Critical / Not Completed
-- **Functionality:** With POS saving transactions successfully, we desperately need a visual grid to filter sales by date, view profit margins, top-selling items, and export data back to Excel/PDF.

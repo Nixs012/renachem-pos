@@ -39,7 +39,7 @@ function setupConnectivityMonitoring() {
             mpesaOption.style.color = '#ccc';
             const select = document.getElementById('paymentMethod');
             if (select.value === 'M-Pesa') select.value = 'Cash';
-            showToast('Internet disconnected â€” M-Pesa unavailable', 'warning');
+            showToast('Internet disconnected Ã¢â‚¬â€ M-Pesa unavailable', 'warning');
         }
     };
 
@@ -194,11 +194,11 @@ async function renderSettings() {
                 
                 <div class="input-group">
                     <label>New Password</label>
-                    <input type="password" id="set_new_password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢">
+                    <input type="password" id="set_new_password" placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢">
                 </div>
                 <div class="input-group">
                     <label>Confirm New Password</label>
-                    <input type="password" id="set_confirm_password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢">
+                    <input type="password" id="set_confirm_password" placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢">
                 </div>
                 
                 <div id="settingsPassError" style="color: #ef4444; font-size: 0.8rem; margin-bottom: 12px;" hidden></div>
@@ -495,7 +495,7 @@ async function finalizeSale(paymentMethod) {
                     <h3>M-Pesa Timeout</h3>
                     <p>M-Pesa confirmation timed out. Please confirm with customer.</p>
                     <div style="display:flex; flex-direction:column; gap:12px; margin-top:24px;">
-                        <button id="manualPaidBtn" class="btn-primary">Customer Paid â€” Complete Sale</button>
+                        <button id="manualPaidBtn" class="btn-primary">Customer Paid Ã¢â‚¬â€ Complete Sale</button>
                         <button id="manualCancelBtn" style="background:#f1f5f9; border:none; border-radius:30px; padding:12px; cursor:pointer; font-weight:600;">Cancel Sale</button>
                     </div>
                 `;
@@ -706,7 +706,7 @@ async function printReceipt(saleObj, cartItems, format = 'thermal') {
             
             <div class="footer">Thank you for shopping!</div>
             
-            <div class="cut-line">âœ‚ - - - - - - - - - - - - - - - - - - - âœ‚</div>
+            <div class="cut-line">Ã¢Å“â€š - - - - - - - - - - - - - - - - - - - Ã¢Å“â€š</div>
         </body>
         </html>
     `;
@@ -1937,14 +1937,15 @@ async function renderReports(subPage = 'overview') {
     document.getElementById('pageContainer').innerHTML = `
         <div class="view-header">
             <h2><i class="fas fa-chart-pie"></i> Business Intelligence & Reports</h2>
-            <p>Analyze sales performance, inventory health, and financial metrics</p>
+            <p>Analyze sales performance, Stock Report, and financial metrics</p>
         </div>
 
         <div class="tab-container">
             <div class="tab-header" style="margin-bottom: 24px;">
-                <button class="tab-btn ${subPage === 'overview' ? 'active' : ''}" id="tabRev">Financial Overview</button>
-                <button class="tab-btn ${subPage === 'inventory' ? 'active' : ''}" id="tabInv">Inventory Health</button>
-                <button class="tab-btn ${subPage === 'performers' ? 'active' : ''}" id="tabPerf">Top Performers</button>
+                <button class="tab-btn ${subPage === 'overview' ? 'active' : ''}" id="tabRev">Sales Report</button>
+                <button class="tab-btn ${subPage === 'inventory' ? 'active' : ''}" id="tabInv">Stock Report</button>
+                <button class="tab-btn ${subPage === 'expiry' ? 'active' : ''}" id="tabExp">Expiry Report</button>
+                <button class="tab-btn ${subPage === 'profit' ? 'active' : ''}" id="tabProfit">Profit/Loss</button>
                 <button class="tab-btn ${subPage === 'credit' ? 'active' : ''}" id="tabCred">Credit Tracking</button>
             </div>
             <div id="reportContent"></div>
@@ -1954,7 +1955,8 @@ async function renderReports(subPage = 'overview') {
     // Bind Tabs
     document.getElementById('tabRev').onclick = () => renderReports('overview');
     document.getElementById('tabInv').onclick = () => renderReports('inventory');
-    document.getElementById('tabPerf').onclick = () => renderReports('performers');
+    document.getElementById('tabExp').onclick = () => renderReports('expiry');
+    document.getElementById('tabProfit').onclick = () => renderReports('profit');
     document.getElementById('tabCred').onclick = () => renderReports('credit');
 
     const content = document.getElementById('reportContent');
@@ -1967,8 +1969,10 @@ async function renderReports(subPage = 'overview') {
         renderFinancialOverview(content, sales);
     } else if (subPage === 'inventory') {
         renderInventoryHealth(content, medicines);
-    } else if (subPage === 'performers') {
-        renderTopPerformers(content, sales);
+    } else if (subPage === 'expiry') {
+        renderExpiryReport(content, medicines);
+    } else if (subPage === 'profit') {
+        renderProfitLoss(content, sales, medicines);
     } else if (subPage === 'credit') {
         content.innerHTML = `
             <div class="stat-card" style="text-align:center; padding:60px;">
@@ -1996,6 +2000,14 @@ function renderFinancialOverview(container, sales) {
     const totalRev = sales.reduce((s, t) => s + (Number(t.total) || 0), 0);
     const avgSale = sales.length > 0 ? (totalRev / sales.length) : 0;
 
+    let cashCount = 0, mpesaCount = 0, creditCount = 0;
+    sales.forEach(s => {
+        const pMode = (s.payment_mode || '').toLowerCase();
+        if (pMode.includes('cash')) cashCount++;
+        else if (pMode.includes('mpesa') || pMode.includes('m-pesa')) mpesaCount++;
+        else creditCount++;
+    });
+
     container.innerHTML = `
         <div class="stats-grid" style="margin-bottom:24px;">
             <div class="stat-card">
@@ -2011,6 +2023,25 @@ function renderFinancialOverview(container, sales) {
                 <div class="stat-number" style="font-size:1.8rem;">${sales.length}</div>
             </div>
         </div>
+
+        <div class="stat-card" style="margin-bottom:24px;">
+            <h4 style="margin-bottom:16px;">Payment Method Breakdown</h4>
+            <div style="display:flex; gap:16px; flex-wrap:wrap;">
+                <div style="background:#10b981; color:white; padding:12px 24px; border-radius:12px; font-weight:700; flex:1; text-align:center; box-shadow:0 4px 6px -1px rgba(16,185,129,0.2);">
+                    <div style="font-size:1.3rem; margin-bottom:4px;"><i class="fas fa-money-bill-wave"></i> Cash</div>
+                    <div style="font-size:1rem; opacity:0.9;">${cashCount} Transactions</div>
+                </div>
+                <div style="background:#8b5cf6; color:white; padding:12px 24px; border-radius:12px; font-weight:700; flex:1; text-align:center; box-shadow:0 4px 6px -1px rgba(139,92,246,0.2);">
+                    <div style="font-size:1.3rem; margin-bottom:4px;"><i class="fas fa-mobile-alt"></i> M-Pesa</div>
+                    <div style="font-size:1rem; opacity:0.9;">${mpesaCount} Transactions</div>
+                </div>
+                <div style="background:#fbbf24; color:white; padding:12px 24px; border-radius:12px; font-weight:700; flex:1; text-align:center; box-shadow:0 4px 6px -1px rgba(251,191,36,0.2);">
+                    <div style="font-size:1.3rem; margin-bottom:4px;"><i class="fas fa-credit-card"></i> Credit</div>
+                    <div style="font-size:1rem; opacity:0.9;">${creditCount} Transactions</div>
+                </div>
+            </div>
+        </div>
+
         <div class="stat-card">
             <h4>7-Day Revenue Trend</h4>
             <div style="height:350px; margin-top:20px; position:relative;" id="revChartContainer">
@@ -2142,8 +2173,65 @@ function renderInventoryHealth(container, medicines) {
     } catch (e) { console.error(e); }
 }
 
-function renderTopPerformers(container, sales) {
-    // Extract all items sold and count them
+function renderExpiryReport(container, medicines) {
+    const today = new Date();
+    const upcoming = [];
+    const expired = [];
+    
+    medicines.forEach(m => {
+        if (!m.expiry) return;
+        const eDate = new Date(m.expiry);
+        const diffDays = (eDate - today) / (1000 * 60 * 60 * 24);
+        
+        if (diffDays < 0) expired.push(m);
+        else if (diffDays <= 90) upcoming.push(m); // Expires within 3 months
+    });
+
+    container.innerHTML = `
+        <div class="stats-grid" style="margin-bottom:24px;">
+            <div class="stat-card" style="border-left:4px solid #ef4444;">
+                <h4 style="color:#ef4444;"><i class="fas fa-exclamation-triangle"></i> Expired Stock</h4>
+                <div class="stat-number" style="font-size:1.8rem;">${expired.length} Items</div>
+            </div>
+            <div class="stat-card" style="border-left:4px solid #f59e0b;">
+                <h4 style="color:#f59e0b;"><i class="fas fa-clock"></i> Expiring Soon (< 90 Days)</h4>
+                <div class="stat-number" style="font-size:1.8rem;">${upcoming.length} Items</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <h4>Critical Expiry Alerts</h4>
+            <table class="data-table" style="margin-top:16px;">
+                <thead>
+                    <tr style="background:#f8fafc;">
+                        <th>Medicine</th>
+                        <th>Batch Number</th>
+                        <th>Stock Left</th>
+                        <th>Expiry Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${[...expired, ...upcoming].map(m => {
+                        const isExp = new Date(m.expiry) < new Date();
+                        return `
+                        <tr>
+                            <td style="font-weight:700;">${m.name}</td>
+                            <td style="font-family:monospace;">${m.batch}</td>
+                            <td>${m.stock} Units</td>
+                            <td style="font-weight:700; color:${isExp ? '#ef4444': '#f59e0b'};">${m.expiry}</td>
+                            <td><span class="role-pill" style="background:${isExp ? '#fee2e2' : '#fef3c7'}; color:${isExp ? '#b91c1c' : '#92400e'};">${isExp ? 'EXPIRED' : 'Expiring Soon'}</span></td>
+                        </tr>
+                        `;
+                    }).join('') || '<tr><td colspan="5" style="text-align:center; padding:30px;">No critical expiries detected.</td></tr>'}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function renderProfitLoss(container, sales, medicines = []) {
+    // Top Performers Logic ported in (renamed as per specs)
     const itemMap = {};
     sales.forEach(s => {
         try {
@@ -2158,7 +2246,21 @@ function renderTopPerformers(container, sales) {
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10);
 
+    const totalRev = sales.reduce((s, t) => s + (Number(t.total) || 0), 0);
+    // Estimated Margin (rough proxy 30% for quick BI visual until full cost mapping exists)
+    const margin = totalRev * 0.3; 
+
     container.innerHTML = `
+        <div class="stats-grid" style="margin-bottom:24px;">
+             <div class="stat-card" style="background:linear-gradient(135deg, #f8fafc, #f1f5f9);">
+                <h4 style="color:#64748b;">Total Gross Revenue</h4>
+                <div class="stat-number" style="font-size:1.8rem; color:#0f172a;">KES ${totalRev.toLocaleString()}</div>
+            </div>
+            <div class="stat-card" style="background:linear-gradient(135deg, #10b981, #059669); color:white;">
+                <h4 style="opacity:0.9;">Estimated Gross Profit (30% Margin)</h4>
+                <div class="stat-number" style="font-size:1.8rem; color:white;">KES ${margin.toLocaleString(undefined, {minimumFractionDigits:2})}</div>
+            </div>
+        </div>
         <div class="stat-card">
             <h4>Best Selling Products (By Volume)</h4>
             <div style="height:400px; margin-top:20px; position:relative;">
@@ -2222,7 +2324,7 @@ async function renderUsers(subPage = 'list') {
                     <tr>
                         <td style="font-weight:600;">${u.username}</td>
                         <td><span class="role-badge" style="background:#eef2ff; color:var(--royal-blue); border:1px solid #d1d5db; padding: 4px 10px; border-radius:12px; font-size:0.8rem;">${u.role}</span></td>
-                        <td>${u.is_active ? '<span style="color:var(--success); font-weight:600;">â— Active</span>' : '<span style="color:var(--danger); font-weight:600;">â— Suspended</span>'}</td>
+                        <td>${u.is_active ? '<span style="color:var(--success); font-weight:600;">Ã¢â€”Â Active</span>' : '<span style="color:var(--danger); font-weight:600;">Ã¢â€”Â Suspended</span>'}</td>
                         <td style="font-size:0.8rem; color:#64748b;">${new Date(u.created_at).toLocaleDateString()}</td>
                         <td style="text-align:right;">
                             <div style="display:flex; justify-content:flex-end; gap:8px;">
