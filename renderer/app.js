@@ -1937,7 +1937,7 @@ async function renderReports(subPage = 'overview') {
     document.getElementById('pageContainer').innerHTML = `
         <div class="view-header">
             <h2><i class="fas fa-chart-pie"></i> Business Intelligence & Reports</h2>
-            <p>Analyze sales performance, Stock Report, and financial metrics</p>
+            <p>Analyze sales performance, inventory health, and financial metrics</p>
         </div>
 
         <div class="tab-container">
