@@ -2766,10 +2766,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target === modal) modal.style.display = 'none';
     };
 
-    window.addEventListener('sessionExpired', () => {
+    window.addEventListener('sessionExpired', async () => {
         document.getElementById('sessionExpiredModal').style.display = 'flex';
         // Auto-purge state even if they don't click re-login yet
-        logout(true);
+        try {
+            currentUser = null;
+            currentPage = 'dashboard';
+        } catch (e) {}
     });
 
     window.addEventListener('unhandledrejection', event => {
