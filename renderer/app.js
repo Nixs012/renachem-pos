@@ -1,3 +1,15 @@
+window.addEventListener('error', function(e) {
+    let div = document.createElement('div');
+    div.style = 'position:fixed; top:0; left:0; right:0; background:red; color:white; z-index:99999; padding:20px; font-weight:bold; word-wrap:break-word;';
+    div.innerText = 'JS ERROR: ' + e.message + ' at ' + e.filename + ':' + e.lineno;
+    document.body.appendChild(div);
+});
+window.addEventListener('unhandledrejection', function(e) {
+    let div = document.createElement('div');
+    div.style = 'position:fixed; top:50px; left:0; right:0; background:orange; color:white; z-index:99999; padding:20px; font-weight:bold; word-wrap:break-word;';
+    div.innerText = 'PROMISE REJECTION: ' + (e.reason ? (e.reason.message || e.reason) : 'Unknown');
+    document.body.appendChild(div);
+});
 let currentUser = null;
 let currentPage = 'dashboard';
 let cart = [];
@@ -27,7 +39,7 @@ function setupConnectivityMonitoring() {
             mpesaOption.style.color = '#ccc';
             const select = document.getElementById('paymentMethod');
             if (select.value === 'M-Pesa') select.value = 'Cash';
-            showToast('Internet disconnected — M-Pesa unavailable', 'warning');
+            showToast('Internet disconnected â€” M-Pesa unavailable', 'warning');
         }
     };
 
@@ -182,11 +194,11 @@ async function renderSettings() {
                 
                 <div class="input-group">
                     <label>New Password</label>
-                    <input type="password" id="set_new_password" placeholder="••••••••">
+                    <input type="password" id="set_new_password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢">
                 </div>
                 <div class="input-group">
                     <label>Confirm New Password</label>
-                    <input type="password" id="set_confirm_password" placeholder="••••••••">
+                    <input type="password" id="set_confirm_password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢">
                 </div>
                 
                 <div id="settingsPassError" style="color: #ef4444; font-size: 0.8rem; margin-bottom: 12px;" hidden></div>
@@ -483,7 +495,7 @@ async function finalizeSale(paymentMethod) {
                     <h3>M-Pesa Timeout</h3>
                     <p>M-Pesa confirmation timed out. Please confirm with customer.</p>
                     <div style="display:flex; flex-direction:column; gap:12px; margin-top:24px;">
-                        <button id="manualPaidBtn" class="btn-primary">Customer Paid — Complete Sale</button>
+                        <button id="manualPaidBtn" class="btn-primary">Customer Paid â€” Complete Sale</button>
                         <button id="manualCancelBtn" style="background:#f1f5f9; border:none; border-radius:30px; padding:12px; cursor:pointer; font-weight:600;">Cancel Sale</button>
                     </div>
                 `;
@@ -694,7 +706,7 @@ async function printReceipt(saleObj, cartItems, format = 'thermal') {
             
             <div class="footer">Thank you for shopping!</div>
             
-            <div class="cut-line">✂ - - - - - - - - - - - - - - - - - - - ✂</div>
+            <div class="cut-line">âœ‚ - - - - - - - - - - - - - - - - - - - âœ‚</div>
         </body>
         </html>
     `;
@@ -882,7 +894,11 @@ async function renderInventory(searchQuery = '') {
                     <h2><i class="fas fa-capsules"></i> Medicine Inventory</h2>
                     <p>Track stock levels, expiry dates, and pricing</p>
                 </div>
-                <button class="btn-primary" id="addMedBtn"><i class="fas fa-plus"></i> Add New Product</button>
+                <div style="display:flex; gap:12px;">
+                    <button class="btn-primary" id="bulkCsvImportBtn" style="background:#10b981; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);"><i class="fas fa-file-csv"></i> Bulk CSV Import</button>
+                    <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
+                    <button class="btn-primary" id="addMedBtn"><i class="fas fa-plus"></i> Add New Product</button>
+                </div>
             </div>
         </div>
 
@@ -899,11 +915,12 @@ async function renderInventory(searchQuery = '') {
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Product Details</th>
-                        <th>Batch #</th>
-                        <th>Stock Status</th>
-                        <th>Unit Price</th>
+                        <th>Name</th>
+                        <th>Supplier</th>
+                        <th>Stock Qty</th>
+                        <th>Price (KES)</th>
                         <th>Expiry</th>
+                        <th>Barcode</th>
                         <th style="text-align:right;">Actions</th>
                     </tr>
                 </thead>
@@ -916,40 +933,31 @@ async function renderInventory(searchQuery = '') {
 
                         return `
                         <tr>
+                            <td style="font-weight:600; color:var(--slate);">${m.name}</td>
+                            <td style="color:#64748b;">${m.supplier || 'N/A'}</td>
                             <td>
-                                <div style="font-weight:700; color:var(--royal-blue);">${m.name}</div>
-                                <div style="font-size:0.75rem; color:#64748b;">ID: ${m.id}</div>
+                                <span style="font-weight:700; color:${m.stock <= m.reorder_level ? 'var(--danger)' : 'var(--emerald)'};">${m.stock}</span>
                             </td>
-                            <td><span style="font-family:monospace; font-weight:600;">${m.batch || 'N/A'}</span></td>
+                            <td style="font-weight:700;">KES ${Number(m.price).toFixed(2)}</td>
                             <td>
-                                <div style="display:flex; align-items:center; gap:8px;">
-                                    <span style="font-weight:700;">${m.stock}</span>
-                                    ${isLow ? `<span class="alert-badge" title="Low Stock"><i class="fas fa-arrow-down"></i> LOW</span>` : ''}
-                                </div>
-                                <div style="height:4px; width:60px; background:#e2e8f0; border-radius:2px; margin-top:4px;">
-                                    <div style="height:100%; width:${Math.min((m.stock/50)*100, 100)}%; background:${isLow ? 'var(--danger)' : 'var(--emerald)'}; border-radius:2px;"></div>
-                                </div>
-                            </td>
-                            <td style="font-weight:600;">KES ${Number(m.price).toFixed(2)}</td>
-                            <td>
-                                <span style="font-weight:500; color:${isExpired ? 'var(--danger)' : (isNearExpiry ? 'var(--warning)' : 'inherit')};">
+                                <span style="color:${isExpired ? 'var(--danger)' : (isNearExpiry ? 'var(--warning)' : '#64748b')}; font-weight:500;">
                                     ${m.expiry || 'N/A'}
                                 </span>
-                                ${isExpired ? '<div style="font-size:0.6rem; color:var(--danger); font-weight:800;">EXPIRED</div>' : ''}
                             </td>
+                            <td style="font-family:monospace; color:#475569;">${m.barcode || 'N/A'}</td>
                             <td style="text-align:right;">
                                 <div style="display:flex; justify-content:flex-end; gap:8px;">
-                                    <button onclick="handleEditMedicine('${m.id}')" class="action-btn" style="background:#e0f2fe; color:#075985;" title="Edit Product">
+                                    <button class="action-btn edit-med-btn" data-id="${m.id}" style="background:#e0f2fe; color:#075985;" title="Edit Product">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button onclick="handleDeleteMedicine('${m.id}', '${m.name.replace(/'/g, "\\'")}')" class="action-btn" style="background:#fee2e2; color:#b91c1c;" title="Delete Product">
+                                    <button class="action-btn delete-med-btn" data-id="${m.id}" data-name="${m.name.replace(/"/g, '&quot;')}" style="background:#fee2e2; color:#b91c1c;" title="Delete Product">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
                                 </div>
                             </td>
                         </tr>
                         `;
-                    }).join('') : '<tr><td colspan="6" style="text-align:center; padding:40px; color:#64748b;">No medicines found matching your search.</td></tr>'}
+                    }).join('') : '<tr><td colspan="7" style="text-align:center; padding:40px; color:#64748b;">No medicines found matching your search.</td></tr>'}
                 </tbody>
             </table>
         </div>
@@ -957,26 +965,100 @@ async function renderInventory(searchQuery = '') {
 
     // Bind Search
     const searchInput = document.getElementById('medSearch');
-    searchInput && (searchInput.oninput = (e) => {
-        clearTimeout(window.medSearchTimer);
-        window.medSearchTimer = setTimeout(() => {
-            renderInventory(e.target.value);
-        }, 300);
+    if (searchInput) {
+        if (!searchInput.dataset.bound) {
+            searchInput.dataset.bound = "true";
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(window.medSearchTimer);
+                window.medSearchTimer = setTimeout(() => {
+                    renderInventory(e.target.value);
+                }, 300);
+            });
+        }
+        searchInput.focus();
+        try { searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length); } catch(e){}
+    }
+
+    // Explicitly bind Edit/Delete buttons
+    document.querySelectorAll('.edit-med-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const id = e.currentTarget.getAttribute('data-id');
+            showMedicineModal(id);
+        });
     });
-    // Autofocus to end of text
-    searchInput && searchInput.focus();
-    searchInput && searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+
+    document.querySelectorAll('.delete-med-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const id = e.currentTarget.getAttribute('data-id');
+            const name = e.currentTarget.getAttribute('data-name');
+            handleDeleteMedicine(id, name);
+        });
+    });
 
     // Bind Add Button
     document.getElementById('addMedBtn').onclick = () => showMedicineModal();
+    
+    // Bind Bulk Import Button
+    const bulkImportBtn = document.getElementById('bulkCsvImportBtn');
+    const csvInput = document.getElementById('csvFileInput');
+    if (bulkImportBtn && csvInput) {
+        bulkImportBtn.onclick = () => csvInput.click();
+        csvInput.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                const csvData = ev.target.result;
+                const rows = csvData.split('\n').map(row => row.trim()).filter(row => row.length > 0);
+                if (rows.length < 2) return showToast('CSV is empty or missing data', 'warning');
+                
+                const medsToImport = [];
+                // Assumed Order: Name, Supplier, Batch, Expiry, Stock, ReorderLevel, Price, Barcode
+                for (let i = 1; i < rows.length; i++) { 
+                    const cols = rows[i].split(',');
+                    if (cols.length >= 1 && cols[0].trim() !== '') {
+                        medsToImport.push({
+                            name: cols[0]?.trim(),
+                            supplier: cols[1]?.trim() || '',
+                            batch: cols[2]?.trim() || '',
+                            expiry: cols[3]?.trim() || '',
+                            stock: parseInt(cols[4]) || 0,
+                            reorder_level: parseInt(cols[5]) || 10,
+                            price: parseFloat(cols[6]) || 0,
+                            barcode: cols[7]?.trim() || ''
+                        });
+                    }
+                }
+                
+                if (medsToImport.length > 0) {
+                    const res = await window.db.bulkAddMedicines(medsToImport);
+                    if (res && res.success) {
+                        showToast(`Successfully imported ${res.count} items!`, 'success');
+                        renderInventory();
+                    } else {
+                        showToast(`Bulk import failed: ${res ? res.error : 'IPC Error'}`, 'error');
+                    }
+                }
+            };
+            reader.readAsText(file);
+        };
+    }
 }
 
 async function showMedicineModal(id = null) {
-    let med = { name: '', batch: '', expiry: '', stock: 0, reorder_level: 10, price: 0, barcode: '' };
-    if (id) {
-        const res = await window.db.getMedicines();
-        med = res.data.find(m => m.id === id);
-    }
+    try {
+        let med = { name: '', supplier: '', batch: '', expiry: '', stock: 0, reorder_level: 10, price: 0, barcode: '' };
+        if (id) {
+            const res = await window.db.getMedicines();
+            med = res.data.find(m => m.id === id);
+        }
+
+        const supRes = await window.db.getSuppliers();
+        const suppliers = supRes && supRes.success ? supRes.data : [];
+        let supOptions = `<option value="">-- Select Supplier --</option>`;
+        suppliers.forEach(s => {
+            supOptions += `<option value="${s.name}" ${med.supplier === s.name ? 'selected' : ''}>${s.name}</option>`;
+        });
 
     const modal = document.getElementById('genericModal');
     const inner = document.getElementById('modalInner');
@@ -990,8 +1072,20 @@ async function showMedicineModal(id = null) {
                 <input type="text" id="modal_m_name" value="${med.name}" class="premium-input" placeholder="e.g. Paracetamol 500mg">
             </div>
             <div class="input-group">
-                <label>Batch Number</label>
-                <input type="text" id="modal_m_batch" value="${med.batch}" class="premium-input" placeholder="e.g. B2301">
+                <label>Supplier Name</label>
+                <select id="modal_m_supplier" class="premium-select" style="width:100%; border-radius:12px; border:1px solid #cbd5e1; padding:12px 16px; font-weight:500;">
+                    ${supOptions}
+                </select>
+            </div>
+        </div>
+        <div class="form-grid">
+            <div class="input-group">
+                <label>Quantity (Current Stock)</label>
+                <input type="number" id="modal_m_stock" value="${med.stock}" class="premium-input">
+            </div>
+            <div class="input-group">
+                <label>Price (KES)</label>
+                <input type="number" step="0.01" id="modal_m_price" value="${med.price}" class="premium-input">
             </div>
         </div>
         <div class="form-grid">
@@ -1000,38 +1094,44 @@ async function showMedicineModal(id = null) {
                 <input type="date" id="modal_m_expiry" value="${med.expiry}" class="premium-input">
             </div>
             <div class="input-group">
-                <label>Unit Price (KES)</label>
-                <input type="number" step="0.01" id="modal_m_price" value="${med.price}" class="premium-input">
-            </div>
-        </div>
-        <div class="form-grid">
-            <div class="input-group">
-                <label>Current Stock</label>
-                <input type="number" id="modal_m_stock" value="${med.stock}" class="premium-input">
-            </div>
-            <div class="input-group">
-                <label>Reorder Level</label>
+                <label>Reorder Level (Alert when below)</label>
                 <input type="number" id="modal_m_reorder" value="${med.reorder_level}" class="premium-input">
             </div>
         </div>
+
         <div class="input-group">
             <label>Barcode / SKU</label>
             <input type="text" id="modal_m_barcode" value="${med.barcode || ''}" class="premium-input">
         </div>
         
         <div style="display:flex; gap:12px; margin-top:32px;">
-            <button class="btn-primary" id="modalSaveMed" style="flex:1;">
+            <button class="btn-primary" id="modalSaveMedBtn" style="flex:1;">
                 <i class="fas fa-save"></i> ${id ? 'Update Product' : 'Save Product'}
             </button>
-            <button class="btn-primary" style="flex:1; background:#f1f5f9; color:#475569;" onclick="document.getElementById('genericModal').style.display='none'">Cancel</button>
+            <button class="btn-primary" id="modalCancelMedBtn" style="flex:1; background:#f1f5f9; color:#475569;">Cancel</button>
         </div>
     `;
     modal.style.display = 'flex';
 
-    document.getElementById('modalSaveMed').onclick = async () => {
-        const data = {
+    // Explicitly bind the Cancel Button
+    const cancelBtn = document.getElementById('modalCancelMedBtn');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            modal.style.display = 'none';
+        });
+    }
+
+    // Explicitly bind the Save Button
+    const saveBtn = document.getElementById('modalSaveMedBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                const data = {
             name: document.getElementById('modal_m_name').value,
-            batch: document.getElementById('modal_m_batch').value,
+            supplier: document.getElementById('modal_m_supplier').value,
+            batch: document.getElementById('modal_m_barcode').value, // Fallback batch to barcode since batch input was removed dynamically
             expiry: document.getElementById('modal_m_expiry').value,
             price: parseFloat(document.getElementById('modal_m_price').value) || 0,
             stock: parseInt(document.getElementById('modal_m_stock').value) || 0,
@@ -1041,21 +1141,43 @@ async function showMedicineModal(id = null) {
 
         if (!data.name) return showToast('Product name is required', 'warning');
 
-        let res;
-        if (id) {
-            res = await window.db.updateMedicine(id, data);
-        } else {
-            res = await window.db.addMedicine(data);
-        }
+                let res;
+                if (id) {
+                    res = await window.db.updateMedicine(id, data);
+                } else {
+                    res = await window.db.addMedicine(data);
+                }
 
-        if (res.success) {
-            showToast(`Product ${id ? 'updated' : 'added'} successfully`, 'success');
-            modal.style.display = 'none';
-            renderInventory();
-        } else {
-            showToast(res.error, 'error');
+                if (res && res.success) {
+                    showToast(`Product ${id ? 'updated' : 'added'} successfully`, 'success');
+                    modal.style.display = 'none';
+                    renderInventory();
+                } else {
+                    showToast(res ? res.error : "Unknown IPC failure", 'error');
+                }
+            } catch (innerError) {
+                console.error(innerError);
+                showToast("Save failed: " + innerError.message, 'error');
+            }
+        });
+
+        // Global Modal Enter Key Macro (Barcode Scanner Pipeline Setup)
+        const activeModalInner = document.getElementById('modalInner');
+        if (activeModalInner && !activeModalInner.dataset.barcodeBound) {
+            activeModalInner.dataset.barcodeBound = "true";
+            activeModalInner.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    // Modern barcode scanners emit numbers rapidly followed by Enter.
+                    // This seamlessly intercepts the payload when inside the modal!
+                    e.preventDefault();
+                    saveBtn.click();
+                }
+            });
         }
-    };
+    }
+    } catch (err) {
+        alert("MODAL ERROR: " + err.message);
+    }
 }
 
 window.handleEditMedicine = (id) => showMedicineModal(id);
@@ -1656,28 +1778,33 @@ async function renderPurchases() {
             </div>
         </div>
 
-        <div class="stat-card">
-            <h3>Recent Intake History</h3>
+        <div class="stat-card" style="padding:0; overflow:hidden;">
             <table class="data-table">
                 <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Medicine</th>
-                        <th>Batch</th>
-                        <th>Qty Added</th>
-                        <th>Status</th>
+                    <tr style="background: linear-gradient(90deg, #06b6d4, #0ea5e9); font-size:16px;">
+                        <th style="color:#ffffff; font-weight:700; border-top-left-radius:16px;">Medicine</th>
+                        <th style="color:#ffffff; font-weight:700;">Supplier</th>
+                        <th style="color:#ffffff; font-weight:700;">Quantity</th>
+                        <th style="color:#ffffff; font-weight:700;">Unit Price</th>
+                        <th style="color:#ffffff; font-weight:700;">Total Cost</th>
+                        <th style="color:#ffffff; font-weight:700; border-top-right-radius:16px; text-align:right;">Date</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${purchases.length > 0 ? purchases.slice(-15).reverse().map(p => `
+                    ${purchases.length > 0 ? purchases.slice(-15).reverse().map(p => {
+                        const unitP = Number(p.unit_price || 0).toFixed(2);
+                        const totalC = Number(p.total_cost || 0).toFixed(2);
+                        return `
                         <tr>
-                            <td>${p.date}</td>
-                            <td style="font-weight:700;">${p.med_name}</td>
-                            <td style="font-family:monospace;">${p.batch}</td>
-                            <td style="color:var(--emerald); font-weight:700;">+ ${p.qty} Units</td>
-                            <td><span class="audit-badge audit-success">Received</span></td>
+                            <td style="font-weight:700; border-bottom:1px solid #f1f5f9;">${p.med_name}</td>
+                            <td style="color:#64748b; border-bottom:1px solid #f1f5f9;">${p.supplier || 'N/A'}</td>
+                            <td style="color:var(--emerald); font-weight:700; border-bottom:1px solid #f1f5f9;">+ ${p.qty} Units</td>
+                            <td style="border-bottom:1px solid #f1f5f9;">KES ${unitP}</td>
+                            <td style="font-weight:700; color:var(--royal-blue); border-bottom:1px solid #f1f5f9;">KES ${totalC}</td>
+                            <td style="color:#94a3b8; text-align:right; border-bottom:1px solid #f1f5f9;">${p.date}</td>
                         </tr>
-                    `).join('') : '<tr><td colspan="5" style="text-align:center; padding:40px;">No recent purchases recorded.</td></tr>'}
+                        `;
+                    }).join('') : '<tr><td colspan="6" style="text-align:center; padding:40px; color:#64748b;">No recent purchases recorded.</td></tr>'}
                 </tbody>
             </table>
         </div>
@@ -1698,64 +1825,111 @@ async function showIntakeModal() {
         <h3 style="margin-bottom:24px; color:var(--royal-blue);"><i class="fas fa-dolly-flatbed"></i> New Stock Intake</h3>
         <div class="input-group">
             <label>Select Medicine</label>
-            <select id="intake_med" class="premium-select">
+            <select id="intake_med" class="premium-select" style="width:100%;">
                 <option value="">-- Choose Product --</option>
                 ${medicines.map(m => `<option value="${m.id}" data-name="${m.name}" data-batch="${m.batch}">${m.name} (${m.batch})</option>`).join('')}
             </select>
         </div>
-        <div class="input-group">
-            <label>Quantity to Add</label>
-            <input type="number" id="intake_qty" class="premium-input" placeholder="Enter amount received">
+        <div class="form-grid">
+            <div class="input-group">
+                <label>Quantity to Receive</label>
+                <input type="number" id="intake_qty" class="premium-input" placeholder="e.g. 50">
+            </div>
+            <div class="input-group">
+                <label>Supplier</label>
+                <select id="intake_sup" class="premium-select" style="width:100%;">
+                    <option value="">-- Select Supplier --</option>
+                    ${suppliers.map(s => `<option value="${s.name}">${s.name}</option>`).join('')}
+                </select>
+            </div>
         </div>
-        <div class="input-group">
-            <label>Supplier (Optional)</label>
-            <select id="intake_sup" class="premium-select">
-                <option value="">-- Select Supplier --</option>
-                ${suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
-            </select>
+        <div class="form-grid">
+            <div class="input-group">
+                <label>Unit Price (KES)</label>
+                <input type="number" step="0.01" id="intake_price" class="premium-input" placeholder="e.g. 10.00">
+            </div>
+            <div class="input-group">
+                <label>Total Cost (KES)</label>
+                <input type="number" id="intake_total" class="premium-input" style="background:#f1f5f9; color:#0f172a; font-weight:800;" readonly placeholder="Auto-calculates">
+            </div>
         </div>
         
         <div style="display:flex; gap:12px; margin-top:32px;">
-            <button class="btn-primary" id="modalSaveIntake" style="flex:1;">Receive Stock</button>
-            <button class="btn-primary" style="flex:1; background:#f1f5f9; color:#475569;" onclick="document.getElementById('genericModal').style.display='none'">Cancel</button>
+            <button class="btn-primary" id="intakeModalSaveBtn" style="flex:1;"><i class="fas fa-check-circle"></i> Log Intake</button>
+            <button class="btn-primary" id="intakeModalCancelBtn" style="flex:1; background:#f1f5f9; color:#475569;">Cancel</button>
         </div>
     `;
     modal.style.display = 'flex';
 
-    document.getElementById('modalSaveIntake').onclick = async () => {
-        const medId = document.getElementById('intake_med').value;
-        const qty = parseInt(document.getElementById('intake_qty').value);
-        const medSelect = document.getElementById('intake_med');
-        const medOption = medSelect.options[medSelect.selectedIndex];
-
-        if (!medId || !qty || qty <= 0) return showToast('Please select a medicine and enter a valid quantity', 'warning');
-
-        // Logic: Add to purchases table AND update medicine stock
-        const freshMeds = await window.db.getMedicines();
-        const med = freshMeds.data.find(m => m.id === medId);
-        
-        if (med) {
-            // Update stock
-            const newStock = med.stock + qty;
-            const updateRes = await window.db.updateMedicine(medId, { ...med, stock: newStock });
-            
-            if (updateRes.success) {
-                // Record purchase
-                await window.db.addPurchase({
-                    med_name: med.name,
-                    batch: med.batch,
-                    qty: qty,
-                    date: new Date().toISOString().slice(0, 10)
-                });
-
-                showToast(`Stock updated! Added ${qty} units to ${med.name}.`, 'success');
-                modal.style.display = 'none';
-                renderPurchases();
-            } else {
-                showToast(updateRes.error, 'error');
-            }
-        }
+    const qtyInput = document.getElementById('intake_qty');
+    const priceInput = document.getElementById('intake_price');
+    const totalInput = document.getElementById('intake_total');
+    
+    const updateCalc = () => {
+        const q = parseFloat(qtyInput.value) || 0;
+        const p = parseFloat(priceInput.value) || 0;
+        totalInput.value = (q * p).toFixed(2);
     };
+    
+    if (qtyInput) qtyInput.addEventListener('input', updateCalc);
+    if (priceInput) priceInput.addEventListener('input', updateCalc);
+
+    const cancelBtn = document.getElementById('intakeModalCancelBtn');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            modal.style.display = 'none';
+        });
+    }
+
+    const saveBtn = document.getElementById('intakeModalSaveBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                const medId = document.getElementById('intake_med').value;
+                const qty = parseInt(document.getElementById('intake_qty').value);
+                const supInput = document.getElementById('intake_sup').value;
+                const unitP = parseFloat(document.getElementById('intake_price').value) || 0;
+                const totalC = parseFloat(document.getElementById('intake_total').value) || 0;
+                
+                if (!medId || !qty || qty <= 0) return showToast('Please select a medicine and enter a valid quantity', 'warning');
+
+                const freshMeds = await window.db.getMedicines();
+                const med = freshMeds.data.find(m => m.id === medId);
+                
+                if (med) {
+                    const newStock = med.stock + qty;
+                    const updateRes = await window.db.updateMedicine(medId, { ...med, stock: newStock });
+                    
+                    if (updateRes.success) {
+                        const purRes = await window.db.addPurchase({
+                            med_name: med.name,
+                            batch: med.batch,
+                            qty: qty,
+                            date: new Date().toISOString().slice(0, 10),
+                            supplier: supInput,
+                            unit_price: unitP,
+                            total_cost: totalC
+                        });
+
+                        if (purRes && purRes.success) {
+                            showToast(`Stock updated! Added ${qty} units to ${med.name}.`, 'success');
+                            modal.style.display = 'none';
+                            renderPurchases();
+                        } else {
+                            showToast("Purchase logged failed: " + (purRes ? purRes.error : "Unknown IPC"), 'error');
+                        }
+                    } else {
+                        showToast(updateRes.error, 'error');
+                    }
+                }
+            } catch (err) {
+                console.error("Intake Error:", err);
+                showToast("Intake crashed: " + err.message, 'error');
+            }
+        });
+    }
 }
 async function renderReports(subPage = 'overview') {
     if (!hasAccess('reports')) return document.getElementById('pageContainer').innerHTML = '<div class="stat-card">Access Denied</div>';
@@ -2048,7 +2222,7 @@ async function renderUsers(subPage = 'list') {
                     <tr>
                         <td style="font-weight:600;">${u.username}</td>
                         <td><span class="role-badge" style="background:#eef2ff; color:var(--royal-blue); border:1px solid #d1d5db; padding: 4px 10px; border-radius:12px; font-size:0.8rem;">${u.role}</span></td>
-                        <td>${u.is_active ? '<span style="color:var(--success); font-weight:600;">● Active</span>' : '<span style="color:var(--danger); font-weight:600;">● Suspended</span>'}</td>
+                        <td>${u.is_active ? '<span style="color:var(--success); font-weight:600;">â— Active</span>' : '<span style="color:var(--danger); font-weight:600;">â— Suspended</span>'}</td>
                         <td style="font-size:0.8rem; color:#64748b;">${new Date(u.created_at).toLocaleDateString()}</td>
                         <td style="text-align:right;">
                             <div style="display:flex; justify-content:flex-end; gap:8px;">
@@ -2565,3 +2739,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+

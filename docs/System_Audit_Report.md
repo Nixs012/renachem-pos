@@ -26,15 +26,10 @@ These modules have been deeply polished, hardened, and are production-ready.
 - **Status:** Complete
 - **Functionality:** Global configurations are actively mutating system state (e.g., Pharmacy Name, M-Pesa Keys, Contact Details).
 
----
-
-## 🟡 Partially Completed (Needs Attention)
-These modules work functionally but lack advanced feature completion.
-
-### 1. Inventory (Medicines)
-- **Status:** Partial
-- **Functionality:** CRUD operations (add, edit, delete drugs) are working.
-- **Critical Needs Attention:** We need to link the Inventory directly to the **Purchases** module (so stock automatically increases when a purchase invoice is logged) rather than just manual overrides. We also need bulk CSV importing for rapid deployment.
+### 5. Inventory (Medicines)
+- **Status:** Complete (Fully Overhauled)
+- **Functionality:** High-performance CRUD UI, Bulk CSV Data Pipelines, Barcode Scanner interception macros, and dynamic Supplier Database synchronization.
+- **Next Bridge:** The backend is fully mapped and waiting for the Purchases module to inject stock increments.
 
 ---
 

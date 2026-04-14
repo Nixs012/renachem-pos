@@ -108,6 +108,13 @@ const db = {
             return { success: false, error: error.message };
         }
     },
+    bulkAddMedicines: async (medicinesArray) => {
+        try {
+            return await ipcRenderer.invoke('db:bulkAddMedicines', sessionToken, medicinesArray);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
     deleteMedicine: async (id) => {
         try {
             return await ipcRenderer.invoke('db:deleteMedicine', sessionToken, id);

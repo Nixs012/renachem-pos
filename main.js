@@ -320,6 +320,14 @@ ipcMain.handle('db:addMedicine', wrapHandler(async (event, t, data) => {
     if (res.success) db.insertAuditLog(currentSessionUserId, null, 'MEDICINE_ADDED', 'INVENTORY', `Added medicine: ${data.name}`);
     return res;
 }));
+
+ipcMain.handle('db:bulkAddMedicines', wrapHandler(async (event, t, medicinesArray) => {
+    if (!Array.isArray(medicinesArray) || medicinesArray.length === 0) throw new Error('Invalid bulk data');
+    const res = db.bulkAddMedicines(medicinesArray);
+    if (res.success) db.insertAuditLog(currentSessionUserId, null, 'BULK_MEDICINE_ADDED', 'INVENTORY', `Bulk imported ${res.count} inventory items`);
+    return res;
+}));
+
 ipcMain.handle('db:updateMedicine', wrapHandler(async (event, t, id, data) => {
     db.insertAuditLog(currentSessionUserId, null, 'MEDICINE_EDITED', 'INVENTORY', `Updated medicine ID: ${id}`);
     return db.updateMedicine(id, data);

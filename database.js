@@ -46,7 +46,8 @@ function initialize() {
 
             CREATE TABLE IF NOT EXISTS medicines (
                 id TEXT PRIMARY KEY, 
-                name TEXT NOT NULL, 
+                name TEXT NOT NULL,
+                supplier TEXT, 
                 batch TEXT, 
                 expiry TEXT, 
                 stock INTEGER DEFAULT 0, 
@@ -132,6 +133,22 @@ function initialize() {
             db.prepare("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'Cashier'").run();
             // Special Case: Update default admin to Admin role
             db.prepare("UPDATE users SET role = 'Admin' WHERE username = 'admin'").run();
+        }
+
+        const medTableInfo = db.prepare("PRAGMA table_info('medicines')").all();
+        const hasSupplierColumn = medTableInfo.some(col => col.name === 'supplier');
+        if (!hasSupplierColumn) {
+            console.log('MIGRATION: Adding supplier column to medicines table');
+            db.prepare("ALTER TABLE medicines ADD COLUMN supplier TEXT DEFAULT ''").run();
+        }
+
+        const purTableInfo = db.prepare("PRAGMA table_info('purchases')").all();
+        const hasUnitPrice = purTableInfo.some(col => col.name === 'unit_price');
+        if (!hasUnitPrice) {
+            console.log('MIGRATION: Hardening purchases table with financial metrics');
+            db.prepare("ALTER TABLE purchases ADD COLUMN supplier TEXT DEFAULT ''").run();
+            db.prepare("ALTER TABLE purchases ADD COLUMN unit_price REAL DEFAULT 0").run();
+            db.prepare("ALTER TABLE purchases ADD COLUMN total_cost REAL DEFAULT 0").run();
         }
 
         // Seed Data
@@ -362,11 +379,11 @@ function getMedicines() {
 
 function addMedicine(data) {
     try {
-        const id = Date.now().toString();
+        const id = Date.now().toString() + Math.random().toString(36).substr(2, 4);
         db.prepare(`
-            INSERT INTO medicines (id, name, batch, expiry, stock, reorder_level, price, barcode)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(id, data.name, data.batch, data.expiry, data.stock || 0, data.reorder_level || 10, data.price || 0, data.barcode);
+            INSERT INTO medicines (id, name, supplier, batch, expiry, stock, reorder_level, price, barcode)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(id, data.name, data.supplier || '', data.batch, data.expiry, data.stock || 0, data.reorder_level || 10, data.price || 0, data.barcode);
         return { success: true, id };
     } catch (error) {
         return { success: false, error: error.message };
@@ -377,10 +394,32 @@ function updateMedicine(id, data) {
     try {
         db.prepare(`
             UPDATE medicines 
-            SET name = ?, batch = ?, expiry = ?, stock = ?, reorder_level = ?, price = ?, barcode = ?
+            SET name = ?, supplier = ?, batch = ?, expiry = ?, stock = ?, reorder_level = ?, price = ?, barcode = ?
             WHERE id = ?
-        `).run(data.name, data.batch, data.expiry, data.stock, data.reorder_level, data.price, data.barcode, id);
+        `).run(data.name, data.supplier || '', data.batch, data.expiry, data.stock, data.reorder_level, data.price, data.barcode, id);
         return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function bulkAddMedicines(medicinesArray) {
+    try {
+        const insert = db.prepare(`
+            INSERT INTO medicines (id, name, supplier, batch, expiry, stock, reorder_level, price, barcode)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        const insertMany = db.transaction((meds) => {
+            let count = 0;
+            for (const data of meds) {
+                const id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+                insert.run(id, data.name, data.supplier || '', data.batch || '', data.expiry || '', data.stock || 0, data.reorder_level || 10, data.price || 0, data.barcode || '');
+                count++;
+            }
+            return count;
+        });
+        const count = insertMany(medicinesArray);
+        return { success: true, count };
     } catch (error) {
         return { success: false, error: error.message };
     }
@@ -532,9 +571,17 @@ function getPurchases() {
 function addPurchase(data) {
     try {
         const result = db.prepare(`
-            INSERT INTO purchases (med_name, batch, qty, date)
-            VALUES (?, ?, ?, ?)
-        `).run(data.med_name, data.batch, data.qty, data.date);
+            INSERT INTO purchases (med_name, batch, qty, date, supplier, unit_price, total_cost)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(
+            data.med_name, 
+            data.batch, 
+            data.qty, 
+            data.date, 
+            data.supplier || '', 
+            data.unit_price || 0, 
+            data.total_cost || 0
+        );
         return { success: true, id: result.lastInsertRowid };
     } catch (error) {
         return { success: false, error: error.message };
@@ -690,6 +737,7 @@ module.exports = {
     getMedicines,
     addMedicine,
     updateMedicine,
+    bulkAddMedicines,
     deleteMedicine,
     getPatients,
     addPatient,
