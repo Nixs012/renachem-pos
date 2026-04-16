@@ -863,23 +863,37 @@ async function renderDashboard() {
     });
 }
 
-async function renderInventory(searchQuery = '') {
+async function renderInventory(searchQuery = '', filterType = '') {
     if (!hasAccess('inventory')) return document.getElementById('pageContainer').innerHTML = '<div class="stat-card">Access Denied</div>';
     
     // Fetch fresh data
     const res = await window.db.getMedicines();
     let medicines = res.data || [];
 
+    // Apply Filter Logic
+    const today = new Date();
+    const forecast90 = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+    if (filterType === 'expired') {
+        medicines = medicines.filter(m => m.expiry && new Date(m.expiry) < today);
+    } else if (filterType === 'expiring') {
+        medicines = medicines.filter(m => m.expiry && new Date(m.expiry) >= today && new Date(m.expiry) <= forecast90);
+    } else if (filterType === 'lowStock') {
+        medicines = medicines.filter(m => m.stock <= (m.reorder_level || 10));
+    }
+
     // Filter if search query exists
     if (searchQuery) {
         medicines = filterTable(searchQuery, medicines, ['name', 'batch', 'barcode']);
     }
 
+    const filterTitle = filterType ? ` (Filtered: ${filterType === 'lowStock' ? 'Low Stock' : filterType.charAt(0).toUpperCase() + filterType.slice(1)})` : '';
+
     document.getElementById('pageContainer').innerHTML = `
         <div class="view-header">
             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                 <div>
-                    <h2><i class="fas fa-capsules"></i> Medicine Inventory</h2>
+                    <h2><i class="fas fa-capsules"></i> Medicine Inventory${filterTitle}</h2>
                     <p>Track stock levels, expiry dates, and pricing</p>
                 </div>
                 <div style="display:flex; gap:12px;">
@@ -936,6 +950,9 @@ async function renderInventory(searchQuery = '') {
                             <td style="font-family:monospace; color:#475569;">${m.barcode || 'N/A'}</td>
                             <td style="text-align:right; padding-right:16px;">
                                 <div style="display:flex; justify-content:flex-end; gap:8px;">
+                                    <button class="action-btn-refined btn-icon-view" onclick="showSupplierRecallModal('${m.name.replace(/'/g, "\\'")}', '${(m.supplier || '').replace(/'/g, "\\'")}')" title="Contact Supplier">
+                                        <i class="fas fa-envelope-open-text"></i>
+                                    </button>
                                     <button class="action-btn-refined btn-icon-edit edit-med-btn" data-id="${m.id}" title="Edit Product">
                                         <i class="fas fa-pencil-alt"></i>
                                     </button>
@@ -2402,20 +2419,20 @@ function renderInventoryHealth(container, medicines) {
 
     container.innerHTML = `
         <div class="stats-grid" style="margin-bottom:24px;">
-            <div class="stat-card" style="border-left: 4px solid var(--danger);">
+            <div class="stat-card clickable-card" style="border-left: 4px solid var(--danger);" onclick="jumpToInventoryWithFilter('expired')">
                 <h4 style="color:var(--danger);">Expired Stock</h4>
                 <div class="stat-number">${expired.length}</div>
-                <p style="font-size:0.75rem; color:#64748b;">Remove from shelves immediately</p>
+                <p style="font-size:0.75rem; color:#64748b;"><i class="fas fa-arrow-right"></i> Remove from shelves</p>
             </div>
-            <div class="stat-card" style="border-left: 4px solid var(--warning);">
+            <div class="stat-card clickable-card" style="border-left: 4px solid var(--warning);" onclick="jumpToInventoryWithFilter('expiring')">
                 <h4 style="color:var(--warning);">Expiring < 90 Days</h4>
                 <div class="stat-number">${expiringSoon.length}</div>
-                <p style="font-size:0.75rem; color:#64748b;">Consider sales or returns</p>
+                <p style="font-size:0.75rem; color:#64748b;"><i class="fas fa-arrow-right"></i> Consider sales/returns</p>
             </div>
-            <div class="stat-card" style="border-left: 4px solid var(--royal-blue);">
+            <div class="stat-card clickable-card" style="border-left: 4px solid var(--royal-blue);" onclick="jumpToInventoryWithFilter('lowStock')">
                 <h4 style="color:var(--royal-blue);">Understocked Items</h4>
                 <div class="stat-number">${lowStock.length}</div>
-                <p style="font-size:0.75rem; color:#64748b;">Need reordering soon</p>
+                <p style="font-size:0.75rem; color:#64748b;"><i class="fas fa-arrow-right"></i> Reorder from suppliers</p>
             </div>
         </div>
 
@@ -2518,11 +2535,11 @@ function renderExpiryReport(container, medicines) {
 
     container.innerHTML = `
         <div class="stats-grid" style="margin-bottom:24px;">
-            <div class="stat-card" style="border-left:4px solid #ef4444;">
+            <div class="stat-card clickable-card" style="border-left:4px solid #ef4444;" onclick="jumpToInventoryWithFilter('expired')">
                 <h4 style="color:#ef4444;"><i class="fas fa-exclamation-triangle"></i> Expired Stock</h4>
                 <div class="stat-number" style="font-size:1.8rem;">${expired.length} Items</div>
             </div>
-            <div class="stat-card" style="border-left:4px solid #f59e0b;">
+            <div class="stat-card clickable-card" style="border-left:4px solid #f59e0b;" onclick="jumpToInventoryWithFilter('expiring')">
                 <h4 style="color:#f59e0b;"><i class="fas fa-clock"></i> Expiring Soon (< 90 Days)</h4>
                 <div class="stat-number" style="font-size:1.8rem;">${upcoming.length} Items</div>
             </div>
@@ -3280,5 +3297,60 @@ async function findProfileByNameAndOpen(name) {
     if (customer) return showProfileModal(customer.id, 'customer');
     
     showToast('Registry profile not found for this name.', 'warning');
+}
+
+function jumpToInventoryWithFilter(type) {
+    if (!hasAccess('inventory')) return showToast('Access denied to inventory', 'warning');
+    currentPage = 'inventory';
+    // Update Sidebar
+    document.querySelectorAll('.nav-item').forEach(n => {
+        n.classList.remove('active');
+        if (n.dataset.page === 'inventory') n.classList.add('active');
+    });
+    renderInventory('', type);
+}
+
+async function showSupplierRecallModal(medName, supplierName) {
+    if (!supplierName || supplierName === 'N/A') {
+        return showToast(`No supplier recorded for ${medName}. Please update the product details.`, 'warning');
+    }
+
+    const res = await window.db.getSuppliers();
+    const suppliers = res.data || [];
+    const supplier = suppliers.find(s => s.name === supplierName);
+
+    const modal = document.getElementById('genericModal');
+    const inner = document.getElementById('modalInner');
+    
+    let supplierDetails = `<p style="color:#64748b; margin-bottom:20px;">Supplier contact information for ${medName}:</p>`;
+    
+    if (supplier) {
+        supplierDetails += `
+            <div style="background:#f8fafc; padding:20px; border-radius:12px; border:1px solid #e2e8f0;">
+                <div style="margin-bottom:12px;"><strong style="color:var(--royal-blue);">Name:</strong> ${supplier.name}</div>
+                <div style="margin-bottom:12px;"><strong style="color:var(--royal-blue);">Contact Person:</strong> ${supplier.contact_person || 'N/A'}</div>
+                <div style="margin-bottom:12px;"><strong style="color:var(--royal-blue);">Phone:</strong> ${supplier.phone || 'N/A'}</div>
+                <div style="margin-bottom:12px;"><strong style="color:var(--royal-blue);">Email:</strong> ${supplier.email || 'N/A'}</div>
+            </div>
+        `;
+    } else {
+        supplierDetails += `
+            <div style="background:#fff7ed; padding:15px; border-radius:12px; border:1px solid #ffedd5; color:#9a3412;">
+                <i class="fas fa-info-circle"></i> Supplier registry details for <strong>${supplierName}</strong> not found.
+            </div>
+        `;
+    }
+
+    inner.innerHTML = `
+        <h3 style="margin-bottom:20px; color:var(--royal-blue);"><i class="fas fa-envelope-open-text"></i> Supplier Management: ${medName}</h3>
+        ${supplierDetails}
+        <div style="margin-top:24px; display:flex; gap:12px;">
+            <button class="btn-primary" onclick="showToast('Notification request logged.', 'success'); document.getElementById('genericModal').style.display='none';" style="flex:1;">
+                <i class="fas fa-bell"></i> Send Low Stock Alert
+            </button>
+            <button class="btn-primary" onclick="document.getElementById('genericModal').style.display='none';" style="flex:1; background:#f1f5f9; color:#475569; border:none;">Close</button>
+        </div>
+    `;
+    modal.style.display = 'flex';
 }
 
