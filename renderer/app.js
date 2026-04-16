@@ -766,15 +766,21 @@ async function renderDashboard() {
                 <div class="stat-number">${todaySales.length}</div>
                 <p style="font-size:0.75rem; color:#64748b; font-weight:600; margin-top:8px;">Transactions processed</p>
             </div>
-            <div class="stat-card">
-                <h4>Low Stock</h4>
+            <div class="stat-card clickable-card" onclick="jumpToReport('inventory')">
+                <div style="display:flex; justify-content:space-between;">
+                    <h4>Low Stock</h4>
+                    <i class="fas fa-boxes-stacked" style="color:var(--danger); opacity:0.3;"></i>
+                </div>
                 <div class="stat-number" style="color:${lowStockItems.length > 0 ? 'var(--danger)' : 'inherit'}">${lowStockItems.length}</div>
-                <p style="font-size:0.75rem; color:#64748b; font-weight:600; margin-top:8px;">Items below reorder level</p>
+                <p style="font-size:0.75rem; color:#64748b; font-weight:600; margin-top:8px;"><i class="fas fa-arrow-right"></i> View Stock Report</p>
             </div>
-            <div class="stat-card">
-                <h4>Expired Items</h4>
+            <div class="stat-card clickable-card" onclick="jumpToReport('expiry')">
+                <div style="display:flex; justify-content:space-between;">
+                    <h4>Expired Items</h4>
+                    <i class="fas fa-calendar-times" style="color:var(--danger); opacity:0.3;"></i>
+                </div>
                 <div class="stat-number" style="color:${expiredItems.length > 0 ? 'var(--danger)' : 'inherit'}">${expiredItems.length}</div>
-                <p style="font-size:0.75rem; color:#64748b; font-weight:600; margin-top:8px;">Potentially unsafe medicine</p>
+                <p style="font-size:0.75rem; color:#64748b; font-weight:600; margin-top:8px;"><i class="fas fa-arrow-right"></i> View Expiry Report</p>
             </div>
         </div>
 
@@ -785,21 +791,31 @@ async function renderDashboard() {
                     <button class="btn-primary" style="padding:4px 12px; font-size:0.7rem; background:#f1f5f9; color:var(--royal-blue);" onclick="currentPage='reports'; renderCurrentPage();">View All</button>
                 </div>
                 <table class="data-table">
-                    <thead><tr><th>Time</th><th>Customer</th><th>Total</th><th>Method</th></tr></thead>
-                    <tbody>${sales.slice(-6).reverse().map(s => `
+                    <thead><tr><th style="padding-left:25px;">Time</th><th>Customer</th><th>Total</th><th>Method</th><th style="text-align:right; padding-right:25px;">Action</th></tr></thead>
+                    <tbody>${sales.slice(-6).reverse().map(s => {
+                        const recentSalesData = JSON.stringify(s).replace(/"/g, '&quot;');
+                        return `
                         <tr>
-                            <td style="font-size:0.8rem;">${s.date_time.split(', ')[1]}</td>
+                            <td style="font-size:0.8rem; padding-left:25px;">${s.date_time ? s.date_time.split(', ')[1] : s.date}</td>
                             <td style="font-weight:600;">${s.customer_name}</td>
-                            <td style="font-weight:700; color:var(--royal-blue);">KES ${s.total.toFixed(2)}</td>
+                            <td style="font-weight:700; color:var(--royal-blue);">KES ${Number(s.total).toFixed(2)}</td>
                             <td><span class="role-pill" style="background:#f1f5f9; color:#475569;">${s.payment_mode}</span></td>
-                        </tr>`).join('') || '<tr><td colspan="4" style="text-align:center; padding:40px;">No sales recorded yet.</td></tr>'}
+                            <td style="text-align:right; padding-right:25px;">
+                                <button class="action-btn-refined btn-icon-view dash-reprint-btn" data-id="${s.id}" title="Reprint">
+                                    <i class="fas fa-print"></i>
+                                </button>
+                            </td>
+                        </tr>`;
+                    }).join('') || '<tr><td colspan="5" style="text-align:center; padding:40px;">No sales recorded yet.</td></tr>'}
                     </tbody>
                 </table>
             </div>
 
             <div style="display:flex; flex-direction:column; gap:24px;">
                 <div class="stat-card" style="padding:20px;">
-                    <h4 style="margin-bottom:16px; color:var(--danger);"><i class="fas fa-exclamation-triangle"></i> Stock Alerts</h4>
+                    <h4 style="margin-bottom:16px; color:var(--danger); cursor:pointer;" onclick="jumpToReport('inventory')">
+                        <i class="fas fa-exclamation-triangle"></i> Stock Alerts <i class="fas fa-chevron-right" style="font-size:0.7rem; margin-left:5px; opacity:0.5;"></i>
+                    </h4>
                     ${lowStockItems.length > 0 ? lowStockItems.slice(0, 4).map(m => `
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:0.85rem;">
                             <span style="font-weight:600; color:#334155;">${m.name}</span>
@@ -809,7 +825,9 @@ async function renderDashboard() {
                 </div>
 
                 <div class="stat-card" style="padding:20px;">
-                    <h4 style="margin-bottom:16px; color:var(--warning);"><i class="fas fa-hourglass-half"></i> Expiry Watchlist</h4>
+                    <h4 style="margin-bottom:16px; color:var(--warning); cursor:pointer;" onclick="jumpToReport('expiry')">
+                        <i class="fas fa-hourglass-half"></i> Expiry Watchlist <i class="fas fa-chevron-right" style="font-size:0.7rem; margin-left:5px; opacity:0.5;"></i>
+                    </h4>
                     ${expiredItems.length > 0 ? expiredItems.slice(0, 4).map(m => `
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:0.85rem;">
                             <span style="font-weight:600; color:#334155;">${m.name}</span>
@@ -835,6 +853,14 @@ async function renderDashboard() {
             renderCurrentPage();
         };
     }
+    // Bind Recent Reprints
+    document.querySelectorAll('.dash-reprint-btn').forEach(btn => {
+        btn.onclick = () => {
+            const sid = btn.dataset.id;
+            const sale = sales.find(s => String(s.id) === String(sid));
+            if (sale) handleHistoryReprint(sale);
+        };
+    });
 }
 
 async function renderInventory(searchQuery = '') {
@@ -857,6 +883,7 @@ async function renderInventory(searchQuery = '') {
                     <p>Track stock levels, expiry dates, and pricing</p>
                 </div>
                 <div style="display:flex; gap:12px;">
+                    <button class="btn-primary" style="background:var(--royal-blue); opacity:0.8;" onclick="jumpToReport('inventory')"><i class="fas fa-chart-line"></i> Stock Insights</button>
                     <button class="btn-primary" id="bulkCsvImportBtn" style="background:#10b981; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);"><i class="fas fa-file-csv"></i> Bulk CSV Import</button>
                     <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
                     <button class="btn-primary" id="addMedBtn"><i class="fas fa-plus"></i> Add New Product</button>
@@ -2396,12 +2423,21 @@ function renderInventoryHealth(container, medicines) {
             <div class="stat-card">
                 <h4>Expiry Forecast (Critical List)</h4>
                 <table class="data-table" style="margin-top:15px; font-size:0.85rem;">
-                    <thead><tr><th>Medicine</th><th>Expiry Date</th><th>Days Left</th></tr></thead>
+                    <thead><tr><th>Medicine</th><th>Expiry Date</th><th>Days Left</th><th style="text-align:right;">Action</th></tr></thead>
                     <tbody>
                         ${expiringSoon.length > 0 ? expiringSoon.slice(0, 8).map(m => {
                             const diffDays = Math.ceil((new Date(m.expiry) - today) / (1000 * 60 * 60 * 24));
-                            return `<tr><td>${m.name}</td><td>${m.expiry}</td><td style="color:${diffDays < 30 ? 'var(--danger)' : 'var(--warning)'}; font-weight:700;">${diffDays} days</td></tr>`;
-                        }).join('') : '<tr><td colspan="3">No items expiring soon</td></tr>'}
+                            return `<tr>
+                                <td>${m.name}</td>
+                                <td>${m.expiry}</td>
+                                <td style="color:${diffDays < 30 ? 'var(--danger)' : 'var(--warning)'}; font-weight:700;">${diffDays} days</td>
+                                <td style="text-align:right;">
+                                    <button class="action-btn-refined btn-icon-view" onclick="jumpToInventoryItem('${m.name.replace(/'/g, "\\'")}')" title="Manage Stock">
+                                        <i class="fas fa-arrow-up-right-from-square"></i>
+                                    </button>
+                                </td>
+                            </tr>`;
+                        }).join('') : '<tr><td colspan="4">No items expiring soon</td></tr>'}
                     </tbody>
                 </table>
             </div>
@@ -2436,7 +2472,7 @@ function renderDetailedSalesLog(container, sales) {
                                 <tr>
                                     <td style="padding-left:20px; font-weight:700; color:#64748b;">#${s.id}</td>
                                     <td>${s.date_time || s.date}</td>
-                                    <td style="font-weight:600; color:${isWalkin ? '#64748b' : 'var(--royal-blue)'};">
+                                    <td style="font-weight:600; color:${isWalkin ? '#64748b' : 'var(--royal-blue)'}; ${isWalkin ? '' : 'cursor:pointer; text-decoration:underline;'}" ${isWalkin ? '' : `onclick="findProfileByNameAndOpen('${s.customer_name.replace(/'/g, "\\'")}')"`}>
                                         <i class="fas fa-${isWalkin ? 'user-clock' : 'user-check'}"></i> ${s.customer_name || 'Walk-in Customer'}
                                     </td>
                                     <td style="font-weight:700;">${Number(s.total).toLocaleString()}</td>
@@ -2497,11 +2533,12 @@ function renderExpiryReport(container, medicines) {
             <table class="data-table" style="margin-top:16px;">
                 <thead>
                     <tr style="background:var(--royal-blue); color:white;">
-                        <th style="color:white; padding:12px 16px;">Medicine</th>
+                         <th style="color:white; padding:12px 16px;">Medicine</th>
                         <th style="color:white;">Batch Number</th>
                         <th style="color:white;">Stock Left</th>
                         <th style="color:white;">Expiry Date</th>
                         <th style="color:white;">Status</th>
+                        <th style="color:white; text-align:right; padding-right:16px;">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2514,6 +2551,11 @@ function renderExpiryReport(container, medicines) {
                             <td>${m.stock} Units</td>
                             <td style="font-weight:700; color:${isExp ? '#ef4444': '#f59e0b'};">${m.expiry}</td>
                             <td><span class="role-pill" style="background:${isExp ? '#fee2e2' : '#fef3c7'}; color:${isExp ? '#b91c1c' : '#92400e'};">${isExp ? 'EXPIRED' : 'Expiring Soon'}</span></td>
+                            <td style="text-align:right; padding-right:16px;">
+                                <button class="action-btn-refined btn-icon-view" onclick="jumpToInventoryItem('${m.name.replace(/'/g, "\\'")}')" title="Manage Stock">
+                                    <i class="fas fa-arrow-up-right-from-square"></i>
+                                </button>
+                            </td>
                         </tr>
                         `;
                     }).join('') || '<tr><td colspan="5" style="text-align:center; padding:30px;">No critical expiries detected.</td></tr>'}
@@ -3199,4 +3241,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+function jumpToReport(subPage) {
+    if (!hasAccess('reports')) return showToast('Access denied to reports', 'warning');
+    currentPage = 'reports';
+    // Update Sidebar highlight
+    document.querySelectorAll('.nav-item').forEach(n => {
+        n.classList.remove('active');
+        if (n.dataset.page === 'reports') n.classList.add('active');
+    });
+    renderReports(subPage);
+}
+
+async function jumpToInventoryItem(name) {
+    currentPage = 'inventory';
+    // Update Sidebar
+    document.querySelectorAll('.nav-item').forEach(n => {
+        n.classList.remove('active');
+        if (n.dataset.page === 'inventory') n.classList.add('active');
+    });
+    
+    // Render inventory with pre-search
+    await renderInventory(name);
+}
+
+async function findProfileByNameAndOpen(name) {
+    if (!name || name === 'Walk-in' || name === 'General Customer') return;
+    showToast(`Searching for profile: ${name}...`, 'info');
+    
+    // Check Patients
+    const pRes = await window.db.getPatients();
+    const patient = (pRes.data || []).find(p => p.name === name);
+    if (patient) return showProfileModal(patient.id, 'patient');
+    
+    // Check Customers
+    const cRes = await window.db.getCustomers();
+    const customer = (cRes.data || []).find(c => c.name === name);
+    if (customer) return showProfileModal(customer.id, 'customer');
+    
+    showToast('Registry profile not found for this name.', 'warning');
+}
 
