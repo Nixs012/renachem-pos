@@ -164,6 +164,20 @@ const db = {
             return { success: false, error: error.message };
         }
     },
+    updateCustomer: async (id, data) => {
+        try {
+            return await ipcRenderer.invoke('db:updateCustomer', sessionToken, id, data);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+    deleteCustomer: async (id) => {
+        try {
+            return await ipcRenderer.invoke('db:deleteCustomer', sessionToken, id);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
     getSuppliers: async () => {
         try {
             return await ipcRenderer.invoke('db:getSuppliers', sessionToken);
@@ -174,6 +188,20 @@ const db = {
     addSupplier: async (data) => {
         try {
             return await ipcRenderer.invoke('db:addSupplier', sessionToken, data);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+    updateSupplier: async (id, data) => {
+        try {
+            return await ipcRenderer.invoke('db:updateSupplier', sessionToken, id, data);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+    deleteSupplier: async (id) => {
+        try {
+            return await ipcRenderer.invoke('db:deleteSupplier', sessionToken, id);
         } catch (error) {
             return { success: false, error: error.message };
         }

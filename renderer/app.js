@@ -39,7 +39,7 @@ function setupConnectivityMonitoring() {
             mpesaOption.style.color = '#ccc';
             const select = document.getElementById('paymentMethod');
             if (select.value === 'M-Pesa') select.value = 'Cash';
-            showToast('Internet disconnected Ã¢â‚¬â€ M-Pesa unavailable', 'warning');
+            showToast('Internet disconnected ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â M-Pesa unavailable', 'warning');
         }
     };
 
@@ -194,11 +194,11 @@ async function renderSettings() {
                 
                 <div class="input-group">
                     <label>New Password</label>
-                    <input type="password" id="set_new_password" placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢">
+                    <input type="password" id="set_new_password" placeholder="ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢">
                 </div>
                 <div class="input-group">
                     <label>Confirm New Password</label>
-                    <input type="password" id="set_confirm_password" placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢">
+                    <input type="password" id="set_confirm_password" placeholder="ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢">
                 </div>
                 
                 <div id="settingsPassError" style="color: #ef4444; font-size: 0.8rem; margin-bottom: 12px;" hidden></div>
@@ -495,7 +495,7 @@ async function finalizeSale(paymentMethod) {
                     <h3>M-Pesa Timeout</h3>
                     <p>M-Pesa confirmation timed out. Please confirm with customer.</p>
                     <div style="display:flex; flex-direction:column; gap:12px; margin-top:24px;">
-                        <button id="manualPaidBtn" class="btn-primary">Customer Paid Ã¢â‚¬â€ Complete Sale</button>
+                        <button id="manualPaidBtn" class="btn-primary">Customer Paid ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Complete Sale</button>
                         <button id="manualCancelBtn" style="background:#f1f5f9; border:none; border-radius:30px; padding:12px; cursor:pointer; font-weight:600;">Cancel Sale</button>
                     </div>
                 `;
@@ -706,7 +706,7 @@ async function printReceipt(saleObj, cartItems, format = 'thermal') {
             
             <div class="footer">Thank you for shopping!</div>
             
-            <div class="cut-line">Ã¢Å“â€š - - - - - - - - - - - - - - - - - - - Ã¢Å“â€š</div>
+            <div class="cut-line">ÃƒÂ¢Ã…â€œÃ¢â‚¬Å¡ - - - - - - - - - - - - - - - - - - - ÃƒÂ¢Ã…â€œÃ¢â‚¬Å¡</div>
         </body>
         </html>
     `;
@@ -945,13 +945,13 @@ async function renderInventory(searchQuery = '') {
                                 </span>
                             </td>
                             <td style="font-family:monospace; color:#475569;">${m.barcode || 'N/A'}</td>
-                            <td style="text-align:right;">
+                            <td style="text-align:right; padding-right:16px;">
                                 <div style="display:flex; justify-content:flex-end; gap:8px;">
-                                    <button class="action-btn edit-med-btn" data-id="${m.id}" style="background:#e0f2fe; color:#075985;" title="Edit Product">
-                                        <i class="fas fa-edit"></i>
+                                    <button class="action-btn-refined btn-icon-edit edit-med-btn" data-id="${m.id}" title="Edit Product">
+                                        <i class="fas fa-pencil-alt"></i>
                                     </button>
-                                    <button class="action-btn delete-med-btn" data-id="${m.id}" data-name="${m.name.replace(/"/g, '&quot;')}" style="background:#fee2e2; color:#b91c1c;" title="Delete Product">
-                                        <i class="fas fa-trash-alt"></i>
+                                    <button class="action-btn-refined btn-icon-del delete-med-btn" data-id="${m.id}" data-name="${m.name.replace(/"/g, '&quot;')}" title="Delete Product">
+                                        <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
                             </td>
@@ -1099,16 +1099,22 @@ async function showMedicineModal(id = null) {
             </div>
         </div>
 
-        <div class="input-group">
-            <label>Barcode / SKU</label>
-            <input type="text" id="modal_m_barcode" value="${med.barcode || ''}" class="premium-input">
+        <div class="form-grid">
+            <div class="input-group">
+                <label>Batch Number</label>
+                <input type="text" id="modal_m_batch" value="${med.batch || ''}" class="premium-input" placeholder="e.g. BATCH-123">
+            </div>
+            <div class="input-group">
+                <label>Barcode / SKU</label>
+                <input type="text" id="modal_m_barcode" value="${med.barcode || ''}" class="premium-input" placeholder="Scan or type barcode">
+            </div>
         </div>
         
         <div style="display:flex; gap:12px; margin-top:32px;">
             <button class="btn-primary" id="modalSaveMedBtn" style="flex:1;">
-                <i class="fas fa-save"></i> ${id ? 'Update Product' : 'Save Product'}
+                <i class="fas fa-check-circle"></i> ${id ? 'Update Product Details' : 'Save New Product'}
             </button>
-            <button class="btn-primary" id="modalCancelMedBtn" style="flex:1; background:#f1f5f9; color:#475569;">Cancel</button>
+            <button class="btn-primary" id="modalCancelMedBtn" style="flex:1; background:#f1f5f9; color:#475569; border:none;">Cancel</button>
         </div>
     `;
     modal.style.display = 'flex';
@@ -1129,15 +1135,15 @@ async function showMedicineModal(id = null) {
             e.preventDefault();
             try {
                 const data = {
-            name: document.getElementById('modal_m_name').value,
-            supplier: document.getElementById('modal_m_supplier').value,
-            batch: document.getElementById('modal_m_barcode').value, // Fallback batch to barcode since batch input was removed dynamically
-            expiry: document.getElementById('modal_m_expiry').value,
-            price: parseFloat(document.getElementById('modal_m_price').value) || 0,
-            stock: parseInt(document.getElementById('modal_m_stock').value) || 0,
-            reorder_level: parseInt(document.getElementById('modal_m_reorder').value) || 10,
-            barcode: document.getElementById('modal_m_barcode').value
-        };
+                    name: document.getElementById('modal_m_name').value,
+                    supplier: document.getElementById('modal_m_supplier').value,
+                    batch: document.getElementById('modal_m_batch').value,
+                    expiry: document.getElementById('modal_m_expiry').value,
+                    price: parseFloat(document.getElementById('modal_m_price').value) || 0,
+                    stock: parseInt(document.getElementById('modal_m_stock').value) || 0,
+                    reorder_level: parseInt(document.getElementById('modal_m_reorder').value) || 10,
+                    barcode: document.getElementById('modal_m_barcode').value
+                };
 
         if (!data.name) return showToast('Product name is required', 'warning');
 
@@ -1329,10 +1335,16 @@ function updateCartUI() {
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span style="font-size:0.8rem; color:#64748b;">@ KES ${item.price} each</span>
                     <div style="display:flex; gap:8px; align-items:center;">
-                        <button class="cart-decrement-btn" data-id="${item.id}" style="border:none; border-radius:50%; width:24px; height:24px; background:#e2e8f0; color:#334155; cursor:pointer;"><i class="fas fa-minus" style="pointer-events:none;"></i></button>
-                        <span style="font-weight:700; min-width:20px; text-align:center;">${item.qty}</span>
-                        <button class="cart-increment-btn" data-id="${item.id}" style="border:none; border-radius:50%; width:24px; height:24px; background:#e2e8f0; color:#334155; cursor:pointer;"><i class="fas fa-plus" style="pointer-events:none;"></i></button>
-                        <button class="cart-remove-btn" data-id="${item.id}" style="border:none; border-radius:50%; width:24px; height:24px; background:#fee2e2; color:#b91c1c; cursor:pointer; margin-left:4px;"><i class="fas fa-trash" style="pointer-events:none;"></i></button>
+                        <button class="action-btn-refined cart-decrement-btn" data-id="${item.id}" style="width:28px; height:28px; background:#f1f5f9; color:#475569;" title="Decrease quantity">
+                            <i class="fas fa-minus" style="font-size:0.75rem;"></i>
+                        </button>
+                        <span style="font-weight:700; min-width:24px; text-align:center; color:var(--royal-blue); font-size:1rem;">${item.qty}</span>
+                        <button class="action-btn-refined cart-increment-btn" data-id="${item.id}" style="width:28px; height:28px; background:#f1f5f9; color:#475569;" title="Increase quantity">
+                            <i class="fas fa-plus" style="font-size:0.75rem;"></i>
+                        </button>
+                        <button class="action-btn-refined btn-icon-del cart-remove-btn" data-id="${item.id}" style="width:28px; height:28px; margin-left:4px;" title="Remove from cart">
+                            <i class="fas fa-times" style="font-size:0.85rem;"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1357,10 +1369,10 @@ async function renderPatients(searchQuery = '') {
         <div class="view-header">
             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                 <div>
-                    <h2><i class="fas fa-notes-medical"></i> Patient Records</h2>
+                    <h2><i class="fas fa-notes-medical"></i> Patient Management</h2>
                     <p>Manage medical history and clinical profiles</p>
                 </div>
-                <button class="btn-primary" id="addPatientBtn"><i class="fas fa-user-plus"></i> Register Patient</button>
+                <button class="btn-primary" id="addPatientBtn"><i class="fas fa-plus"></i> Add Patient</button>
             </div>
         </div>
 
@@ -1373,62 +1385,74 @@ async function renderPatients(searchQuery = '') {
             </div>
         </div>
 
-        <div class="stat-card" style="padding:0; overflow:hidden;">
+        <div class="stat-card" style="padding:0; overflow:hidden; border-radius:16px;">
             <table class="data-table">
                 <thead>
-                    <tr>
-                        <th>Patient Name</th>
-                        <th>Age / Gender</th>
-                        <th>Medical History Summary</th>
-                        <th>Registration Date</th>
-                        <th style="text-align:right;">Actions</th>
+                    <tr style="background:var(--royal-blue); color:white;">
+                        <th style="color:white; padding:16px;">Name</th>
+                        <th style="color:white;">Age</th>
+                        <th style="color:white;">Gender</th>
+                        <th style="color:white;">Diagnosis</th>
+                        <th style="color:white;">Prescriptions</th>
+                        <th style="color:white;">History</th>
+                        <th style="text-align:right; color:white; padding-right:16px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${patients.length > 0 ? patients.map(p => `
                         <tr>
-                            <td>
-                                <div style="font-weight:700; color:var(--royal-blue);">${p.name}</div>
-                                <div style="font-size:0.75rem; color:#64748b;">ID: ${p.id}</div>
-                            </td>
-                            <td>
-                                <div style="font-weight:600;">${p.age} Yrs</div>
-                                <div style="font-size:0.75rem; color:#64748b;">${p.gender}</div>
-                            </td>
-                            <td>
-                                <div style="font-size:0.85rem; max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${p.history || 'No history'}">
-                                    ${p.diagnosis ? `<strong>${p.diagnosis}</strong>: ` : ''}${p.history || 'No records'}
-                                </div>
-                            </td>
-                            <td style="font-size:0.8rem; color:#64748b;">${new Date(p.created_at || Date.now()).toLocaleDateString()}</td>
-                            <td style="text-align:right;">
+                            <td style="font-weight:600; color:var(--royal-blue); padding-left:16px;">${p.name}</td>
+                            <td>${p.age}</td>
+                            <td><span class="role-pill" style="background:#f1f5f9; color:#475569;">${p.gender}</span></td>
+                            <td><div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.diagnosis || ''}</div></td>
+                            <td><div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.prescriptions || ''}</div></td>
+                            <td><div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.history || ''}</div></td>
+                            <td style="text-align:right; padding-right:16px;">
                                 <div style="display:flex; justify-content:flex-end; gap:8px;">
-                                    <button onclick="handleEditPatient('${p.id}')" class="action-btn" style="background:#e0f2fe; color:#075985;" title="Edit Record">
-                                        <i class="fas fa-edit"></i>
+                                    <button class="action-btn-refined btn-icon-edit edit-patient-btn" data-id="${p.id}" title="Edit Patient">
+                                        <i class="fas fa-pencil-alt"></i>
                                     </button>
-                                    <button onclick="handleDeletePatient('${p.id}', '${p.name.replace(/'/g, "\\'")}')" class="action-btn" style="background:#fee2e2; color:#b91c1c;" title="Delete Record">
-                                        <i class="fas fa-trash-alt"></i>
+                                    <button class="action-btn-refined btn-icon-del del-patient-btn" data-id="${p.id}" data-name="${p.name.replace(/"/g, '&quot;')}" title="Delete Patient">
+                                        <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
                             </td>
                         </tr>
-                    `).join('') : '<tr><td colspan="5" style="text-align:center; padding:40px; color:#64748b;">No patient records found.</td></tr>'}
+                    `).join('') : '<tr><td colspan="7" style="text-align:center; padding:40px; color:#64748b;">No patient records found.</td></tr>'}
                 </tbody>
             </table>
         </div>
     `;
 
     const searchInput = document.getElementById('patientSearch');
-    searchInput && (searchInput.oninput = (e) => {
-        clearTimeout(window.patientSearchTimer);
-        window.patientSearchTimer = setTimeout(() => {
-            renderPatients(e.target.value);
-        }, 300);
-    });
-    searchInput && searchInput.focus();
-    searchInput && searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+    if (searchInput) {
+        if (!searchInput.dataset.bound) {
+            searchInput.dataset.bound = "true";
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(window.patientSearchTimer);
+                window.patientSearchTimer = setTimeout(() => {
+                    renderPatients(e.target.value);
+                }, 300);
+            });
+        }
+        searchInput.focus();
+        try { searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length); } catch(e){}
+    }
 
     document.getElementById('addPatientBtn').onclick = () => showPatientModal();
+
+    document.querySelectorAll('.edit-patient-btn').forEach(btn => {
+        btn.onclick = () => showPatientModal(btn.getAttribute('data-id'));
+    });
+
+    document.querySelectorAll('.del-patient-btn').forEach(btn => {
+        btn.onclick = async () => {
+            if (await showConfirm(`Delete PERMANENT records for "${btn.getAttribute('data-name')}"?`)) {
+                await window.db.deletePatient(btn.getAttribute('data-id'));
+                renderPatients();
+            }
+        };
+    });
 }
 
 async function showPatientModal(id = null) {
@@ -1467,15 +1491,19 @@ async function showPatientModal(id = null) {
             <input type="text" id="modal_p_diag" value="${p.diagnosis || ''}" class="premium-input" placeholder="e.g. Hypertension">
         </div>
         <div class="input-group">
-            <label>Medical History / Notes</label>
-            <textarea id="modal_p_history" class="premium-input" style="height:100px; resize:none;">${p.history || ''}</textarea>
+            <label>Prescriptions</label>
+            <input type="text" id="modal_p_presc" value="${p.prescriptions || ''}" class="premium-input" placeholder="e.g. Amlodipine 5mg">
+        </div>
+        <div class="input-group">
+            <label>Notes / History</label>
+            <textarea id="modal_p_history" class="premium-input" style="height:80px; resize:none;" placeholder="e.g. Follow up every month">${p.history || ''}</textarea>
         </div>
         
         <div style="display:flex; gap:12px; margin-top:32px;">
             <button class="btn-primary" id="modalSavePatient" style="flex:1;">
-                <i class="fas fa-save"></i> ${id ? 'Update Record' : 'Register Patient'}
+                <i class="fas fa-check-circle"></i> ${id ? 'Update Patient Record' : 'Register New Patient'}
             </button>
-            <button class="btn-primary" style="flex:1; background:#f1f5f9; color:#475569;" onclick="document.getElementById('genericModal').style.display='none'">Cancel</button>
+            <button class="btn-primary" style="flex:1; background:#f1f5f9; color:#475569; border:none;" onclick="document.getElementById('genericModal').style.display='none'">Cancel</button>
         </div>
     `;
     modal.style.display = 'flex';
@@ -1487,7 +1515,7 @@ async function showPatientModal(id = null) {
             gender: document.getElementById('modal_p_gender').value,
             diagnosis: document.getElementById('modal_p_diag').value,
             history: document.getElementById('modal_p_history').value,
-            prescriptions: p.prescriptions || ''
+            prescriptions: document.getElementById('modal_p_presc').value
         };
 
         if (!data.name) return showToast('Patient name is required', 'warning');
@@ -1504,19 +1532,6 @@ async function showPatientModal(id = null) {
     };
 }
 
-window.handleEditPatient = (id) => showPatientModal(id);
-
-window.handleDeletePatient = async (id, name) => {
-    if (await showConfirm(`Delete PERMANENT records for "${name}"?`)) {
-        const res = await window.db.deletePatient(id);
-        if (res.success) {
-            showToast('Record deleted', 'success');
-            renderPatients();
-        } else {
-            showToast(res.error, 'error');
-        }
-    }
-}
 async function renderCustomers(searchQuery = '') {
     if (!hasAccess('customers')) return document.getElementById('pageContainer').innerHTML = '<div class="stat-card">Access Denied</div>';
     
@@ -1524,102 +1539,140 @@ async function renderCustomers(searchQuery = '') {
     let customers = res.data || [];
 
     if (searchQuery) {
-        customers = filterTable(searchQuery, customers, ['name', 'phone']);
+        customers = filterTable(searchQuery, customers, ['name', 'phone', 'email']);
     }
 
     document.getElementById('pageContainer').innerHTML = `
         <div class="view-header">
             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                <div>
-                    <h2><i class="fas fa-users"></i> Customer Database</h2>
-                    <p>Track regular clients and their contact details</p>
+                <div style="display:flex; gap:12px; align-items:center;">
+                    <i class="fas fa-user-friends" style="font-size:1.8rem; color:var(--royal-blue);"></i>
+                    <div>
+                        <h2 style="margin:0;">Customer Management</h2>
+                    </div>
                 </div>
-                <button class="btn-primary" id="addCustomerBtn"><i class="fas fa-plus"></i> Add New Customer</button>
+                <button class="btn-primary" id="addCustomerBtn"><i class="fas fa-plus"></i> Add Customer</button>
             </div>
         </div>
 
         <div class="stat-card" style="margin-bottom: 24px; padding: 15px 25px;">
             <div style="display:flex; gap:16px; align-items:center;">
                 <i class="fas fa-search" style="color:#64748b;"></i>
-                <input type="text" id="customerSearch" placeholder="Search by name or phone number..." 
+                <input type="text" id="customerSearch" placeholder="Search by name, email or phone..." 
                        value="${searchQuery}"
                        style="flex:1; border:none; background:transparent; font-size:1rem; outline:none; font-weight:500;">
             </div>
         </div>
 
-        <div class="stat-card" style="padding:0; overflow:hidden;">
+        <div class="stat-card" style="padding:0; overflow:hidden; border-radius:16px;">
             <table class="data-table">
                 <thead>
-                    <tr>
-                        <th>Customer Name</th>
-                        <th>Phone Number</th>
-                        <th>Account ID</th>
-                        <th style="text-align:right;">Actions</th>
+                    <tr style="background:var(--royal-blue); color:white;">
+                        <th style="color:white; padding:16px;">Name</th>
+                        <th style="color:white;">Phone</th>
+                        <th style="color:white;">Email</th>
+                        <th style="color:white;">Prescriptions</th>
+                        <th style="color:white;">History</th>
+                        <th style="text-align:right; color:white; padding-right:16px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${customers.length > 0 ? customers.map(c => `
                         <tr>
-                            <td style="font-weight:700; color:var(--royal-blue);">${c.name}</td>
-                            <td style="font-weight:600;">${c.phone || 'No Phone'}</td>
-                            <td style="font-family:monospace; font-size:0.8rem; color:#64748b;">${c.id}</td>
-                            <td style="text-align:right;">
+                            <td style="font-weight:600; color:var(--royal-blue); padding-left:16px;">${c.name}</td>
+                            <td style="font-weight:500;">${c.phone || ''}</td>
+                            <td style="color:#64748b; font-size:0.9rem;">${c.email || ''}</td>
+                            <td><div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${c.prescriptions || ''}">${c.prescriptions || ''}</div></td>
+                            <td><div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${c.history || ''}">${c.history || ''}</div></td>
+                            <td style="text-align:right; padding-right:16px;">
                                 <div style="display:flex; justify-content:flex-end; gap:8px;">
-                                    <button onclick="handleEditCustomer('${c.id}')" class="action-btn" style="background:#e0f2fe; color:#075985;" title="Edit Customer">
-                                        <i class="fas fa-user-edit"></i>
+                                    <button class="action-btn-refined btn-icon-edit edit-customer-btn" data-id="${c.id}" title="Edit Customer">
+                                        <i class="fas fa-pencil-alt"></i>
                                     </button>
-                                    <button onclick="handleDeleteCustomer('${c.id}', '${c.name.replace(/'/g, "\\'")}')" class="action-btn" style="background:#fee2e2; color:#b91c1c;" title="Delete Customer">
-                                        <i class="fas fa-trash-alt"></i>
+                                    <button class="action-btn-refined btn-icon-del del-customer-btn" data-id="${c.id}" data-name="${c.name.replace(/"/g, '&quot;')}" title="Remove Customer">
+                                        <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
                             </td>
                         </tr>
-                    `).join('') : '<tr><td colspan="4" style="text-align:center; padding:40px; color:#64748b;">No customers found.</td></tr>'}
+                    `).join('') : '<tr><td colspan="6" style="text-align:center; padding:40px; color:#64748b;">No customers found.</td></tr>'}
                 </tbody>
             </table>
         </div>
     `;
 
     const searchInput = document.getElementById('customerSearch');
-    searchInput && (searchInput.oninput = (e) => {
-        clearTimeout(window.customerSearchTimer);
-        window.customerSearchTimer = setTimeout(() => {
-            renderCustomers(e.target.value);
-        }, 300);
-    });
-    searchInput && searchInput.focus();
-    searchInput && searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+    if (searchInput) {
+        if (!searchInput.dataset.bound) {
+            searchInput.dataset.bound = "true";
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(window.customerSearchTimer);
+                window.customerSearchTimer = setTimeout(() => {
+                    renderCustomers(e.target.value);
+                }, 300);
+            });
+        }
+        searchInput.focus();
+        try { searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length); } catch(e){}
+    }
 
     document.getElementById('addCustomerBtn').onclick = () => showCustomerModal();
+
+    document.querySelectorAll('.edit-customer-btn').forEach(btn => {
+        btn.onclick = () => showCustomerModal(btn.getAttribute('data-id'));
+    });
+
+    document.querySelectorAll('.del-customer-btn').forEach(btn => {
+        btn.onclick = async () => {
+            if (await showConfirm(`Remove customer "${btn.getAttribute('data-name')}" from database?`)) {
+                await window.db.deleteCustomer(btn.getAttribute('data-id'));
+                renderCustomers();
+            }
+        };
+    });
 }
 
 async function showCustomerModal(id = null) {
-    let c = { name: '', phone: '', history: '', prescriptions: '' };
+    let c = { name: '', phone: '', email: '', history: '', prescriptions: '' };
     if (id) {
         const res = await window.db.getCustomers();
-        c = res.data.find(item => item.id === id);
+        c = res.data.find(item => item.id === id) || c;
     }
 
     const modal = document.getElementById('genericModal');
     const inner = document.getElementById('modalInner');
     inner.innerHTML = `
         <h3 style="margin-bottom:24px; color:var(--royal-blue);">
-            <i class="fas fa-user-tag"></i> ${id ? 'Edit Customer Info' : 'New Customer Profile'}
+            <i class="fas fa-${id ? 'user-edit' : 'user-plus'}"></i> ${id ? 'Edit Customer' : 'Add Customer'}
         </h3>
         <div class="input-group">
-            <label>Customer Name</label>
-            <input type="text" id="modal_c_name" value="${c.name}" class="premium-input" placeholder="e.g. John Doe">
+            <label>Full Name</label>
+            <input type="text" id="modal_c_name" value="${c.name}" class="premium-input" placeholder="e.g. John Mwangi">
+        </div>
+        <div class="form-grid">
+            <div class="input-group">
+                <label>Phone Number</label>
+                <input type="text" id="modal_c_phone" value="${c.phone}" class="premium-input" placeholder="e.g. +254712345678">
+            </div>
+            <div class="input-group">
+                <label>Email</label>
+                <input type="text" id="modal_c_email" value="${c.email || ''}" class="premium-input" placeholder="e.g. john@example.com">
+            </div>
         </div>
         <div class="input-group">
-            <label>Phone Number</label>
-            <input type="text" id="modal_c_phone" value="${c.phone}" class="premium-input" placeholder="e.g. 0712345678">
+            <label>Prescriptions / Standing Meds</label>
+            <input type="text" id="modal_c_presc" value="${c.prescriptions || ''}" class="premium-input" placeholder="e.g. Allergy - Cetirizine">
+        </div>
+        <div class="input-group">
+            <label>Engagement History</label>
+            <textarea id="modal_c_history" class="premium-input" style="height:80px; resize:none;" placeholder="e.g. 2025-02-10: Cetirizine 10mg">${c.history || ''}</textarea>
         </div>
         
         <div style="display:flex; gap:12px; margin-top:32px;">
             <button class="btn-primary" id="modalSaveCustomer" style="flex:1;">
-                <i class="fas fa-save"></i> ${id ? 'Update Profile' : 'Add Customer'}
+                <i class="fas fa-check-circle"></i> ${id ? 'Update Customer Profile' : 'Save Customer Details'}
             </button>
-            <button class="btn-primary" style="flex:1; background:#f1f5f9; color:#475569;" onclick="document.getElementById('genericModal').style.display='none'">Cancel</button>
+            <button class="btn-primary" style="flex:1; background:#f1f5f9; color:#475569; border:none;" onclick="document.getElementById('genericModal').style.display='none'">Cancel</button>
         </div>
     `;
     modal.style.display = 'flex';
@@ -1628,8 +1681,9 @@ async function showCustomerModal(id = null) {
         const data = {
             name: document.getElementById('modal_c_name').value.trim(),
             phone: document.getElementById('modal_c_phone').value.trim(),
-            history: c.history || '',
-            prescriptions: c.prescriptions || ''
+            email: document.getElementById('modal_c_email').value.trim(),
+            prescriptions: document.getElementById('modal_c_presc').value.trim(),
+            history: document.getElementById('modal_c_history').value.trim()
         };
 
         if (!data.name) return showToast('Customer name is required', 'warning');
@@ -1646,19 +1700,6 @@ async function showCustomerModal(id = null) {
     };
 }
 
-window.handleEditCustomer = (id) => showCustomerModal(id);
-
-window.handleDeleteCustomer = async (id, name) => {
-    if (await showConfirm(`Remove customer "${name}" from database?`)) {
-        const res = await window.db.deleteCustomer(id);
-        if (res.success) {
-            showToast('Customer removed', 'success');
-            renderCustomers();
-        } else {
-            showToast(res.error, 'error');
-        }
-    }
-}
 async function renderSuppliers(searchQuery = '') {
     if (!hasAccess('suppliers')) return document.getElementById('pageContainer').innerHTML = '<div class="stat-card">Access Denied</div>';
     
@@ -1666,93 +1707,161 @@ async function renderSuppliers(searchQuery = '') {
     let suppliers = res.data || [];
 
     if (searchQuery) {
-        suppliers = filterTable(searchQuery, suppliers, ['name', 'contact']);
+        suppliers = filterTable(searchQuery, suppliers, ['name', 'contact_person', 'phone']);
     }
 
     document.getElementById('pageContainer').innerHTML = `
         <div class="view-header">
             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                <div>
-                    <h2><i class="fas fa-truck"></i> Suppliers & Partners</h2>
-                    <p>Manage pharmaceutical supply chains and vendors</p>
+                <div style="display:flex; gap:12px; align-items:center;">
+                    <i class="fas fa-truck-fade" style="font-size:1.8rem; color:var(--royal-blue);"></i>
+                    <div>
+                        <h2 style="margin:0;">Suppliers Directory</h2>
+                    </div>
                 </div>
-                <button class="btn-primary" id="addSupplierBtn"><i class="fas fa-plus"></i> New Supplier</button>
+                <button class="btn-primary" id="addSupplierBtn"><i class="fas fa-plus"></i> Add Supplier</button>
             </div>
         </div>
 
         <div class="stat-card" style="margin-bottom: 24px; padding: 15px 25px;">
             <div style="display:flex; gap:16px; align-items:center;">
                 <i class="fas fa-search" style="color:#64748b;"></i>
-                <input type="text" id="supplierSearch" placeholder="Search by company name or contact..." 
+                <input type="text" id="supplierSearch" placeholder="Search by name, contact or phone..." 
                        value="${searchQuery}"
                        style="flex:1; border:none; background:transparent; font-size:1rem; outline:none; font-weight:500;">
             </div>
         </div>
 
-        <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
-            ${suppliers.length > 0 ? suppliers.map(s => `
-                <div class="stat-card">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                        <i class="fas fa-building" style="font-size:2rem; color:var(--royal-blue); opacity:0.2;"></i>
-                        <span class="role-pill" style="background:#e0f2fe; color:#0369a1;">Active Vendor</span>
-                    </div>
-                    <h3 style="margin-top:12px; color:var(--royal-blue);">${s.name}</h3>
-                    <p style="font-size:0.85rem; color:#64748b; margin-top:4px;"><i class="fas fa-phone"></i> ${s.contact || 'No Contact'}</p>
-                    <div style="margin-top:16px; padding-top:16px; border-top:1px solid #f1f5f9;">
-                        <p style="font-size:0.75rem; font-weight:700; color:#94a3b8; text-transform:uppercase;">Supplies:</p>
-                        <p style="font-size:0.85rem; color:#475569; margin-top:4px;">${s.items || 'General Pharmaceuticals'}</p>
-                    </div>
-                </div>
-            `).join('') : '<div class="stat-card">No suppliers registered.</div>'}
+        <div class="stat-card" style="padding:0; overflow:hidden; border-radius:16px;">
+            <table class="data-table">
+                <thead>
+                    <tr style="background:var(--royal-blue); color:white;">
+                        <th style="color:white; padding:16px;">Vendor Name</th>
+                        <th style="color:white;">Contact Person</th>
+                        <th style="color:white;">Phone</th>
+                        <th style="color:white;">Email</th>
+                        <th style="color:white;">Address</th>
+                        <th style="text-align:right; color:white; padding-right:16px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${suppliers.length > 0 ? suppliers.map(s => `
+                        <tr>
+                            <td style="font-weight:600; color:var(--royal-blue); padding-left:16px;">${s.name}</td>
+                            <td style="font-weight:500;">${s.contact_person || 'N/A'}</td>
+                            <td>${s.phone || ''}</td>
+                            <td style="color:#64748b; font-size:0.9rem;">${s.email || ''}</td>
+                            <td><div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${s.address || ''}">${s.address || ''}</div></td>
+                            <td style="text-align:right; padding-right:16px;">
+                                <div style="display:flex; justify-content:flex-end; gap:8px;">
+                                    <button class="action-btn-refined btn-icon-edit edit-supplier-btn" data-id="${s.id}" title="Edit Supplier">
+                                        <i class="fas fa-pencil-alt"></i>
+                                    </button>
+                                    <button class="action-btn-refined btn-icon-del del-supplier-btn" data-id="${s.id}" data-name="${s.name.replace(/"/g, '&quot;')}" title="Remove Vendor">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('') : '<tr><td colspan="6" style="text-align:center; padding:40px; color:#64748b;">No suppliers registered.</td></tr>'}
+                </tbody>
+            </table>
         </div>
     `;
 
     const searchInput = document.getElementById('supplierSearch');
-    searchInput && (searchInput.oninput = (e) => {
-        clearTimeout(window.supplierSearchTimer);
-        window.supplierSearchTimer = setTimeout(() => {
-            renderSuppliers(e.target.value);
-        }, 300);
-    });
+    if (searchInput) {
+        if (!searchInput.dataset.bound) {
+            searchInput.dataset.bound = "true";
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(window.supplierSearchTimer);
+                window.supplierSearchTimer = setTimeout(() => {
+                    renderSuppliers(e.target.value);
+                }, 300);
+            });
+        }
+        searchInput.focus();
+        try { searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length); } catch(e){}
+    }
 
     document.getElementById('addSupplierBtn').onclick = () => showSupplierModal();
+
+    document.querySelectorAll('.edit-supplier-btn').forEach(btn => {
+        btn.onclick = () => showSupplierModal(btn.getAttribute('data-id'));
+    });
+
+    document.querySelectorAll('.del-supplier-btn').forEach(btn => {
+        btn.onclick = async () => {
+            if (await showConfirm(`Remove supplier "${btn.getAttribute('data-name')}" from directory?`)) {
+                await window.db.deleteSupplier(btn.getAttribute('data-id'));
+                renderSuppliers();
+            }
+        };
+    });
 }
 
-async function showSupplierModal() {
+async function showSupplierModal(id = null) {
+    let s = { name: '', contact_person: '', phone: '', email: '', address: '' };
+    if (id) {
+        const res = await window.db.getSuppliers();
+        s = res.data.find(item => item.id === id) || s;
+    }
+
     const modal = document.getElementById('genericModal');
     const inner = document.getElementById('modalInner');
     inner.innerHTML = `
-        <h3 style="margin-bottom:24px; color:var(--royal-blue);"><i class="fas fa-truck-ramp-box"></i> Register New Supplier</h3>
+        <h3 style="margin-bottom:24px; color:var(--royal-blue);">
+            <i class="fas fa-${id ? 'edit' : 'plus-circle'}"></i> ${id ? 'Edit Supplier Details' : 'Add New Supplier'}
+        </h3>
         <div class="input-group">
             <label>Vendor / Company Name</label>
-            <input type="text" id="modal_s_name" class="premium-input" placeholder="e.g. MediKen Ltd">
+            <input type="text" id="modal_s_name" value="${s.name}" class="premium-input" placeholder="e.g. MediKen Ltd">
         </div>
-        <div class="input-group">
-            <label>Contact Info (Email/Phone)</label>
-            <input type="text" id="modal_s_contact" class="premium-input" placeholder="e.g. sales@mediken.co.ke">
+        <div class="form-grid">
+            <div class="input-group">
+                <label>Contact Person</label>
+                <input type="text" id="modal_s_person" value="${s.contact_person || ''}" class="premium-input" placeholder="e.g. Jane Doe">
+            </div>
+            <div class="input-group">
+                <label>Phone Number</label>
+                <input type="text" id="modal_s_phone" value="${s.phone || ''}" class="premium-input" placeholder="e.g. 0722...">
+            </div>
         </div>
-        <div class="input-group">
-            <label>Primary Items Supplied</label>
-            <input type="text" id="modal_s_items" class="premium-input" placeholder="e.g. Antibiotics, Syringes">
+        <div class="form-grid">
+            <div class="input-group">
+                <label>Email Address</label>
+                <input type="email" id="modal_s_email" value="${s.email || ''}" class="premium-input" placeholder="e.g. sales@mediken.co.ke">
+            </div>
+            <div class="input-group">
+                <label>Physical Address</label>
+                <input type="text" id="modal_s_address" value="${s.address || ''}" class="premium-input" placeholder="e.g. Nairobi, Industrial Area">
+            </div>
         </div>
         
         <div style="display:flex; gap:12px; margin-top:32px;">
-            <button class="btn-primary" id="modalSaveSupplier" style="flex:1;">Save Supplier</button>
+            <button class="btn-primary" id="modalSaveSupplier" style="flex:1; border-radius:12px; background:var(--royal-blue); color:white;">
+                <i class="fas fa-save"></i> ${id ? 'Update Supplier' : 'Save Supplier'}
+            </button>
             <button class="btn-primary" style="flex:1; background:#f1f5f9; color:#475569;" onclick="document.getElementById('genericModal').style.display='none'">Cancel</button>
         </div>
     `;
     modal.style.display = 'flex';
 
     document.getElementById('modalSaveSupplier').onclick = async () => {
-        const name = document.getElementById('modal_s_name').value.trim();
-        const contact = document.getElementById('modal_s_contact').value.trim();
-        const items = document.getElementById('modal_s_items').value.trim();
+        const data = {
+            name: document.getElementById('modal_s_name').value.trim(),
+            contact_person: document.getElementById('modal_s_person').value.trim(),
+            phone: document.getElementById('modal_s_phone').value.trim(),
+            email: document.getElementById('modal_s_email').value.trim(),
+            address: document.getElementById('modal_s_address').value.trim()
+        };
 
-        if (!name) return showToast('Supplier name is required', 'warning');
+        if (!data.name) return showToast('Supplier company name is required', 'warning');
 
-        const res = await window.db.addSupplier({ name, contact, items });
+        const res = id ? await window.db.updateSupplier(id, data) : await window.db.addSupplier(data);
+
         if (res.success) {
-            showToast('Supplier added successfully', 'success');
+            showToast(`Supplier ${id ? 'updated' : 'added'} successfully`, 'success');
             modal.style.display = 'none';
             renderSuppliers();
         } else {
@@ -1781,13 +1890,13 @@ async function renderPurchases() {
         <div class="stat-card" style="padding:0; overflow:hidden;">
             <table class="data-table">
                 <thead>
-                    <tr style="background: linear-gradient(90deg, #06b6d4, #0ea5e9); font-size:16px;">
-                        <th style="color:#ffffff; font-weight:700; border-top-left-radius:16px;">Medicine</th>
-                        <th style="color:#ffffff; font-weight:700;">Supplier</th>
-                        <th style="color:#ffffff; font-weight:700;">Quantity</th>
-                        <th style="color:#ffffff; font-weight:700;">Unit Price</th>
-                        <th style="color:#ffffff; font-weight:700;">Total Cost</th>
-                        <th style="color:#ffffff; font-weight:700; border-top-right-radius:16px; text-align:right;">Date</th>
+                    <tr style="background:var(--royal-blue); color:white;">
+                        <th style="color:white; padding:16px;">Medicine Name</th>
+                        <th style="color:white;">Supplier</th>
+                        <th style="color:white;">Quantity</th>
+                        <th style="color:white;">Unit Price</th>
+                        <th style="color:white;">Total Cost</th>
+                        <th style="text-align:right; color:white; padding-right:16px;">Intake Date</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2042,55 +2151,7 @@ function renderFinancialOverview(container, sales) {
             </div>
         </div>
 
-        <div class="stat-card">
-            <h4>7-Day Revenue Trend</h4>
-            <div style="height:350px; margin-top:20px; position:relative;" id="revChartContainer">
-                <canvas id="revChart"></canvas>
-                <div id="revChartFallback" style="display:none; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:#f8fafc; color:#64748b; font-size:0.85rem; border-radius:12px; border:1px dashed #cbd5e1;">
-                    <p><i class="fas fa-chart-area"></i> Analytics module is initializing...</p>
-                </div>
-            </div>
-        </div>
     `;
-
-    if (typeof window.Chart === 'undefined') {
-        document.getElementById('revChartFallback').style.display = 'flex';
-        document.getElementById('revChart').style.display = 'none';
-        return;
-    }
-
-    try {
-        new Chart(document.getElementById('revChart'), {
-            type: 'line',
-            data: {
-                labels: last7Days,
-                datasets: [{
-                    label: 'Daily Revenue (KES)',
-                    data: revenueData,
-                    borderColor: '#1e3a8a',
-                    backgroundColor: 'rgba(30, 58, 138, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    borderWidth: 3,
-                    pointBackgroundColor: '#fff',
-                    pointBorderColor: '#1e3a8a',
-                    pointBorderWidth: 2,
-                    pointRadius: 5
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { beginAtZero: true, grid: { display: false } },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
-    } catch (e) {
-        console.error("Chart Init Error:", e);
-    }
 }
 
 function renderInventoryHealth(container, medicines) {
@@ -2134,43 +2195,8 @@ function renderInventoryHealth(container, medicines) {
                     </tbody>
                 </table>
             </div>
-            <div class="stat-card">
-                <h4>Stock Distribution Stats</h4>
-                <div style="height:250px; margin-top:20px; position:relative;">
-                    <canvas id="stockPieChart"></canvas>
-                    <div id="stockChartFallback" style="display:none; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:#f8fafc; color:#64748b; font-size:0.85rem; border-radius:12px; border:1px dashed #cbd5e1;">
-                         <i class="fas fa-chart-pie"></i> Visualizing inventory metrics...
-                    </div>
-                </div>
-            </div>
         </div>
     `;
-
-    if (typeof window.Chart === 'undefined') {
-        document.getElementById('stockChartFallback').style.display = 'flex';
-        document.getElementById('stockPieChart').style.display = 'none';
-        return;
-    }
-
-    try {
-        new Chart(document.getElementById('stockPieChart'), {
-            type: 'doughnut',
-            data: {
-                labels: ['Healthy Stock', 'Low Stock', 'Expired'],
-                datasets: [{
-                    data: [medicines.length - (lowStock.length + expired.length), lowStock.length, expired.length],
-                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } },
-                cutout: '70%'
-            }
-        });
-    } catch (e) { console.error(e); }
 }
 
 function renderExpiryReport(container, medicines) {
@@ -2203,12 +2229,12 @@ function renderExpiryReport(container, medicines) {
             <h4>Critical Expiry Alerts</h4>
             <table class="data-table" style="margin-top:16px;">
                 <thead>
-                    <tr style="background:#f8fafc;">
-                        <th>Medicine</th>
-                        <th>Batch Number</th>
-                        <th>Stock Left</th>
-                        <th>Expiry Date</th>
-                        <th>Status</th>
+                    <tr style="background:var(--royal-blue); color:white;">
+                        <th style="color:white; padding:12px 16px;">Medicine</th>
+                        <th style="color:white;">Batch Number</th>
+                        <th style="color:white;">Stock Left</th>
+                        <th style="color:white;">Expiry Date</th>
+                        <th style="color:white;">Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2261,47 +2287,7 @@ function renderProfitLoss(container, sales, medicines = []) {
                 <div class="stat-number" style="font-size:1.8rem; color:white;">KES ${margin.toLocaleString(undefined, {minimumFractionDigits:2})}</div>
             </div>
         </div>
-        <div class="stat-card">
-            <h4>Best Selling Products (By Volume)</h4>
-            <div style="height:400px; margin-top:20px; position:relative;">
-                <canvas id="perfChart"></canvas>
-                <div id="perfChartFallback" style="display:none; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:#f8fafc; color:#64748b; font-size:0.85rem; border-radius:12px; border:1px dashed #cbd5e1;">
-                     <i class="fas fa-microchip"></i> Analytics Dashboard Initializing...
-                </div>
-            </div>
-        </div>
     `;
-
-    if (typeof window.Chart === 'undefined') {
-        document.getElementById('perfChartFallback').style.display = 'flex';
-        document.getElementById('perfChart').style.display = 'none';
-        return;
-    }
-
-    try {
-        new Chart(document.getElementById('perfChart'), {
-            type: 'bar',
-            data: {
-                labels: sorted.map(s => s[0]),
-                datasets: [{
-                    label: 'Quantity Sold',
-                    data: sorted.map(s => s[1]),
-                    backgroundColor: 'rgba(30, 58, 138, 0.8)',
-                    borderRadius: 8
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { beginAtZero: true, grid: { display: false } },
-                    y: { grid: { display: false } }
-                }
-            }
-        });
-    } catch (e) { console.error(e); }
 }
 
 // --- User Management (Admin Only) ---
@@ -2324,21 +2310,21 @@ async function renderUsers(subPage = 'list') {
                     <tr>
                         <td style="font-weight:600;">${u.username}</td>
                         <td><span class="role-badge" style="background:#eef2ff; color:var(--royal-blue); border:1px solid #d1d5db; padding: 4px 10px; border-radius:12px; font-size:0.8rem;">${u.role}</span></td>
-                        <td>${u.is_active ? '<span style="color:var(--success); font-weight:600;">Ã¢â€”Â Active</span>' : '<span style="color:var(--danger); font-weight:600;">Ã¢â€”Â Suspended</span>'}</td>
+                        <td>${u.is_active ? '<span style="color:var(--success); font-weight:600;"><i class="fas fa-circle" style="font-size:0.5rem; vertical-align:middle; margin-right:6px;"></i>Active</span>' : '<span style="color:var(--danger); font-weight:600;"><i class="fas fa-circle" style="font-size:0.5rem; vertical-align:middle; margin-right:6px;"></i>Suspended</span>'}</td>
                         <td style="font-size:0.8rem; color:#64748b;">${new Date(u.created_at).toLocaleDateString()}</td>
-                        <td style="text-align:right;">
+                        <td style="text-align:right; padding-right:16px;">
                             <div style="display:flex; justify-content:flex-end; gap:8px;">
-                                <button onclick="toggleUserStatus(${u.id}, ${u.is_active})" class="action-btn" title="${u.is_active ? 'Suspend Access' : 'Restore Access'}" style="background:${u.is_active ? '#fee2e2' : '#dcfce7'}; color:${u.is_active ? '#b91c1c' : '#166534'};">
+                                <button onclick="toggleUserStatus(${u.id}, ${u.is_active})" class="action-btn-refined" title="${u.is_active ? 'Suspend Access' : 'Restore Access'}" style="background:${u.is_active ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)'}; color:${u.is_active ? '#b91c1c' : '#059669'};">
                                     <i class="fas fa-${u.is_active ? 'user-slash' : 'user-check'}"></i>
                                 </button>
-                                <button onclick="handleChangeRole(${u.id}, '${u.role}')" class="action-btn" title="Edit Access Role" style="background:#e0f2fe; color:#075985;">
+                                <button onclick="showChangeRoleModal(${u.id}, '${u.role}')" class="action-btn-refined btn-icon-edit" title="Edit Access Role">
                                     <i class="fas fa-user-tag"></i>
                                 </button>
-                                <button onclick="handleResetPassword(${u.id}, '${u.username}')" class="action-btn" title="Reset Credentials" style="background:#fef3c7; color:#92400e;">
+                                <button onclick="showResetPasswordModal(${u.id}, '${u.username}')" class="action-btn-refined" title="Reset Credentials" style="background:rgba(245, 158, 11, 0.1); color:#92400e;">
                                     <i class="fas fa-key"></i>
                                 </button>
-                                <button onclick="handleDeleteUser(${u.id}, '${u.username}')" class="action-btn" title="Permanent Delete" style="background:#f1f5f9; color:#475569;">
-                                    <i class="fas fa-trash-alt"></i>
+                                <button onclick="handleDeleteUser(${u.id}, '${u.username}')" class="action-btn-refined btn-icon-del" title="Permanent Delete">
+                                    <i class="fas fa-trash"></i>
                                 </button>
                             </div>
                         </td>
@@ -2415,39 +2401,104 @@ async function toggleUserStatus(id, currentStatus) {
     }
 }
 
-async function handleChangeRole(id, currentRole) {
+async function showChangeRoleModal(id, currentRole) {
     if (id === currentUser.id) return showToast('Contact another Admin to change your own role', 'info');
     
-    // Simple prompt for now, could be a modal later
+    const modal = document.getElementById('genericModal');
+    const inner = document.getElementById('modalInner');
     const roles = ['Admin', 'Pharmacist', 'Cashier'];
-    const newRole = prompt(`Enter new role for user (${roles.join(', ')}):`, currentRole);
     
-    if (!newRole || newRole === currentRole || !roles.includes(newRole)) return;
-
-    const res = await window.auth.updateRole(id, newRole);
-    if (res.success) {
-        showToast('Staff role updated successfully', 'success');
-        renderUsers('list');
-    } else {
-        showToast(res.error, 'error');
-    }
+    inner.innerHTML = `
+        <h3 style="margin-bottom:24px; color:var(--royal-blue);"><i class="fas fa-user-tag"></i> Update Access Permissions</h3>
+        <p style="margin-bottom:20px; color:#64748b; font-size:0.9rem;">Select the new authorization level for this staff member.</p>
+        
+        <div class="input-group">
+            <label>Access Tier</label>
+            <select id="modal_new_role" class="premium-select">
+                ${roles.map(r => `<option value="${r}" ${r === currentRole ? 'selected' : ''}>${r}</option>`).join('')}
+            </select>
+        </div>
+        
+        <div style="display:flex; gap:12px; margin-top:32px;">
+            <button class="btn-primary" id="saveRoleBtn" style="flex:1;"><i class="fas fa-check-circle"></i> Update Role</button>
+            <button class="btn-primary" style="flex:1; background:#f1f5f9; color:#475569; border:none;" onclick="document.getElementById('genericModal').style.display='none'">Cancel</button>
+        </div>
+    `;
+    modal.style.display = 'flex';
+    
+    document.getElementById('saveRoleBtn').onclick = async () => {
+        const newRole = document.getElementById('modal_new_role').value;
+        if (newRole === currentRole) return modal.style.display = 'none';
+        
+        try {
+            const res = await window.auth.updateRole(id, newRole);
+            if (res.success) {
+                showToast('Staff role updated successfully', 'success');
+                modal.style.display = 'none';
+                renderUsers('list');
+            } else {
+                showToast(res.error, 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Failed to update role', 'error');
+        }
+    };
 }
 
-async function handleResetPassword(id, username) {
-    const newPass = prompt(`Enter NEW password for ${username} (Min 8 chars):`);
-    if (!newPass) return;
+async function showResetPasswordModal(id, username) {
+    const modal = document.getElementById('genericModal');
+    const inner = document.getElementById('modalInner');
     
-    const check = validatePassword(newPass);
-    if (!check.valid) return showToast(check.errors[0], 'warning');
+    inner.innerHTML = `
+        <h3 style="margin-bottom:24px; color:var(--royal-blue);"><i class="fas fa-key"></i> Reset Staff Credentials</h3>
+        <p style="margin-bottom:20px; color:#64748b; font-size:0.9rem;">Enter a new secure password for <strong>${username}</strong>.</p>
+        
+        <div class="input-group">
+            <label>New Secure Password</label>
+            <input type="password" id="modal_new_pass" class="premium-input" placeholder="Min 8 characters">
+        </div>
+        <div class="input-group">
+            <label>Confirm Password</label>
+            <input type="password" id="modal_confirm_pass" class="premium-input" placeholder="Re-enter to verify">
+        </div>
+        
+        <div style="display:flex; gap:12px; margin-top:32px;">
+            <button class="btn-primary" id="savePassBtn" style="flex:1;"><i class="fas fa-shield-alt"></i> Set New Password</button>
+            <button class="btn-primary" style="flex:1; background:#f1f5f9; color:#475569; border:none;" onclick="document.getElementById('genericModal').style.display='none'">Cancel</button>
+        </div>
+    `;
+    modal.style.display = 'flex';
+    
+    document.getElementById('savePassBtn').onclick = async () => {
+        const newPass = document.getElementById('modal_new_pass').value;
+        const confirmPass = document.getElementById('modal_confirm_pass').value;
+        
+        if (!newPass) return showToast('Password cannot be empty', 'warning');
+        if (newPass !== confirmPass) return showToast('Passwords do not match', 'warning');
+        
+        const check = validatePassword(newPass);
+        if (!check.valid) return showToast(check.errors[0], 'warning');
 
-    const res = await window.auth.resetPassword(id, newPass);
-    if (res.success) {
-        showToast(`Temporary password set for ${username}. Share it with them.`, 'success');
-        renderUsers('list');
-    } else {
-        showToast(res.error, 'error');
-    }
+        try {
+            const res = await window.auth.resetPassword(id, newPass);
+            if (res.success) {
+                showToast(`Credentials reset for ${username}`, 'success');
+                modal.style.display = 'none';
+                renderUsers('list');
+            } else {
+                showToast(res.error, 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Failed to reset credentials', 'error');
+        }
+    };
 }
+
+// Clean up old handlers
+async function handleChangeRole(id, currentRole) { /* Moved to modal */ }
+async function handleResetPassword(id, username) { /* Moved to modal */ }
 
 async function handleDeleteUser(id, username) {
     if (id === currentUser.id) return showToast('Cannot delete yourself', 'error');

@@ -151,6 +151,23 @@ function initialize() {
             db.prepare("ALTER TABLE purchases ADD COLUMN total_cost REAL DEFAULT 0").run();
         }
 
+        const custTableInfo = db.prepare("PRAGMA table_info('customers')").all();
+        const hasEmail = custTableInfo.some(col => col.name === 'email');
+        if (!hasEmail) {
+            console.log('MIGRATION: Adding email to customers table');
+            db.prepare("ALTER TABLE customers ADD COLUMN email TEXT DEFAULT ''").run();
+        }
+
+        const supTableInfo = db.prepare("PRAGMA table_info('suppliers')").all();
+        const hasSupPhone = supTableInfo.some(col => col.name === 'phone');
+        if (!hasSupPhone) {
+            console.log('MIGRATION: Hardening suppliers table with CRM metrics');
+            db.prepare("ALTER TABLE suppliers ADD COLUMN phone TEXT DEFAULT ''").run();
+            db.prepare("ALTER TABLE suppliers ADD COLUMN email TEXT DEFAULT ''").run();
+            db.prepare("ALTER TABLE suppliers ADD COLUMN address TEXT DEFAULT ''").run();
+            db.prepare("ALTER TABLE suppliers ADD COLUMN contact_person TEXT DEFAULT ''").run();
+        }
+
         // Seed Data
         seedData();
 
@@ -494,9 +511,9 @@ function addCustomer(data) {
     try {
         const id = 'C-' + Date.now();
         db.prepare(`
-            INSERT INTO customers (id, name, phone, prescriptions, history)
-            VALUES (?, ?, ?, ?, ?)
-        `).run(id, data.name, data.phone, data.prescriptions, data.history);
+            INSERT INTO customers (id, name, phone, email, prescriptions, history)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `).run(id, data.name, data.phone, data.email, data.prescriptions, data.history);
         return { success: true, id };
     } catch (error) {
         return { success: false, error: error.message };
@@ -506,9 +523,9 @@ function addCustomer(data) {
 function updateCustomer(id, data) {
     try {
         db.prepare(`
-            UPDATE customers SET name = ?, phone = ?, prescriptions = ?, history = ?
+            UPDATE customers SET name = ?, phone = ?, email = ?, prescriptions = ?, history = ?
             WHERE id = ?
-        `).run(data.name, data.phone, data.prescriptions, data.history, id);
+        `).run(data.name, data.phone, data.email, data.prescriptions, data.history, id);
         return { success: true };
     } catch (error) {
         return { success: false, error: error.message };
@@ -539,9 +556,9 @@ function addSupplier(data) {
     try {
         const id = 'S-' + Date.now();
         db.prepare(`
-            INSERT INTO suppliers (id, name, contact, items)
-            VALUES (?, ?, ?, ?)
-        `).run(id, data.name, data.contact, data.items);
+            INSERT INTO suppliers (id, name, contact_person, phone, email, address, contact, items)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(id, data.name, data.contact_person, data.phone, data.email, data.address, data.contact || '', data.items || '');
         return { success: true, id };
     } catch (error) {
         return { success: false, error: error.message };
@@ -550,7 +567,16 @@ function addSupplier(data) {
 
 function updateSupplier(id, data) {
     try {
-        db.prepare('UPDATE suppliers SET name = ?, contact = ?, items = ? WHERE id = ?').run(data.name, data.contact, data.items, id);
+        db.prepare('UPDATE suppliers SET name = ?, contact_person = ?, phone = ?, email = ?, address = ?, contact = ?, items = ? WHERE id = ?').run(data.name, data.contact_person, data.phone, data.email, data.address, data.contact || '', data.items || '', id);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function deleteSupplier(id) {
+    try {
+        db.prepare('DELETE FROM suppliers WHERE id = ?').run(id);
         return { success: true };
     } catch (error) {
         return { success: false, error: error.message };
@@ -750,6 +776,7 @@ module.exports = {
     getSuppliers,
     addSupplier,
     updateSupplier,
+    deleteSupplier,
     getPurchases,
     addPurchase,
     getSales,

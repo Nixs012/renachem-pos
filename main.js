@@ -100,7 +100,7 @@ function setupCSP() {
             responseHeaders: {
                 ...details.responseHeaders,
                 'Content-Security-Policy': [
-                    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' http://localhost:3000 http://localhost:3001"
+                    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' http://localhost:3000 http://localhost:3001"
                 ]
             }
         });
@@ -348,9 +348,13 @@ ipcMain.handle('db:deletePatient', wrapHandler(async (event, t, id) => db.delete
 
 ipcMain.handle('db:getCustomers', wrapHandler(async () => db.getCustomers()));
 ipcMain.handle('db:addCustomer', wrapHandler(async (event, t, data) => db.addCustomer(data)));
+ipcMain.handle('db:updateCustomer', wrapHandler(async (event, t, id, data) => db.updateCustomer(id, data)));
+ipcMain.handle('db:deleteCustomer', wrapHandler(async (event, t, id) => db.deleteCustomer(id), { adminOnly: true }));
 
 ipcMain.handle('db:getSuppliers', wrapHandler(async () => db.getSuppliers()));
 ipcMain.handle('db:addSupplier', wrapHandler(async (event, t, data) => db.addSupplier(data)));
+ipcMain.handle('db:updateSupplier', wrapHandler(async (event, t, id, data) => db.updateSupplier(id, data)));
+ipcMain.handle('db:deleteSupplier', wrapHandler(async (event, t, id) => db.deleteSupplier(id), { adminOnly: true }));
 
 ipcMain.handle('db:getPurchases', wrapHandler(async () => db.getPurchases()));
 ipcMain.handle('db:addPurchase', wrapHandler(async (event, t, data) => {
