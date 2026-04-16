@@ -299,45 +299,7 @@ async function initAppAfterLogin(role, username) {
     await renderCurrentPage();
 }
 
-async function handleLogin() {
-    const u = document.getElementById('loginUsername').value;
-    const p = document.getElementById('loginPassword').value;
-    const errEl = document.getElementById('loginError');
-    const card = document.querySelector('.login-card');
 
-    if (!u || !p) {
-        errEl.innerText = 'Please enter username and password';
-        errEl.hidden = false;
-        return;
-    }
-
-    const result = await window.auth.login(u, p);
-
-    if (result.success) {
-        loginFailCount = 0;
-        errEl.hidden = true;
-        
-        if (result.user.is_temp_password === 1) {
-            setupForcedPasswordChange(result.user);
-        } else {
-            currentUser = { id: result.user.id, username: result.user.username, role: result.user.role };
-            initAppAfterLogin(result.user.role, result.user.username);
-        }
-    } else {
-        card.classList.add('shake');
-        setTimeout(() => card.classList.remove('shake'), 500);
-
-        if (result.locked) {
-            errEl.innerText = 'Account locked due to too many attempts. Try again later.';
-        } else {
-            loginFailCount++;
-            let msg = 'Invalid username or password';
-            if (loginFailCount >= 3) msg += `. Warning: account will lock after 5 failed attempts (${loginFailCount}/5)`;
-            errEl.innerText = msg;
-        }
-        errEl.hidden = false;
-    }
-}
 
 
 // --- Core POS Logic & M-Pesa Integration ---
@@ -536,7 +498,7 @@ async function finalizeSale(paymentMethod) {
         const saleObj = {
             date: new Date().toISOString().slice(0, 10),
             date_time: new Date().toLocaleString(),
-            items_json: JSON.stringify(cart.map(i => `${i.name} (x${i.qty})`)),
+            items_json: JSON.stringify(cart),
             total,
             payment_mode: paymentMethod,
             customer_name: customerName,
@@ -1202,10 +1164,23 @@ window.handleDeleteMedicine = async (id, name) => {
 
 async function renderPOS() {
     if (!hasAccess('pos')) return document.getElementById('pageContainer').innerHTML = '<div class="stat-card">Access Denied</div>';
-    const res = await window.db.getMedicines();
-    const medicines = res.data || [];
-    const custRes = await window.db.getCustomers();
+    
+    // Fetch all required entities for linkage
+    const [medsRes, custRes, patRes] = await Promise.all([
+        window.db.getMedicines(),
+        window.db.getCustomers(),
+        window.db.getPatients()
+    ]);
+    
+    const medicines = medsRes.data || [];
     const customersList = custRes.data || [];
+    const patientsList = patRes.data || [];
+
+    // Combine into a unified list
+    const combinedClients = [
+        ...customersList.map(c => ({ ...c, type: 'Customer', display: `${c.name} (${c.phone || 'No Phone'})` })),
+        ...patientsList.map(p => ({ ...p, type: 'Patient', display: `[P] ${p.name} (Age: ${p.age || 'N/A'})` }))
+    ];
 
     document.getElementById('pageContainer').innerHTML = `
         <div class="pos-layout">
@@ -1226,11 +1201,17 @@ async function renderPOS() {
                 <div id="cartItemsList" style="min-height:150px; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;"></div>
                 <div style="display:flex; justify-content:space-between; margin:15px 0;"><h4>Total:</h4><h4>KES <span id="cartTotalSpan">0.00</span></h4></div>
                 
-                <h4 style="font-size:0.9rem; margin-bottom:8px; color:#64748b;">Customer</h4>
-                <select id="posCustomerSelect" style="width:100%; padding:12px; border-radius:30px; margin-bottom:15px; border:1px solid #ddd;">
+                <h4 style="font-size:0.9rem; margin-bottom:8px; color:#64748b;">Client Selection</h4>
+                <select id="posCustomerSelect" style="width:100%; padding:12px; border-radius:30px; margin-bottom:12px; border:1px solid #ddd; font-weight:600; color:var(--royal-blue);">
                     <option value="Walk-in">Walk-in Customer</option>
-                    ${customersList.map(c => `<option value="${c.name}">${c.name} (${c.phone || 'N/A'})</option>`).join('')}
+                    ${combinedClients.map(c => `<option value="${c.name}" data-type="${c.type}">${c.display}</option>`).join('')}
                 </select>
+
+                <!-- Clinical Insight Badge (Visible only for Patients) -->
+                <div id="posPatientInsight" style="display:none; padding:12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; margin-bottom:15px;">
+                    <h5 style="margin-top:0; margin-bottom:6px; color:#1e40af; font-size:0.8rem;"><i class="fas fa-stethoscope"></i> Clinical Insight</h5>
+                    <div id="posPatientDetails" style="font-size:0.75rem; color:#1e3a8a; line-height:1.4;"></div>
+                </div>
 
                 <h4 style="font-size:0.9rem; margin-bottom:8px; color:#64748b;">Payment Method</h4>
                 <div style="display:flex; gap:10px; margin-bottom: 15px;">
@@ -1270,6 +1251,28 @@ async function renderPOS() {
             </div>
         `).join('');
     };
+    const clientSelect = document.getElementById('posCustomerSelect');
+    clientSelect.onchange = (e) => {
+        const option = e.target.options[e.target.selectedIndex];
+        const type = option.getAttribute('data-type');
+        const name = e.target.value;
+        const insightEl = document.getElementById('posPatientInsight');
+        const detailsEl = document.getElementById('posPatientDetails');
+
+        if (type === 'Patient') {
+            const patient = patientsList.find(p => p.name === name);
+            if (patient) {
+                insightEl.style.display = 'block';
+                detailsEl.innerHTML = `
+                    <div style="font-weight:700;">Diagnosis: <span style="font-weight:400;">${patient.diagnosis || 'None recorded'}</span></div>
+                    <div style="font-weight:700; margin-top:4px;">History: <span style="font-weight:400;">${patient.history || 'None recorded'}</span></div>
+                `;
+            }
+        } else {
+            insightEl.style.display = 'none';
+        }
+    };
+
     updateCartUI();
 }
 
@@ -1409,6 +1412,9 @@ async function renderPatients(searchQuery = '') {
                             <td><div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.history || ''}</div></td>
                             <td style="text-align:right; padding-right:16px;">
                                 <div style="display:flex; justify-content:flex-end; gap:8px;">
+                                    <button class="action-btn-refined btn-icon-view view-patient-profile-btn" data-id="${p.id}" title="View History & Profile">
+                                        <i class="fas fa-history"></i>
+                                    </button>
                                     <button class="action-btn-refined btn-icon-edit edit-patient-btn" data-id="${p.id}" title="Edit Patient">
                                         <i class="fas fa-pencil-alt"></i>
                                     </button>
@@ -1440,6 +1446,10 @@ async function renderPatients(searchQuery = '') {
     }
 
     document.getElementById('addPatientBtn').onclick = () => showPatientModal();
+
+    document.querySelectorAll('.view-patient-profile-btn').forEach(btn => {
+        btn.onclick = () => showProfileModal(btn.getAttribute('data-id'), 'Patient');
+    });
 
     document.querySelectorAll('.edit-patient-btn').forEach(btn => {
         btn.onclick = () => showPatientModal(btn.getAttribute('data-id'));
@@ -1586,6 +1596,9 @@ async function renderCustomers(searchQuery = '') {
                             <td><div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${c.history || ''}">${c.history || ''}</div></td>
                             <td style="text-align:right; padding-right:16px;">
                                 <div style="display:flex; justify-content:flex-end; gap:8px;">
+                                    <button class="action-btn-refined btn-icon-view view-customer-profile-btn" data-id="${c.id}" title="View History & Profile">
+                                        <i class="fas fa-history"></i>
+                                    </button>
                                     <button class="action-btn-refined btn-icon-edit edit-customer-btn" data-id="${c.id}" title="Edit Customer">
                                         <i class="fas fa-pencil-alt"></i>
                                     </button>
@@ -1617,6 +1630,10 @@ async function renderCustomers(searchQuery = '') {
     }
 
     document.getElementById('addCustomerBtn').onclick = () => showCustomerModal();
+
+    document.querySelectorAll('.view-customer-profile-btn').forEach(btn => {
+        btn.onclick = () => showProfileModal(btn.getAttribute('data-id'), 'Customer');
+    });
 
     document.querySelectorAll('.edit-customer-btn').forEach(btn => {
         btn.onclick = () => showCustomerModal(btn.getAttribute('data-id'));
@@ -1698,6 +1715,194 @@ async function showCustomerModal(id = null) {
             showToast(res.error, 'error');
         }
     };
+}
+
+// --- Individual Profile & History Viewer ---
+
+async function showProfileModal(id, type) {
+    let person = null;
+    if (type === 'Patient') {
+        const res = await window.db.getPatients();
+        person = res.data.find(p => p.id === id);
+    } else {
+        const res = await window.db.getCustomers();
+        person = res.data.find(c => c.id === id);
+    }
+
+    if (!person) return showToast('Error: Could not find record.', 'error');
+
+    // Fetch all sales and filter by name
+    const salesRes = await window.db.getSales();
+    const allSales = salesRes.data || [];
+    const history = allSales.filter(s => s.customer_name === person.name).reverse();
+
+    const modal = document.getElementById('genericModal');
+    const inner = document.getElementById('modalInner');
+    
+    inner.innerHTML = `
+        <div style="max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto; padding:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; border-bottom:1px solid #f1f5f9; padding-bottom:16px;">
+                <div>
+                    <h2 style="margin:0; color:var(--royal-blue);"><i class="fas fa-id-card"></i> ${person.name}</h2>
+                    <p style="margin:5px 0 0; color:#64748b; font-size:0.9rem;">${type} Profile & Individual History</p>
+                </div>
+                <button onclick="document.getElementById('genericModal').style.display='none'" style="background:none; border:none; font-size:1.5rem; color:#94a3b8; cursor:pointer;"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 350px 1fr; gap:30px;">
+                <!-- Left Side: Clinical Profile & Update -->
+                <div style="background:#f8fafc; border-radius:16px; padding:20px; border:1px solid #e2e8f0;">
+                    <h4 style="margin-top:0; color:#334155; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:15px;">
+                        <i class="fas fa-user-md"></i> Clinical Record
+                    </h4>
+                    
+                    <div class="input-group">
+                        <label>Active Prescriptions</label>
+                        <textarea id="profile_prescriptions" class="premium-input" style="height:120px; resize:none; font-size:0.85rem;">${person.prescriptions || ''}</textarea>
+                    </div>
+                    
+                    <div class="input-group" style="margin-top:15px;">
+                        <label>Clinical History</label>
+                        <textarea id="profile_history" class="premium-input" style="height:120px; resize:none; font-size:0.85rem;">${person.history || ''}</textarea>
+                    </div>
+
+                    <button class="btn-primary" id="saveProfileChanges" style="width:100%; margin-top:20px;">
+                        <i class="fas fa-save"></i> Save Clinical Data
+                    </button>
+                    <p style="font-size:0.7rem; color:#94a3b8; text-align:center; margin-top:12px;">Updates are permanent after saving.</p>
+                </div>
+
+                <!-- Right Side: Sales History -->
+                <div>
+                    <h4 style="margin-top:0; color:#334155; margin-bottom:15px;"><i class="fas fa-shopping-cart"></i> Recent Transactions</h4>
+                    <div style="max-height:450px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:12px;">
+                        <table class="data-table" style="font-size:0.85rem;">
+                            <thead style="position:sticky; top:0; background:white; z-index:1;">
+                                <tr style="background:#f1f5f9;">
+                                    <th>Date</th>
+                                    <th>Items Sold</th>
+                                    <th>Total</th>
+                                    <th style="text-align:right;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${history.length > 0 ? history.map(s => {
+                                    let itemsDesc = s.items_json;
+                                    try {
+                                        const parsed = JSON.parse(s.items_json);
+                                        if (Array.isArray(parsed)) {
+                                            itemsDesc = parsed.map(i => typeof i === 'object' ? `${i.name} (x${i.qty})` : i).join(', ');
+                                        }
+                                    } catch(e){}
+                                    
+                                    return `
+                                    <tr>
+                                        <td>${s.date}</td>
+                                        <td><div style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${itemsDesc}">${itemsDesc}</div></td>
+                                        <td style="font-weight:700; color:var(--royal-blue);">KES ${s.total.toFixed(2)}</td>
+                                        <td style="text-align:right;">
+                                            <button class="action-btn-refined btn-icon-view reprint-history-btn" data-id="${s.id}" title="Reprint Receipt">
+                                                <i class="fas fa-print"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    `;
+                                }).join('') : '<tr><td colspan="4" style="text-align:center; padding:40px; color:#94a3b8;">No purchase history found for this account.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+
+    // Binding for clinical updates
+    document.getElementById('saveProfileChanges').onclick = async (e) => {
+        const btn = e.target.closest('button');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+        const payload = {
+            ...person,
+            prescriptions: document.getElementById('profile_prescriptions').value,
+            history: document.getElementById('profile_history').value
+        };
+
+        if (type === 'Patient') {
+            await window.db.updatePatient(person.id, payload);
+        } else {
+            await window.db.updateCustomer(person.id, payload);
+        }
+        
+        showToast('Clinical profile updated successfully', 'success');
+        if (type === 'Patient') renderPatients(); else renderCustomers();
+        
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save"></i> Save Clinical Data';
+    };
+
+    // Binding for history reprints
+    document.querySelectorAll('.reprint-history-btn').forEach(btn => {
+        btn.onclick = async () => {
+            const saleId = btn.getAttribute('data-id');
+            const sale = allSales.find(s => String(s.id) === String(saleId));
+            if (sale) {
+                handleHistoryReprint(sale);
+            }
+        };
+    });
+}
+
+async function handleHistoryReprint(saleObj) {
+    let items = [];
+    try {
+        const parsed = JSON.parse(saleObj.items_json);
+        if (Array.isArray(parsed)) {
+            if (parsed.length > 0 && typeof parsed[0] === 'object') {
+                items = parsed;
+            } else {
+                items = parsed.map(str => {
+                    const match = str.match(/(.*) \(x(\d+)\)/);
+                    if (match) {
+                        return { name: match[1], qty: parseInt(match[2]), price: 0 }; 
+                    }
+                    return { name: str, qty: 1, price: 0 };
+                });
+            }
+        }
+    } catch (e) {
+        console.error("Failed to parse historical items", e);
+    }
+
+    // Quick Format Selection UI Injection
+    const modal = document.getElementById('genericModal');
+    const overlay = document.createElement('div');
+    overlay.style = "position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.9); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:2000; border-radius:30px; backdrop-filter:blur(5px);";
+    overlay.innerHTML = `
+        <div style="background:white; padding:40px; border-radius:24px; box-shadow:0 10px 40px rgba(0,0,0,0.1); text-align:center;">
+            <i class="fas fa-print" style="font-size:3rem; color:var(--royal-blue); margin-bottom:20px;"></i>
+            <h3>Reprint Receipt</h3>
+            <p style="color:#64748b; margin-bottom:30px;">Choose the output format for this transaction.</p>
+            <div style="display:flex; gap:16px; justify-content:center;">
+                <button id="repThermal" class="btn-primary" style="background:#1e293b; padding:12px 24px;"><i class="fas fa-receipt"></i> Thermal (80mm)</button>
+                <button id="repA4" class="btn-primary" style="background:#3b82f6; padding:12px 24px;"><i class="fas fa-file-invoice"></i> A4 Standard</button>
+            </div>
+            <button id="repCancel" style="margin-top:24px; background:none; border:none; color:#94a3b8; cursor:pointer; font-weight:600;">Cancel</button>
+        </div>
+    `;
+    modal.querySelector('.modal-content').appendChild(overlay);
+
+    const choice = await new Promise((resolve) => {
+        document.getElementById('repThermal').onclick = () => { overlay.remove(); resolve('thermal'); };
+        document.getElementById('repA4').onclick = () => { overlay.remove(); resolve('a4'); };
+        document.getElementById('repCancel').onclick = () => { overlay.remove(); resolve(null); };
+    });
+
+    if (choice) {
+        printReceipt(saleObj, items, choice);
+    }
 }
 
 async function renderSuppliers(searchQuery = '') {
@@ -2052,6 +2257,7 @@ async function renderReports(subPage = 'overview') {
         <div class="tab-container">
             <div class="tab-header" style="margin-bottom: 24px;">
                 <button class="tab-btn ${subPage === 'overview' ? 'active' : ''}" id="tabRev">Sales Report</button>
+                <button class="tab-btn ${subPage === 'sales' ? 'active' : ''}" id="tabSales">Detailed Sales Log</button>
                 <button class="tab-btn ${subPage === 'inventory' ? 'active' : ''}" id="tabInv">Stock Report</button>
                 <button class="tab-btn ${subPage === 'expiry' ? 'active' : ''}" id="tabExp">Expiry Report</button>
                 <button class="tab-btn ${subPage === 'profit' ? 'active' : ''}" id="tabProfit">Profit/Loss</button>
@@ -2063,6 +2269,7 @@ async function renderReports(subPage = 'overview') {
 
     // Bind Tabs
     document.getElementById('tabRev').onclick = () => renderReports('overview');
+    document.getElementById('tabSales').onclick = () => renderReports('sales');
     document.getElementById('tabInv').onclick = () => renderReports('inventory');
     document.getElementById('tabExp').onclick = () => renderReports('expiry');
     document.getElementById('tabProfit').onclick = () => renderReports('profit');
@@ -2076,6 +2283,8 @@ async function renderReports(subPage = 'overview') {
 
     if (subPage === 'overview') {
         renderFinancialOverview(content, sales);
+    } else if (subPage === 'sales') {
+        renderDetailedSalesLog(content, sales);
     } else if (subPage === 'inventory') {
         renderInventoryHealth(content, medicines);
     } else if (subPage === 'expiry') {
@@ -2197,6 +2406,63 @@ function renderInventoryHealth(container, medicines) {
             </div>
         </div>
     `;
+}
+
+function renderDetailedSalesLog(container, sales) {
+    const list = [...sales].reverse();
+    container.innerHTML = `
+        <div class="stat-card" style="padding:0; overflow:hidden; border-radius:16px;">
+            <div style="padding:20px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                <h4 style="margin:0;"><i class="fas fa-list-ul"></i> Detailed Transaction Repository</h4>
+                <div style="font-size:0.85rem; color:#64748b;">Showing ${list.length} total transactions</div>
+            </div>
+            <div style="max-height:600px; overflow-y:auto;">
+                <table class="data-table">
+                    <thead style="position:sticky; top:0; background:var(--royal-blue); color:white; z-index:10;">
+                        <tr>
+                            <th style="color:white; padding-left:20px;">Receipt ID</th>
+                            <th style="color:white;">Date & Time</th>
+                            <th style="color:white;">Client / Customer</th>
+                            <th style="color:white;">Total (KES)</th>
+                            <th style="color:white;">Mode</th>
+                            <th style="text-align:right; color:white; padding-right:20px;">Print</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${list.length > 0 ? list.map(s => {
+                            const isWalkin = !s.customer_name || s.customer_name === 'General Customer' || s.customer_name === 'Walk-in';
+                            return `
+                                <tr>
+                                    <td style="padding-left:20px; font-weight:700; color:#64748b;">#${s.id}</td>
+                                    <td>${s.date_time || s.date}</td>
+                                    <td style="font-weight:600; color:${isWalkin ? '#64748b' : 'var(--royal-blue)'};">
+                                        <i class="fas fa-${isWalkin ? 'user-clock' : 'user-check'}"></i> ${s.customer_name || 'Walk-in Customer'}
+                                    </td>
+                                    <td style="font-weight:700;">${Number(s.total).toLocaleString()}</td>
+                                    <td><span class="role-pill" style="font-size:0.7rem;">${s.payment_mode}</span></td>
+                                    <td style="text-align:right; padding-right:20px;">
+                                        <button class="action-btn-refined btn-icon-view reprint-general-btn" data-id="${s.id}" title="Reprint Transaction">
+                                            <i class="fas fa-print"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('') : '<tr><td colspan="6" style="text-align:center; padding:50px;">No sales records found.</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    document.querySelectorAll('.reprint-general-btn').forEach(btn => {
+        btn.onclick = async () => {
+            const saleId = btn.getAttribute('data-id');
+            const sale = sales.find(s => String(s.id) === String(saleId));
+            if (sale) {
+                handleHistoryReprint(sale);
+            }
+        };
+    });
 }
 
 function renderExpiryReport(container, medicines) {
@@ -2657,6 +2923,16 @@ async function handleLogin() {
             return;
         }
 
+        // Handle Remember Me logic
+        const rememberMe = document.getElementById('loginRememberMe').checked;
+        if (rememberMe) {
+            localStorage.setItem('renachem_remembered_user', u);
+            localStorage.setItem('renachem_remembered_role', selectedRole);
+        } else {
+            localStorage.removeItem('renachem_remembered_user');
+            localStorage.removeItem('renachem_remembered_role');
+        }
+
         currentUser = res.user;
         await initAppAfterLogin(res.user.role, res.user.username);
     } else {
@@ -2674,6 +2950,20 @@ function setupLoginUI() {
     const toggle = document.getElementById('passwordToggle');
     const passInput = document.getElementById('loginPassword');
     
+    // Restore remembered credentials
+    const rememberedUser = localStorage.getItem('renachem_remembered_user');
+    const rememberedRole = localStorage.getItem('renachem_remembered_role');
+    
+    if (rememberedUser) {
+        const uInput = document.getElementById('loginUsername');
+        const rSelect = document.getElementById('loginRole');
+        const remCheckbox = document.getElementById('loginRememberMe');
+        
+        if (uInput) uInput.value = rememberedUser;
+        if (rSelect) rSelect.value = rememberedRole || 'Admin';
+        if (remCheckbox) remCheckbox.checked = true;
+    }
+
     if (toggle && passInput) {
         toggle.onclick = () => {
             const isPass = passInput.type === 'password';
@@ -2800,6 +3090,19 @@ function setupProfileManagement() {
 document.addEventListener('DOMContentLoaded', () => {
     setupLoginUI();
     document.getElementById('doLoginBtn').onclick = handleLogin;
+    
+    // Allow 'Enter' key to submit login form
+    ['loginUsername', 'loginPassword', 'loginRole'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleLogin();
+                }
+            });
+        }
+    });
 
     document.querySelectorAll('.nav-item').forEach(item => {
         item.onclick = async function() {
