@@ -39,7 +39,7 @@ function setupConnectivityMonitoring() {
             mpesaOption.style.color = '#ccc';
             const select = document.getElementById('paymentMethod');
             if (select.value === 'M-Pesa') select.value = 'Cash';
-            showToast('Internet disconnected ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â M-Pesa unavailable', 'warning');
+            showToast('Internet disconnected - M-Pesa unavailable', 'warning');
         }
     };
 
@@ -194,11 +194,11 @@ async function renderSettings() {
                 
                 <div class="input-group">
                     <label>New Password</label>
-                    <input type="password" id="set_new_password" placeholder="ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢">
+                    <input type="password" id="set_new_password" placeholder="Enter new password">
                 </div>
                 <div class="input-group">
                     <label>Confirm New Password</label>
-                    <input type="password" id="set_confirm_password" placeholder="ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢">
+                    <input type="password" id="set_confirm_password" placeholder="Confirm new password">
                 </div>
                 
                 <div id="settingsPassError" style="color: #ef4444; font-size: 0.8rem; margin-bottom: 12px;" hidden></div>
@@ -457,7 +457,7 @@ async function finalizeSale(paymentMethod) {
                     <h3>M-Pesa Timeout</h3>
                     <p>M-Pesa confirmation timed out. Please confirm with customer.</p>
                     <div style="display:flex; flex-direction:column; gap:12px; margin-top:24px;">
-                        <button id="manualPaidBtn" class="btn-primary">Customer Paid ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Complete Sale</button>
+                        <button id="manualPaidBtn" class="btn-primary">Customer Paid - Complete Sale</button>
                         <button id="manualCancelBtn" style="background:#f1f5f9; border:none; border-radius:30px; padding:12px; cursor:pointer; font-weight:600;">Cancel Sale</button>
                     </div>
                 `;
@@ -668,7 +668,7 @@ async function printReceipt(saleObj, cartItems, format = 'thermal') {
             
             <div class="footer">Thank you for shopping!</div>
             
-            <div class="cut-line">ÃƒÂ¢Ã…â€œÃ¢â‚¬Å¡ - - - - - - - - - - - - - - - - - - - ÃƒÂ¢Ã…â€œÃ¢â‚¬Å¡</div>
+            <div class="cut-line">--- CUT HERE ---</div>
         </body>
         </html>
     `;
@@ -1856,6 +1856,8 @@ async function showProfileModal(id, type) {
 }
 
 async function handleHistoryReprint(saleObj) {
+    const modal = document.getElementById('genericModal');
+    modal.style.display = 'flex';
     let items = [];
     try {
         const parsed = JSON.parse(saleObj.items_json);
@@ -1877,7 +1879,6 @@ async function handleHistoryReprint(saleObj) {
     }
 
     // Quick Format Selection UI Injection
-    const modal = document.getElementById('genericModal');
     const overlay = document.createElement('div');
     overlay.style = "position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.9); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:2000; border-radius:30px; backdrop-filter:blur(5px);";
     overlay.innerHTML = `
