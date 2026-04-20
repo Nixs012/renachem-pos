@@ -8,8 +8,8 @@ const fs = require('fs');
 console.log('--- SYSTEM BREADCRUMB: CORE DEPS LOADED ---');
 const db = require('./database.js');
 console.log('--- SYSTEM BREADCRUMB: DATABASE MODULE LOADED ---');
-const { startServer } = require('./server.js');
-console.log('--- SYSTEM BREADCRUMB: SERVER MODULE LOADED ---');
+// M-Pesa server import removed as per manual record requirement
+
 
 let mainWindow = null;
 let currentSessionToken = null;
@@ -186,16 +186,8 @@ app.whenReady().then(() => {
         return;
     }
 
-    try {
-        console.log('--- SYSTEM BREADCRUMB: ATTEMPTING SERVER START ---');
-        startServer();
-    } catch (error) {
-        dialog.showMessageBox({
-            type: 'warning',
-            title: 'M-Pesa Server Error',
-            message: 'M-Pesa payment server failed to start. Cash payments will still work.'
-        });
-    }
+    // M-Pesa automated server startup removed (now handled manually)
+
 
     setupCSP();
     createWindow();
@@ -380,6 +372,18 @@ ipcMain.handle('db:updateSetting', wrapHandler(async (event, t, { key, value }) 
     if (res.success) db.insertAuditLog(currentSessionUserId, null, 'SETTING_UPDATED', 'SYSTEM', `Updated setting: ${key}`);
     return res;
 }));
+
+ipcMain.handle('db:getCredits', wrapHandler(async () => db.getCredits(), { adminOrPharmacistOnly: true }));
+ipcMain.handle('db:addCredit', wrapHandler(async (event, t, data) => db.addCredit(data)));
+ipcMain.handle('db:addCreditPayment', wrapHandler(async (event, t, data) => {
+    const res = db.addCreditPayment(data);
+    if (res.success) {
+        db.insertAuditLog(currentSessionUserId, null, 'CREDIT_PAYMENT', 'CREDITS', `Payment of ${data.amount} for Credit ID ${data.creditId}`);
+    }
+    return res;
+}, { adminOrPharmacistOnly: true }));
+ipcMain.handle('db:cleanupOldCredits', wrapHandler(async () => db.cleanupOldCredits(), { adminOnly: true }));
+ipcMain.handle('db:getCreditHistory', wrapHandler(async (event, t, creditId) => db.getCreditHistory(creditId)));
 
 ipcMain.handle('db:getAuditLog', wrapHandler(async (event, t, filters) => db.getAuditLog(filters), { adminOnly: true }));
 

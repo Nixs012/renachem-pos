@@ -118,6 +118,29 @@ function initialize() {
                 value TEXT
             );
 
+            CREATE TABLE IF NOT EXISTS credits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sale_id INTEGER,
+                customer_name TEXT NOT NULL,
+                total_amount REAL NOT NULL,
+                amount_paid REAL DEFAULT 0,
+                balance REAL NOT NULL,
+                status TEXT CHECK(status IN ('Pending', 'Partial', 'Paid')) DEFAULT 'Pending',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_payment_date DATETIME,
+                FOREIGN KEY(sale_id) REFERENCES sales(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS credit_payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                credit_id INTEGER,
+                amount REAL NOT NULL,
+                payment_mode TEXT NOT NULL,
+                payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                received_by TEXT,
+                FOREIGN KEY(credit_id) REFERENCES credits(id)
+            );
+
             CREATE TRIGGER IF NOT EXISTS prevent_audit_delete 
             BEFORE DELETE ON audit_log 
             BEGIN 
@@ -743,6 +766,73 @@ function setSetting(key, value) {
     }
 }
 
+// --- CREDIT MANAGEMENT ---
+
+function getCredits() {
+    try {
+        const data = db.prepare(`
+            SELECT c.*, s.items_json 
+            FROM credits c
+            LEFT JOIN sales s ON c.sale_id = s.id
+            ORDER BY c.created_at DESC
+        `).all();
+        return { success: true, data };
+    } catch (e) { return { success: false, error: e.message }; }
+}
+
+function addCredit(data) {
+    try {
+        const stmt = db.prepare(`
+            INSERT INTO credits (sale_id, customer_name, total_amount, balance, status)
+            VALUES (?, ?, ?, ?, 'Pending')
+        `);
+        const info = stmt.run(data.sale_id, data.customer_name, data.total_amount, data.balance);
+        return { success: true, id: info.lastInsertRowid };
+    } catch (e) { return { success: false, error: e.message }; }
+}
+
+function addCreditPayment(data) {
+    const { creditId, amount, paymentMode, receivedBy } = data;
+    try {
+        const amt = Number(amount);
+        if (isNaN(amt) || amt <= 0) return { success: false, error: "Invalid payment amount." };
+
+        const credit = db.prepare("SELECT * FROM credits WHERE id = ?").get(creditId);
+        if (!credit) return { success: false, error: "Credit record not found." };
+
+        const newPaid = Number(credit.amount_paid || 0) + amt;
+        const newBalance = Number(credit.total_amount || 0) - newPaid;
+        const newStatus = newBalance <= 0 ? 'Paid' : 'Partial';
+
+        const trx = db.transaction(() => {
+            db.prepare("INSERT INTO credit_payments (credit_id, amount, payment_mode, received_by) VALUES (?, ?, ?, ?)").run(creditId, amount, paymentMode, receivedBy);
+            db.prepare("UPDATE credits SET amount_paid = ?, balance = ?, status = ?, last_payment_date = CURRENT_TIMESTAMP WHERE id = ?").run(newPaid, newBalance, newStatus, creditId);
+        });
+        trx();
+        return { success: true };
+    } catch (e) { return { success: false, error: e.message }; }
+}
+
+function cleanupOldCredits() {
+    try {
+        // Delete Paid credits older than 3 days
+        const stmt = db.prepare("DELETE FROM credits WHERE status = 'Paid' AND last_payment_date < date('now', '-3 days')");
+        const info = stmt.run();
+        
+        // Also cleanup orphan payments if any
+        db.prepare("DELETE FROM credit_payments WHERE credit_id NOT IN (SELECT id FROM credits)").run();
+        
+        return { success: true, count: info.changes };
+    } catch (e) { return { success: false, error: e.message }; }
+}
+
+function getCreditHistory(creditId) {
+    try {
+        const payments = db.prepare("SELECT * FROM credit_payments WHERE credit_id = ? ORDER BY payment_date DESC").all(creditId);
+        return { success: true, data: payments };
+    } catch (e) { return { success: false, error: e.message }; }
+}
+
 process.on('exit', () => {
     if (db) db.close();
 });
@@ -781,6 +871,11 @@ module.exports = {
     addPurchase,
     getSales,
     addSale,
+    getCredits,
+    addCredit,
+    addCreditPayment,
+    getCreditHistory,
+    cleanupOldCredits,
     insertAuditLog,
     getAuditLog,
     getLastAuditHash,

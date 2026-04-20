@@ -254,6 +254,41 @@ const db = {
         } catch (error) {
             return { success: false, error: error.message };
         }
+    },
+    addCredit: async (data) => {
+        try {
+            return await ipcRenderer.invoke('db:addCredit', sessionToken, data);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+    getCredits: async () => {
+        try {
+            return await ipcRenderer.invoke('db:getCredits', sessionToken);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+    addCreditPayment: async (data) => {
+        try {
+            return await ipcRenderer.invoke('db:addCreditPayment', sessionToken, data);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+    cleanupOldCredits: async () => {
+        try {
+            return await ipcRenderer.invoke('db:cleanupOldCredits', sessionToken);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+    getCreditHistory: async (creditId) => {
+        try {
+            return await ipcRenderer.invoke('db:getCreditHistory', sessionToken, creditId);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
     }
 };
 

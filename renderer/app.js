@@ -26,34 +26,8 @@ let salesTransactions = [];
 // --- Connectivity Monitoring ---
 
 function setupConnectivityMonitoring() {
-    const updateMpesaStatus = () => {
-        const mpesaOption = document.querySelector('#paymentMethod option[value="M-Pesa"]');
-        if (!mpesaOption) return;
-
-        if (navigator.onLine) {
-            mpesaOption.disabled = false;
-            mpesaOption.style.color = '';
-            showToast('Internet connection restored', 'success');
-        } else {
-            mpesaOption.disabled = true;
-            mpesaOption.style.color = '#ccc';
-            const select = document.getElementById('paymentMethod');
-            if (select.value === 'M-Pesa') select.value = 'Cash';
-            showToast('Internet disconnected - M-Pesa unavailable', 'warning');
-        }
-    };
-
-    window.addEventListener('online', updateMpesaStatus);
-    window.addEventListener('offline', updateMpesaStatus);
-    
-    // Initial check
-    setTimeout(() => {
-        const mpesaOption = document.querySelector('#paymentMethod option[value="M-Pesa"]');
-        if (mpesaOption && !navigator.onLine) {
-            mpesaOption.disabled = true;
-            mpesaOption.style.color = '#ccc';
-        }
-    }, 1000);
+    // Connectivity monitoring for M-PESA is no longer required as it is now a manual record.
+    // Kept empty to avoid breaking calls to this function in window.onload
 }
 
 
@@ -319,167 +293,8 @@ async function finalizeSale(paymentMethod) {
         return;
     }
 
-    if (paymentMethod === 'M-Pesa') {
-        if (!navigator.onLine) {
-            showToast('No internet connection. Please use Cash payment.', 'error');
-            return;
-        }
+    // M-Pesa is now handled manually (no prompts)
 
-        const phoneData = await new Promise((resolve) => {
-            document.getElementById('modalInner').innerHTML = `
-                <div style="text-align:center; max-width: 420px; margin:0 auto; padding: 10px;">
-                    <i class="fas fa-mobile-alt" style="font-size:48px; color:#10b981; margin-bottom:16px;"></i>
-                    <h3 style="margin-bottom:8px; font-size:1.5rem;">M-Pesa Payment</h3>
-                    <p style="font-size:1.2rem; margin-bottom:24px; font-weight:700; color:#334155;">Total: KES ${total.toFixed(2)}</p>
-                    
-                    <div style="text-align:left; margin-bottom:24px;">
-                        <label style="display:block; margin-bottom:8px; font-weight:600; color:#475569;">Safaricom Phone Number</label>
-                        <div style="position:relative;">
-                            <span style="position:absolute; left:16px; top:15px; color:#94a3b8; font-weight:600;">+254</span>
-                            <input type="text" id="mpesaPhoneInp" placeholder="7XXXXXXXX" style="width:100%; box-sizing:border-box; padding:14px 14px 14px 60px; font-size:1.1rem; font-weight:600; border-radius:16px; border:2px solid #cbd5e1; outline:none; transition:all 0.2s ease;">
-                        </div>
-                        <div id="mpesaPhoneErr" style="color:#ef4444; font-size:0.85rem; margin-top:6px; font-weight:500;" hidden></div>
-                    </div>
-                    
-                    <div style="display:flex; gap:12px;">
-                        <button id="mpesaProceedBtn" class="btn-primary" style="flex:2; background:#10b981; padding:14px; font-size:1.1rem; border-radius:16px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">Send Prompt</button>
-                        <button id="mpesaCancelBtn" style="flex:1; background:#f1f5f9; color:#475569; border:none; border-radius:16px; cursor:pointer; font-weight:600; font-size:1.1rem;">Cancel</button>
-                    </div>
-                </div>
-            `;
-            document.getElementById('genericModal').style.display = 'flex';
-            
-            const proceedBtn = document.getElementById('mpesaProceedBtn');
-            const cancelBtn = document.getElementById('mpesaCancelBtn');
-            const phoneInp = document.getElementById('mpesaPhoneInp');
-            const errEl = document.getElementById('mpesaPhoneErr');
-
-            cancelBtn.onclick = () => {
-                document.getElementById('genericModal').style.display = 'none';
-                resolve(null);
-            };
-
-            proceedBtn.onclick = async () => {
-                const val = phoneInp.value;
-                if (!/^(07|01)\d{8}$/.test(val)) {
-                    errEl.innerText = 'Enter a valid Safaricom number e.g. 0712345678';
-                    errEl.hidden = false;
-                    return;
-                }
-                
-                proceedBtn.disabled = true;
-                proceedBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending request...';
-                
-                try {
-                    const stkRes = await fetch('http://localhost:3000/mpesa/stkpush', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ phone: val, amount: Math.ceil(total) })
-                    });
-                    const data = await stkRes.json();
-                    if (!data.success) {
-                        showToast('M-Pesa request failed: ' + (data.error || 'Server error'), 'error');
-                        proceedBtn.disabled = false;
-                        proceedBtn.innerText = 'Proceed';
-                    } else {
-                        resolve({ phone: val, checkoutId: data.CheckoutRequestID });
-                    }
-                } catch (e) {
-                    showToast('Connection to M-Pesa server failed', 'error');
-                    proceedBtn.disabled = false;
-                    proceedBtn.innerText = 'Proceed';
-                }
-            };
-        });
-
-        if (!phoneData) return;
-
-        // Waiting Screen
-        const mpesaResult = await new Promise((resolve) => {
-            let seconds = 0;
-            const modal = document.getElementById('genericModal');
-            modal.innerHTML = `
-                <div class="modal-content" style="text-align:center;">
-                    <i class="fas fa-mobile-alt" style="font-size:48px; color:var(--cyna-blue); margin-bottom:16px;"></i>
-                    <h3>Waiting for Payment</h3>
-                    <p>Request sent to <b>${phoneData.phone}</b>. Ask customer to enter PIN.</p>
-                    <div style="margin:20px 0;">
-                        <i class="fas fa-circle-notch fa-spin" style="font-size:32px; color:var(--cyna-blue);"></i>
-                    </div>
-                    <p style="font-size:1.2rem; font-weight:700;"><span id="timerVal">0</span>s elapsed</p>
-                    <button id="cancelWaitBtn" style="margin-top:24px; background:#fee2e2; color:#b91c1c; border:none; border-radius:30px; padding:10px 24px; cursor:pointer; font-weight:600;">Cancel Transaction</button>
-                </div>
-            `;
-
-            const timerInter = setInterval(() => {
-                seconds++;
-                const tEl = document.getElementById('timerVal');
-                if (tEl) tEl.innerText = seconds;
-                if (seconds >= 90) {
-                    clearInterval(timerInter);
-                    clearInterval(pollInter);
-                    resolve({ status: 'timeout' });
-                }
-            }, 1000);
-
-            const pollInter = setInterval(async () => {
-                try {
-                    const res = await fetch(`http://localhost:3000/mpesa/result/${phoneData.checkoutId}`);
-                    const data = await res.json();
-                    if (data.status === 'success') {
-                        clearInterval(timerInter);
-                        clearInterval(pollInter);
-                        resolve({ status: 'success', code: data.code });
-                    } else if (data.status === 'failed') {
-                        clearInterval(timerInter);
-                        clearInterval(pollInter);
-                        resolve({ status: 'failed' });
-                    }
-                } catch (e) { console.error('Poll error', e); }
-            }, 3000);
-
-            document.getElementById('cancelWaitBtn').onclick = () => {
-                clearInterval(timerInter);
-                clearInterval(pollInter);
-                resolve({ status: 'cancelled' });
-            };
-        });
-
-        // Re-open generic structure
-        document.getElementById('genericModal').innerHTML = '<div class="modal-content" id="modalInner"></div>';
-        document.getElementById('genericModal').style.display = 'none';
-
-        if (mpesaResult.status === 'success') {
-            mpesaCode = mpesaResult.code;
-        } else if (mpesaResult.status === 'timeout') {
-            const manual = await new Promise((r) => {
-                document.getElementById('modalInner').innerHTML = `
-                    <h3>M-Pesa Timeout</h3>
-                    <p>M-Pesa confirmation timed out. Please confirm with customer.</p>
-                    <div style="display:flex; flex-direction:column; gap:12px; margin-top:24px;">
-                        <button id="manualPaidBtn" class="btn-primary">Customer Paid - Complete Sale</button>
-                        <button id="manualCancelBtn" style="background:#f1f5f9; border:none; border-radius:30px; padding:12px; cursor:pointer; font-weight:600;">Cancel Sale</button>
-                    </div>
-                `;
-                document.getElementById('genericModal').style.display = 'flex';
-                document.getElementById('manualPaidBtn').onclick = () => { 
-                    document.getElementById('genericModal').style.display = 'none';
-                    r(true); 
-                };
-                document.getElementById('manualCancelBtn').onclick = () => { 
-                    document.getElementById('genericModal').style.display = 'none';
-                    r(false); 
-                };
-            });
-            if (!manual) return;
-            mpesaCode = 'TIMEOUT_OVERRIDE';
-        } else if (mpesaResult.status === 'failed') {
-            showToast('Payment failed or cancelled by customer. Please retry or accept cash.', 'error');
-            return;
-        } else {
-            return; // User cancelled
-        }
-    }
 
     // Step 5: Save the sale
     try {
@@ -505,18 +320,31 @@ async function finalizeSale(paymentMethod) {
             mpesa_code: mpesaCode || ''
         };
 
-        const saveRes = await window.db.addSale(saleObj);
-        if (saveRes.success) {
-            showToast(`Sale completed! KES ${total.toFixed(2)} via ${paymentMethod}` + (mpesaCode ? `. Code: ${mpesaCode}` : ''));
-            
-            // Wait for user to select print format
-            await promptPrintReceipt(saleObj, [...cart]);
-            
-            cart = [];
-            await renderPOS();
-        } else {
-            showToast(`Sale saved locally but record failed. Note M-Pesa code: ${mpesaCode} and contact support.`, 'warning');
-        }
+            const saveRes = await window.db.addSale(saleObj);
+            if (saveRes.success) {
+                // If this was a credit sale, create the credit entry
+                if (paymentMethod === 'Credit') {
+                    // We assume the sale ID is returned in saveRes.id if addSale is designed that way, 
+                    // otherwise we fetch the latest sale ID for this customer.
+                    // Designing addSale to return the ID is safer. (Checked database.js: addSale returns {success, id})
+                    await window.db.addCredit({
+                        sale_id: saveRes.id,
+                        customer_name: customerName,
+                        total_amount: total,
+                        balance: total
+                    });
+                }
+
+                showToast(`Sale completed! KES ${total.toFixed(2)} via ${paymentMethod}` + (mpesaCode ? `. Code: ${mpesaCode}` : ''));
+                
+                // Wait for user to select print format
+                await promptPrintReceipt(saleObj, [...cart]);
+                
+                cart = [];
+                await renderPOS();
+            } else {
+                showToast(`Sale saved locally but record failed. Note M-Pesa code: ${mpesaCode} and contact support.`, 'warning');
+            }
     } catch (error) {
         showToast('System error saving sale. Please contact admin.', 'error');
         console.error(error);
@@ -662,6 +490,15 @@ async function printReceipt(saleObj, cartItems, format = 'thermal') {
                 <span>M-Pesa Ref:</span>
                 <span>${saleObj.mpesa_code}</span>
             </div>
+            ` : ''}
+
+            ${saleObj.payment_mode === 'Credit' ? `
+            <div class="divider"></div>
+            <div class="total-section" style="color:red; font-size:14px;">
+                <span>TOTAL BALANCE DUE</span>
+                <span>KES ${saleObj.total.toFixed(2)}</span>
+            </div>
+            <div style="font-size:11px; text-align:center; margin-top:5px; font-weight:bold;">*** CREDIT TRANSACTION ***</div>
             ` : ''}
             
             <div class="divider"></div>
@@ -2337,14 +2174,7 @@ async function renderReports(subPage = 'overview') {
     } else if (subPage === 'profit') {
         renderProfitLoss(content, sales, medicines);
     } else if (subPage === 'credit') {
-        content.innerHTML = `
-            <div class="stat-card" style="text-align:center; padding:60px;">
-                <i class="fas fa-hand-holding-dollar" style="font-size:4rem; color:var(--royal-blue); opacity:0.1; margin-bottom:20px;"></i>
-                <h3>Credit Management System</h3>
-                <p style="color:#64748b; max-width:500px; margin:10px auto;">Our upcoming Credit & Debt Tracking module will allow you to track patient debts, partial payments, and supplier credit lines. This feature is scheduled for the next update.</p>
-                <span class="role-pill" style="margin-top:20px; background:#fef3c7; color:#92400e;">Development Phase</span>
-            </div>
-        `;
+        renderCreditTracking();
     }
 }
 
@@ -2390,19 +2220,22 @@ function renderFinancialOverview(container, sales) {
         <div class="stat-card" style="margin-bottom:24px;">
             <h4 style="margin-bottom:16px;">Payment Method Breakdown</h4>
             <div style="display:flex; gap:16px; flex-wrap:wrap;">
-                <div style="background:#10b981; color:white; padding:12px 24px; border-radius:12px; font-weight:700; flex:1; text-align:center; box-shadow:0 4px 6px -1px rgba(16,185,129,0.2);">
+                <div class="method-card" style="background:#10b981; color:white; padding:12px 24px; border-radius:12px; font-weight:700; flex:1; text-align:center; box-shadow:0 4px 6px -1px rgba(16,185,129,0.2); cursor:pointer;" onclick="renderReports('sales')">
                     <div style="font-size:1.3rem; margin-bottom:4px;"><i class="fas fa-money-bill-wave"></i> Cash</div>
                     <div style="font-size:1rem; opacity:0.9;">${cashCount} Transactions</div>
                 </div>
-                <div style="background:#8b5cf6; color:white; padding:12px 24px; border-radius:12px; font-weight:700; flex:1; text-align:center; box-shadow:0 4px 6px -1px rgba(139,92,246,0.2);">
+                <div class="method-card" style="background:#8b5cf6; color:white; padding:12px 24px; border-radius:12px; font-weight:700; flex:1; text-align:center; box-shadow:0 4px 6px -1px rgba(139,92,246,0.2); cursor:pointer;" onclick="renderReports('sales')">
                     <div style="font-size:1.3rem; margin-bottom:4px;"><i class="fas fa-mobile-alt"></i> M-Pesa</div>
                     <div style="font-size:1rem; opacity:0.9;">${mpesaCount} Transactions</div>
                 </div>
-                <div style="background:#fbbf24; color:white; padding:12px 24px; border-radius:12px; font-weight:700; flex:1; text-align:center; box-shadow:0 4px 6px -1px rgba(251,191,36,0.2);">
+                <div class="method-card" style="background:#fbbf24; color:white; padding:12px 24px; border-radius:12px; font-weight:700; flex:1; text-align:center; box-shadow:0 4px 6px -1px rgba(251,191,36,0.2); cursor:pointer;" onclick="renderReports('credit')">
                     <div style="font-size:1.3rem; margin-bottom:4px;"><i class="fas fa-credit-card"></i> Credit</div>
                     <div style="font-size:1rem; opacity:0.9;">${creditCount} Transactions</div>
                 </div>
             </div>
+            <style>
+                .method-card:hover { transform: translateY(-2px); filter: brightness(1.1); transition: all 0.2s ease; }
+            </style>
         </div>
 
     `;
@@ -3037,6 +2870,20 @@ function setupLoginUI() {
 async function renderCurrentPage() {
     const container = document.getElementById('pageContainer');
     const wrapRender = async (fn, name) => {
+        // --- RENDER GUARD ---
+        if (typeof fn !== 'function') {
+            console.error(`MODULE ERROR: ${name} is not defined.`);
+            showToast(`The ${name} module is temporarily unavailable or missing.`, 'error');
+            // Graceful recovery: If the intended module is missing, force back to dashboard
+            if (name !== 'Dashboard') {
+                setTimeout(() => {
+                    const dashboardBtn = document.querySelector('.sidebar-item[data-page="dashboard"]');
+                    if (dashboardBtn) dashboardBtn.click();
+                }, 1500);
+            }
+            return;
+        }
+
         try {
             // Clear container before rendering to avoid UI ghosting
             container.innerHTML = '<div style="display:flex; justify-content:center; padding:50px;"><i class="fas fa-spinner fa-spin" style="font-size:2rem; color:var(--cyna-blue);"></i></div>';
@@ -3354,3 +3201,250 @@ async function showSupplierRecallModal(medName, supplierName) {
     modal.style.display = 'flex';
 }
 
+async function syncCreditData() {
+    const salesRes = await window.db.getSales();
+    const creditsRes = await window.db.getCredits();
+    
+    if (salesRes.success && creditsRes.success) {
+        const creditSales = salesRes.data.filter(s => s.payment_mode === 'Credit');
+        const existingSaleIds = new Set(creditsRes.data.map(c => c.sale_id));
+
+        for (let sale of creditSales) {
+            if (!existingSaleIds.has(sale.id)) {
+                await window.db.addCredit({
+                    sale_id: sale.id,
+                    customer_name: sale.customer_name || 'Legacy Customer',
+                    total_amount: sale.total,
+                    balance: sale.total
+                });
+            }
+        }
+    }
+    
+    // Auto-Cleanup: Remove "Paid" records older than 3 days
+    if (currentUser && currentUser.role === 'Admin') {
+        await window.db.cleanupOldCredits();
+    }
+}
+
+async function renderCreditTracking() {
+    await syncCreditData();
+    const container = document.getElementById('pageContainer');
+    const res = await window.db.getCredits();
+    const credits = res.success ? res.data : [];
+
+    const totalDebt = credits.reduce((s, c) => s + (c.status !== 'Paid' ? Number(c.balance || 0) : 0), 0);
+    const pendingDebtors = credits.filter(c => c.status !== 'Paid').length;
+
+    container.innerHTML = `
+        <div class="view-header">
+            <div>
+                <h2><i class="fas fa-hand-holding-usd"></i> Credit Management</h2>
+                <p>Track patient debts, payments, and outstanding balances</p>
+            </div>
+        </div>
+
+        <div class="stats-grid" style="margin-bottom:24px;">
+            <div class="stat-card" style="border-left:4px solid var(--danger);">
+                <h4>Total Outstanding Debt</h4>
+                <div class="stat-number">KES ${totalDebt.toLocaleString(undefined, {minimumFractionDigits:2})}</div>
+                <p style="font-size:0.75rem; color:#64748b; font-weight:600; margin-top:8px;">Total receivables</p>
+            </div>
+            <div class="stat-card" style="border-left:4px solid var(--royal-blue);">
+                <h4>Active Debtors</h4>
+                <div class="stat-number">${pendingDebtors}</div>
+                <p style="font-size:0.75rem; color:#64748b; font-weight:600; margin-top:8px;">Customers with balance</p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h4 style="margin:0;">Debt Tracking Records</h4>
+                <div style="display:flex; gap:12px;">
+                    <input type="text" id="creditSearch" placeholder="Search customer..." class="premium-input" style="width:250px; padding:8px 16px;">
+                </div>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr style="background:var(--royal-blue); color:white;">
+                        <th style="color:white; padding-left:20px;">Date</th>
+                        <th style="color:white;">Customer</th>
+                        <th style="color:white;">Original Debt</th>
+                        <th style="color:white;">Balance</th>
+                        <th style="color:white;">Status</th>
+                        <th style="color:white; text-align:right; padding-right:20px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="creditTableBody">
+                    ${credits.map(c => `
+                        <tr>
+                            <td style="padding-left:20px;">${new Date(c.created_at + ' UTC').toLocaleDateString()}</td>
+                            <td style="font-weight:600;">${c.customer_name}</td>
+                            <td>KES ${Number(c.total_amount).toFixed(2)}</td>
+                            <td style="font-weight:700; color:${c.balance > 0 ? 'var(--danger)' : 'var(--emerald)'}">KES ${Number(c.balance).toFixed(2)}</td>
+                            <td><span class="role-pill" style="background:${c.status === 'Paid' ? '#dcfce7' : (c.status === 'Partial' ? '#fef9c3' : '#fee2e2')}; color:${c.status === 'Paid' ? '#166534' : (c.status === 'Partial' ? '#854d0e' : '#991b1b')}">${c.status}</span></td>
+                            <td style="text-align:right; padding-right:20px;">
+                                <button class="action-btn-refined btn-icon-view" onclick="viewDebtorStatement(${c.id}, '${c.customer_name.replace(/'/g, "\\'")}')" title="View Statement">
+                                    <i class="fas fa-file-invoice-dollar"></i>
+                                </button>
+                                ${c.balance > 0 ? `
+                                <button class="action-btn-refined btn-icon-edit" onclick="showPaymentModal(${c.id}, ${c.balance}, '${c.customer_name.replace(/'/g, "\\'")}')" title="Record Payment">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                ` : ''}
+                            </td>
+                        </tr>
+                    `).join('') || '<tr><td colspan="6" style="text-align:center; padding:40px;">No credit records found.</td></tr>'}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    const searchInput = document.getElementById('creditSearch');
+    if (searchInput) {
+        searchInput.oninput = (e) => {
+            const query = e.target.value.toLowerCase();
+            document.querySelectorAll('#creditTableBody tr').forEach(row => {
+                row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
+            });
+        };
+    }
+}
+
+async function showPaymentModal(creditId, balance, name) {
+    const modal = document.getElementById('genericModal');
+    const inner = document.getElementById('modalInner');
+    inner.innerHTML = `
+        <div style="padding:24px;">
+            <h3 style="margin-bottom:20px; color:var(--royal-blue);"><i class="fas fa-money-check-alt"></i> Record Credit Payment</h3>
+            <p style="color:#64748b; margin-bottom:24px;">Debtor: <b>${name}</b> | Outstanding: <b>KES ${Number(balance).toFixed(2)}</b></p>
+            
+            <div class="form-grid">
+                <div class="input-group">
+                    <label>Amount to Pay (KES)</label>
+                    <input type="number" id="pay_amount" class="premium-input" value="${balance}" min="1" max="${balance}">
+                </div>
+                <div class="input-group">
+                    <label>Payment Method</label>
+                    <select id="pay_method" class="premium-input">
+                        <option value="Cash">Cash</option>
+                        <option value="M-Pesa">M-Pesa</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-top:32px; display:flex; gap:12px;">
+                <button class="btn-primary" id="confirmPayBtn" style="flex:2;">Confirm Payment</button>
+                <button class="btn-primary" onclick="document.getElementById('genericModal').style.display='none';" style="flex:1; background:#f1f5f9; color:#475569; border:none;">Cancel</button>
+            </div>
+        </div>
+    `;
+    modal.style.display = 'flex';
+
+    document.getElementById('confirmPayBtn').onclick = async () => {
+        const amount = parseFloat(document.getElementById('pay_amount').value);
+        const method = document.getElementById('pay_method').value;
+
+        if (isNaN(amount) || amount <= 0 || amount > balance) {
+            return showToast('Invalid payment amount', 'error');
+        }
+
+        const res = await window.db.addCreditPayment({
+            creditId,
+            amount,
+            paymentMode: method,
+            receivedBy: currentUser.username
+        });
+
+        if (res.success) {
+            showToast(`Payment of KES ${amount} recorded successfully`, 'success');
+            modal.style.display = 'none';
+            renderCreditTracking();
+        } else {
+            showToast('Failed to record payment: ' + res.error, 'error');
+        }
+    };
+}
+
+async function viewDebtorStatement(creditId, name) {
+    const res = await window.db.getCreditHistory(creditId);
+    const payments = res.success ? res.data : [];
+    
+    // Also get the original sale for total context
+    const creditRes = await window.db.getCredits();
+    const credit = creditRes.data.find(c => c.id === creditId);
+
+    const modal = document.getElementById('genericModal');
+    const inner = document.getElementById('modalInner');
+    inner.innerHTML = `
+        <div style="padding:24px; max-width:700px; margin:0 auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; border-bottom:2px solid #f1f5f9; padding-bottom:16px;">
+                <div>
+                    <h3 style="margin:0; color:var(--royal-blue);"><i class="fas fa-file-invoice"></i> Debtor Statement</h3>
+                    <p style="margin:4px 0 0; color:#64748b; font-size:0.9rem;">Customer: <b>${name}</b></p>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn-primary" onclick="downloadStatement('${name.replace(/'/g, "\\'")}', ${creditId})" style="padding:8px 16px; font-size:0.8rem; background:var(--emerald);">
+                        <i class="fas fa-download"></i> Download
+                    </button>
+                    <button class="btn-primary" onclick="window.print()" style="padding:8px 16px; font-size:0.8rem; background:var(--royal-blue);">
+                        <i class="fas fa-print"></i> Print
+                    </button>
+                </div>
+            </div>
+            
+            <div id="statementContent">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
+                    <div style="background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #e2e8f0;">
+                        <span style="display:block; font-size:0.75rem; color:#64748b; font-weight:700; text-transform:uppercase;">Original Debt</span>
+                        <span style="font-size:1.3rem; font-weight:700; color:#1e293b;">KES ${Number(credit.total_amount).toFixed(2)}</span>
+                    </div>
+                    <div style="background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #e2e8f0;">
+                        <span style="display:block; font-size:0.75rem; color:#64748b; font-weight:700; text-transform:uppercase;">Current Balance</span>
+                        <span style="font-size:1.3rem; font-weight:700; color:${credit.balance > 0 ? 'var(--danger)' : 'var(--emerald) '};">KES ${Number(credit.balance).toFixed(2)}</span>
+                    </div>
+                </div>
+
+                <h4 style="color:#1e293b; font-size:1rem; margin-bottom:16px; display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-history" style="color:var(--royal-blue);"></i> Payment History
+                </h4>
+                <table class="data-table" style="background:#ffffff; border:1px solid #f1f5f9; border-radius:12px; overflow:hidden;">
+                    <thead style="background:#f1f5f9;">
+                        <tr>
+                            <th style="padding:12px;">Date & Time</th>
+                            <th style="padding:12px;">Amount Paid</th>
+                            <th style="padding:12px;">Method</th>
+                            <th style="padding:12px;">Received By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${payments.map(p => `
+                            <tr>
+                                <td>${new Date(p.payment_date + ' UTC').toLocaleString()}</td>
+                                <td style="font-weight:700; color:var(--emerald);">+ KES ${Number(p.amount).toFixed(2)}</td>
+                                <td>${p.payment_mode}</td>
+                                <td>${p.received_by}</td>
+                            </tr>
+                        `).join('') || '<tr><td colspan="4" style="text-align:center; padding:30px; color:#94a3b8;">No payments recorded yet.</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+            
+            <button class="btn-primary" onclick="document.getElementById('genericModal').style.display='none';" style="width:100%; background:#f1f5f9; color:#475569; border:none; margin-top:24px; font-weight:700;">Close Statement</button>
+        </div>
+    `;
+    modal.style.display = 'flex';
+}
+
+function downloadStatement(name, creditId) {
+    const content = document.getElementById('statementContent').innerText;
+    const blob = new Blob([`DEBTOR STATEMENT: ${name}\n\n${content}`], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Statement_${name.replace(/\s/g, '_')}_${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    showToast('Statement downloaded successfully.', 'success');
+}
