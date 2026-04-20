@@ -15,6 +15,18 @@ let currentPage = 'dashboard';
 let cart = [];
 let loginFailCount = 0;
 
+// Pagination state
+let paginationState = {
+    inventory: 1,
+    users: 1,
+    audit: 1,
+    sales: 1,
+    patients: 1,
+    customers: 1,
+    suppliers: 1,
+    limit: 12
+};
+
 // Module persistent state variables
 let medicines = [];
 let patients = [];
@@ -41,6 +53,69 @@ function filterTable(query, data, fields) {
         });
     });
 }
+
+function renderPaginationControls(module, totalItems) {
+    const limit = paginationState.limit;
+    const totalPages = Math.ceil(totalItems / limit);
+    const currentPage = paginationState[module] || 1;
+    
+    if (totalPages <= 1) return '';
+
+    const start = (currentPage - 1) * limit + 1;
+    const end = Math.min(currentPage * limit, totalItems);
+
+    return `
+        <div class="pagination-bar" style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; background:#f8fafc; border-top:1px solid #f1f5f9; border-radius:0 0 16px 16px;">
+            <div style="font-size:0.85rem; color:#64748b;">
+                Showing <b style="color:#0f172a;">${start}-${end}</b> of <b style="color:#0f172a;">${totalItems}</b> entries
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button class="action-btn-refined" onclick="changePage('${module}', ${currentPage - 1})" ${currentPage === 1 ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
+                    <i class="fas fa-chevron-left"></i> Previous
+                </button>
+                <div style="display:flex; align-items:center; padding:0 12px; font-weight:700; color:var(--royal-blue); font-size:0.9rem;">
+                    Page ${currentPage} of ${totalPages}
+                </div>
+                <button class="action-btn-refined" onclick="changePage('${module}', ${currentPage + 1})" ${currentPage === totalPages ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
+                    Next <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+window.changePage = (module, newPage) => {
+    paginationState[module] = newPage;
+    
+    // Global Routing for Pagination Refresh
+    switch (module) {
+        case 'inventory':
+            const qs = document.getElementById('medSearch')?.value || '';
+            renderInventory(qs, window.lastInvFilter || '');
+            break;
+        case 'users':
+            renderUsers('list');
+            break;
+        case 'audit':
+            renderUsers('audit');
+            break;
+        case 'sales':
+            renderReports('sales');
+            break;
+        case 'patients':
+            const ps = document.getElementById('patientSearch')?.value || '';
+            renderPatients(ps);
+            break;
+        case 'customers':
+            const cs = document.getElementById('customerSearch')?.value || '';
+            renderCustomers(cs);
+            break;
+        case 'suppliers':
+            const ss = document.getElementById('supplierSearch')?.value || '';
+            renderSuppliers(ss);
+            break;
+    }
+};
 
 // --- UI Helpers ---
 
@@ -188,10 +263,7 @@ async function renderSettings() {
                         <span>App Version</span>
                         <span style="font-weight:bold;">v1.0.0-gold</span>
                     </div>
-                    <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;">
-                        <span>M-Pesa Integrator</span>
-                        <span style="font-weight:bold; color:var(--emerald);">CONNECTED</span>
-                    </div>
+                    
                     <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;">
                         <span>Database Engine</span>
                         <span style="font-weight:bold;">SQLite Core</span>
@@ -719,10 +791,18 @@ async function renderInventory(searchQuery = '', filterType = '') {
         medicines = medicines.filter(m => m.stock <= (m.reorder_level || 10));
     }
 
-    // Filter if search query exists
-    if (searchQuery) {
-        medicines = filterTable(searchQuery, medicines, ['name', 'batch', 'barcode']);
+    // --- PAGINATION RESET & LOGIC ---
+    if (searchQuery || filterType) {
+        if (window.lastInvSearch !== searchQuery || window.lastInvFilter !== filterType) {
+            paginationState.inventory = 1;
+        }
     }
+    window.lastInvSearch = searchQuery;
+    window.lastInvFilter = filterType;
+
+    const totalFiltered = medicines.length;
+    const startIdx = (paginationState.inventory - 1) * paginationState.limit;
+    const paginatedMeds = medicines.slice(startIdx, startIdx + paginationState.limit);
 
     const filterTitle = filterType ? ` (Filtered: ${filterType === 'lowStock' ? 'Low Stock' : filterType.charAt(0).toUpperCase() + filterType.slice(1)})` : '';
 
@@ -765,7 +845,7 @@ async function renderInventory(searchQuery = '', filterType = '') {
                     </tr>
                 </thead>
                 <tbody>
-                    ${medicines.length > 0 ? medicines.map(m => {
+                    ${paginatedMeds.length > 0 ? paginatedMeds.map(m => {
                         const isLow = m.stock <= m.reorder_level;
                         const expiryDate = new Date(m.expiry);
                         const isExpired = expiryDate < new Date();
@@ -803,6 +883,7 @@ async function renderInventory(searchQuery = '', filterType = '') {
                     }).join('') : '<tr><td colspan="7" style="text-align:center; padding:40px; color:#64748b;">No medicines found matching your search.</td></tr>'}
                 </tbody>
             </table>
+            ${renderPaginationControls('inventory', totalFiltered)}
         </div>
     `;
 
@@ -1246,8 +1327,15 @@ async function renderPatients(searchQuery = '') {
     let patients = res.data || [];
 
     if (searchQuery) {
+        if (window.lastPatientSearch !== searchQuery) {
+            paginationState.patients = 1;
+            window.lastPatientSearch = searchQuery;
+        }
         patients = filterTable(searchQuery, patients, ['name', 'diagnosis', 'history']);
     }
+
+    const totalPatients = patients.length;
+    const paginatedPatients = patients.slice((paginationState.patients - 1) * paginationState.limit, paginationState.patients * paginationState.limit);
 
     document.getElementById('pageContainer').innerHTML = `
         <div class="view-header">
@@ -1278,19 +1366,20 @@ async function renderPatients(searchQuery = '') {
                         <th style="color:white;">Gender</th>
                         <th style="color:white;">Diagnosis</th>
                         <th style="color:white;">Prescriptions</th>
-                        <th style="color:white;">History</th>
                         <th style="text-align:right; color:white; padding-right:16px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${patients.length > 0 ? patients.map(p => `
+                    ${paginatedPatients.length > 0 ? paginatedPatients.map(p => `
                         <tr>
-                            <td style="font-weight:600; color:var(--royal-blue); padding-left:16px;">${p.name}</td>
-                            <td>${p.age}</td>
+                            <td style="padding:16px;">
+                                <div style="font-weight:700; color:var(--royal-blue);">${p.name}</div>
+                                <div style="font-size:0.75rem; color:#64748b;">ID: #${p.id}</div>
+                            </td>
+                            <td>${p.age || 'N/A'}</td>
                             <td><span class="role-pill" style="background:#f1f5f9; color:#475569;">${p.gender}</span></td>
-                            <td><div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.diagnosis || ''}</div></td>
-                            <td><div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.prescriptions || ''}</div></td>
-                            <td><div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.history || ''}</div></td>
+                            <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.diagnosis || '---'}</td>
+                            <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.prescriptions || '---'}</td>
                             <td style="text-align:right; padding-right:16px;">
                                 <div style="display:flex; justify-content:flex-end; gap:8px;">
                                     <button class="action-btn-refined btn-icon-view view-patient-profile-btn" data-id="${p.id}" title="View History & Profile">
@@ -1305,9 +1394,10 @@ async function renderPatients(searchQuery = '') {
                                 </div>
                             </td>
                         </tr>
-                    `).join('') : '<tr><td colspan="7" style="text-align:center; padding:40px; color:#64748b;">No patient records found.</td></tr>'}
+                    `).join('') : '<tr><td colspan="6" style="text-align:center; padding:40px; color:#64748b;">No patient records found.</td></tr>'}
                 </tbody>
             </table>
+            ${renderPaginationControls('patients', totalPatients)}
         </div>
     `;
 
@@ -1430,8 +1520,15 @@ async function renderCustomers(searchQuery = '') {
     let customers = res.data || [];
 
     if (searchQuery) {
+        if (window.lastCustomerSearch !== searchQuery) {
+            paginationState.customers = 1;
+            window.lastCustomerSearch = searchQuery;
+        }
         customers = filterTable(searchQuery, customers, ['name', 'phone', 'email']);
     }
+
+    const totalCustomers = customers.length;
+    const paginatedCustomers = customers.slice((paginationState.customers - 1) * paginationState.limit, paginationState.customers * paginationState.limit);
 
     document.getElementById('pageContainer').innerHTML = `
         <div class="view-header">
@@ -1463,35 +1560,34 @@ async function renderCustomers(searchQuery = '') {
                         <th style="color:white;">Phone</th>
                         <th style="color:white;">Email</th>
                         <th style="color:white;">Prescriptions</th>
-                        <th style="color:white;">History</th>
                         <th style="text-align:right; color:white; padding-right:16px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${customers.length > 0 ? customers.map(c => `
+                    ${paginatedCustomers.length > 0 ? paginatedCustomers.map(c => `
                         <tr>
-                            <td style="font-weight:600; color:var(--royal-blue); padding-left:16px;">${c.name}</td>
-                            <td style="font-weight:500;">${c.phone || ''}</td>
-                            <td style="color:#64748b; font-size:0.9rem;">${c.email || ''}</td>
-                            <td><div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${c.prescriptions || ''}">${c.prescriptions || ''}</div></td>
-                            <td><div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${c.history || ''}">${c.history || ''}</div></td>
-                            <td style="text-align:right; padding-right:16px;">
+                            <td style="padding-left:20px; font-weight:700; color:var(--royal-blue);">${c.name}</td>
+                            <td style="font-weight:600;">${c.phone}</td>
+                            <td style="color:#64748b;">${c.email || 'No Email'}</td>
+                            <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${c.prescriptions || '---'}</td>
+                            <td style="text-align:right; padding-right:20px;">
                                 <div style="display:flex; justify-content:flex-end; gap:8px;">
-                                    <button class="action-btn-refined btn-icon-view view-customer-profile-btn" data-id="${c.id}" title="View History & Profile">
-                                        <i class="fas fa-history"></i>
+                                    <button class="action-btn-refined btn-icon-view view-customer-profile-btn" data-id="${c.id}" title="Customer History">
+                                        <i class="fas fa-user-tag"></i>
                                     </button>
-                                    <button class="action-btn-refined btn-icon-edit edit-customer-btn" data-id="${c.id}" title="Edit Customer">
+                                    <button class="action-btn-refined btn-icon-edit edit-customer-btn" data-id="${c.id}" title="Edit Profile">
                                         <i class="fas fa-pencil-alt"></i>
                                     </button>
-                                    <button class="action-btn-refined btn-icon-del del-customer-btn" data-id="${c.id}" data-name="${c.name.replace(/"/g, '&quot;')}" title="Remove Customer">
-                                        <i class="fas fa-trash"></i>
+                                    <button class="action-btn-refined btn-icon-del del-customer-btn" data-id="${c.id}" data-name="${c.name}" title="Remove Customer">
+                                        <i class="fas fa-trash-alt"></i>
                                     </button>
                                 </div>
                             </td>
                         </tr>
-                    `).join('') : '<tr><td colspan="6" style="text-align:center; padding:40px; color:#64748b;">No customers found.</td></tr>'}
+                    `).join('') : '<tr><td colspan="5" style="text-align:center; padding:40px; color:#64748b;">No customers found matching your search.</td></tr>'}
                 </tbody>
             </table>
+            ${renderPaginationControls('customers', totalCustomers)}
         </div>
     `;
 
@@ -1738,7 +1834,19 @@ async function showProfileModal(id, type) {
 
 async function handleHistoryReprint(saleObj) {
     const modal = document.getElementById('genericModal');
+    const inner = document.getElementById('modalInner');
+    
+    // CRITICAL: Clear any leftover content (like John Mwangi's profile)
+    inner.innerHTML = `
+        <div style="min-height:300px; display:flex; align-items:center; justify-content:center;">
+             <div style="text-align:center;">
+                <i class="fas fa-receipt fa-spin" style="font-size:2rem; color:var(--royal-blue); opacity:0.3;"></i>
+                <p style="margin-top:10px; color:#94a3b8; font-size:0.8rem;">Initializing Secure Reprint...</p>
+             </div>
+        </div>
+    `;
     modal.style.display = 'flex';
+
     let items = [];
     try {
         const parsed = JSON.parse(saleObj.items_json);
@@ -1759,19 +1867,22 @@ async function handleHistoryReprint(saleObj) {
         console.error("Failed to parse historical items", e);
     }
 
-    // Quick Format Selection UI Injection
+    // --- MODERN COMPACT OVERLAY ---
     const overlay = document.createElement('div');
-    overlay.style = "position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.9); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:2000; border-radius:30px; backdrop-filter:blur(5px);";
+    overlay.style = "position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.6); display:flex; align-items:center; justify-content:center; z-index:2000; border-radius:30px; backdrop-filter:blur(3px);";
     overlay.innerHTML = `
-        <div style="background:white; padding:40px; border-radius:24px; box-shadow:0 10px 40px rgba(0,0,0,0.1); text-align:center;">
-            <i class="fas fa-print" style="font-size:3rem; color:var(--royal-blue); margin-bottom:20px;"></i>
-            <h3>Reprint Receipt</h3>
-            <p style="color:#64748b; margin-bottom:30px;">Choose the output format for this transaction.</p>
-            <div style="display:flex; gap:16px; justify-content:center;">
-                <button id="repThermal" class="btn-primary" style="background:#1e293b; padding:12px 24px;"><i class="fas fa-receipt"></i> Thermal (80mm)</button>
-                <button id="repA4" class="btn-primary" style="background:#3b82f6; padding:12px 24px;"><i class="fas fa-file-invoice"></i> A4 Standard</button>
+        <div style="background:white; padding:32px; border-radius:32px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); text-align:center; max-width:420px; width:90%; position:relative; overflow:hidden;">
+            <div style="background:var(--royal-blue); position:absolute; top:0; left:0; right:0; height:6px;"></div>
+            <i class="fas fa-print" style="font-size:2.8rem; color:var(--royal-blue); margin-bottom:16px;"></i>
+            <h3 style="margin:0 0 8px; color:#0f172a; font-size:1.4rem;">Reprint Receipt</h3>
+            <p style="color:#64748b; margin-bottom:24px; font-size:0.95rem;">Select output format for Transaction #${saleObj.id}</p>
+            
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+                <button id="repThermal" class="btn-primary" style="background:#1e293b; padding:14px; border-radius:16px; font-size:0.9rem;"><i class="fas fa-receipt"></i> Thermal</button>
+                <button id="repA4" class="btn-primary" style="background:var(--royal-blue); padding:14px; border-radius:16px; font-size:0.9rem;"><i class="fas fa-file-invoice"></i> A4 Standard</button>
             </div>
-            <button id="repCancel" style="margin-top:24px; background:none; border:none; color:#94a3b8; cursor:pointer; font-weight:600;">Cancel</button>
+            
+            <button id="repCancel" style="width:100%; padding:10px; background:none; border:none; color:#94a3b8; cursor:pointer; font-weight:700; font-size:0.9rem; text-transform:uppercase; letter-spacing:0.5px;">Cancel</button>
         </div>
     `;
     modal.querySelector('.modal-content').appendChild(overlay);
@@ -1785,6 +1896,9 @@ async function handleHistoryReprint(saleObj) {
     if (choice) {
         printReceipt(saleObj, items, choice);
     }
+    
+    // Always hide modal after finish if it was just for reprint
+    modal.style.display = 'none';
 }
 
 async function renderSuppliers(searchQuery = '') {
@@ -1794,8 +1908,15 @@ async function renderSuppliers(searchQuery = '') {
     let suppliers = res.data || [];
 
     if (searchQuery) {
+        if (window.lastSupplierSearch !== searchQuery) {
+            paginationState.suppliers = 1;
+            window.lastSupplierSearch = searchQuery;
+        }
         suppliers = filterTable(searchQuery, suppliers, ['name', 'contact_person', 'phone']);
     }
+
+    const totalSuppliers = suppliers.length;
+    const paginatedSuppliers = suppliers.slice((paginationState.suppliers - 1) * paginationState.limit, paginationState.suppliers * paginationState.limit);
 
     document.getElementById('pageContainer').innerHTML = `
         <div class="view-header">
@@ -1827,32 +1948,31 @@ async function renderSuppliers(searchQuery = '') {
                         <th style="color:white;">Contact Person</th>
                         <th style="color:white;">Phone</th>
                         <th style="color:white;">Email</th>
-                        <th style="color:white;">Address</th>
                         <th style="text-align:right; color:white; padding-right:16px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${suppliers.length > 0 ? suppliers.map(s => `
+                    ${paginatedSuppliers.length > 0 ? paginatedSuppliers.map(s => `
                         <tr>
-                            <td style="font-weight:600; color:var(--royal-blue); padding-left:16px;">${s.name}</td>
-                            <td style="font-weight:500;">${s.contact_person || 'N/A'}</td>
-                            <td>${s.phone || ''}</td>
-                            <td style="color:#64748b; font-size:0.9rem;">${s.email || ''}</td>
-                            <td><div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${s.address || ''}">${s.address || ''}</div></td>
-                            <td style="text-align:right; padding-right:16px;">
+                            <td style="padding-left:20px; font-weight:700; color:var(--royal-blue);">${s.name}</td>
+                            <td>${s.contact_person || 'N/A'}</td>
+                            <td style="font-weight:600;">${s.phone}</td>
+                            <td style="font-size:0.8rem; color:#64748b;">${s.email || '---'}</td>
+                            <td style="text-align:right; padding-right:20px;">
                                 <div style="display:flex; justify-content:flex-end; gap:8px;">
                                     <button class="action-btn-refined btn-icon-edit edit-supplier-btn" data-id="${s.id}" title="Edit Supplier">
-                                        <i class="fas fa-pencil-alt"></i>
+                                        <i class="fas fa-edit"></i>
                                     </button>
-                                    <button class="action-btn-refined btn-icon-del del-supplier-btn" data-id="${s.id}" data-name="${s.name.replace(/"/g, '&quot;')}" title="Remove Vendor">
+                                    <button class="action-btn-refined btn-icon-del del-supplier-btn" data-id="${s.id}" data-name="${s.name}" title="Remove Supplier">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
                             </td>
                         </tr>
-                    `).join('') : '<tr><td colspan="6" style="text-align:center; padding:40px; color:#64748b;">No suppliers registered.</td></tr>'}
+                    `).join('') : '<tr><td colspan="5" style="text-align:center; padding:40px; color:#64748b;">No suppliers records found.</td></tr>'}
                 </tbody>
             </table>
+            ${renderPaginationControls('suppliers', totalSuppliers)}
         </div>
     `;
 
@@ -2297,11 +2417,15 @@ function renderInventoryHealth(container, medicines) {
 
 function renderDetailedSalesLog(container, sales) {
     const list = [...sales].reverse();
+    const totalItems = list.length;
+    const startIdx = (paginationState.sales - 1) * paginationState.limit;
+    const paginatedSales = list.slice(startIdx, startIdx + paginationState.limit);
+
     container.innerHTML = `
         <div class="stat-card" style="padding:0; overflow:hidden; border-radius:16px;">
             <div style="padding:20px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
                 <h4 style="margin:0;"><i class="fas fa-list-ul"></i> Detailed Transaction Repository</h4>
-                <div style="font-size:0.85rem; color:#64748b;">Showing ${list.length} total transactions</div>
+                <div style="font-size:0.85rem; color:#64748b;">Showing ${totalItems} total transactions</div>
             </div>
             <div style="max-height:600px; overflow-y:auto;">
                 <table class="data-table">
@@ -2316,7 +2440,7 @@ function renderDetailedSalesLog(container, sales) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${list.length > 0 ? list.map(s => {
+                        ${paginatedSales.length > 0 ? paginatedSales.map(s => {
                             const isWalkin = !s.customer_name || s.customer_name === 'General Customer' || s.customer_name === 'Walk-in';
                             return `
                                 <tr>
@@ -2338,6 +2462,7 @@ function renderDetailedSalesLog(container, sales) {
                     </tbody>
                 </table>
             </div>
+            ${renderPaginationControls('sales', totalItems)}
         </div>
     `;
 
@@ -2465,7 +2590,7 @@ async function renderUsers(subPage = 'list') {
             </div>
             <table class="data-table">
                 <thead><tr><th>Authorized User</th><th>Access Tier</th><th>Status</th><th>Registration Date</th><th style="text-align:right;">Management Actions</th></tr></thead>
-                <tbody>${users.map(u => `
+                <tbody>${users.slice((paginationState.users - 1) * paginationState.limit, paginationState.users * paginationState.limit).map(u => `
                     <tr>
                         <td style="font-weight:600;">${u.username}</td>
                         <td><span class="role-badge" style="background:#eef2ff; color:var(--royal-blue); border:1px solid #d1d5db; padding: 4px 10px; border-radius:12px; font-size:0.8rem;">${u.role}</span></td>
@@ -2490,6 +2615,7 @@ async function renderUsers(subPage = 'list') {
                     </tr>
                 `).join('')}</tbody>
             </table>
+            ${renderPaginationControls('users', users.length)}
         `;
     } else if (subPage === 'audit') {
         const res = await window.db.getAuditLog();
@@ -2502,7 +2628,7 @@ async function renderUsers(subPage = 'list') {
             </div>
             <table class="data-table">
                 <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Module</th><th>Hash String</th></tr></thead>
-                <tbody>${logs.map(l => `
+                <tbody>${logs.slice((paginationState.audit - 1) * paginationState.limit, paginationState.audit * paginationState.limit).map(l => `
                     <tr>
                         <td style="font-size:0.8rem;">${new Date(l.timestamp).toLocaleString()}</td>
                         <td style="font-weight:600;">${l.username || 'SYSTEM'}</td>
@@ -2512,6 +2638,7 @@ async function renderUsers(subPage = 'list') {
                     </tr>
                 `).join('') || '<tr><td colspan="5" style="text-align:center;">No audit records found</td></tr>'}</tbody>
             </table>
+            ${renderPaginationControls('audit', logs.length)}
         `;
         
         // Trigger chain verification in background after render
@@ -2870,6 +2997,14 @@ function setupLoginUI() {
 async function renderCurrentPage() {
     const container = document.getElementById('pageContainer');
     const wrapRender = async (fn, name) => {
+        // --- RENDER GUARD & ROLE SECURITY ---
+        // Only enforce security if a user is logged in; otherwise, allow the initial load to proceed to session check
+        if (currentUser && !hasAccess(currentPage)) {
+            console.warn(`SECURITY: Blocked access to ${currentPage} for ${currentUser?.role}`);
+            showToast('Security Alert: Access denied for your role.', 'error');
+            currentPage = 'dashboard';
+            return renderCurrentPage();
+        }
         // --- RENDER GUARD ---
         if (typeof fn !== 'function') {
             console.error(`MODULE ERROR: ${name} is not defined.`);
@@ -2978,13 +3113,17 @@ function setupProfileManagement() {
 
     const changePassBtn = document.getElementById('changePasswordBtn');
     if (changePassBtn) {
-        changePassBtn.onclick = () => {
-            currentPage = 'settings';
-            renderCurrentPage();
-            dropdown.style.display = 'none';
-        };
+        if (currentUser && currentUser.role !== 'Admin') {
+            changePassBtn.style.display = 'none';
+        } else {
+            changePassBtn.style.display = 'flex';
+            changePassBtn.onclick = () => {
+                currentPage = 'settings';
+                renderCurrentPage();
+                dropdown.style.display = 'none';
+            };
+        }
     }
-
     const logoutBtnMain = document.getElementById('sidebarLogoutBtn');
     if (logoutBtnMain) logoutBtnMain.onclick = logout;
     
