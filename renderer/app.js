@@ -653,7 +653,7 @@ async function renderDashboard() {
 
     const html = `
         <div class="view-header">
-            <h2>Welcome back, ${currentUser ? currentUser.username : 'Admin'}</h2>
+            <h2>Welcome, ${currentUser ? currentUser.username : 'Admin'}</h2>
             <p>Here is what's happening at Renachem Pharmacy today.</p>
         </div>
 
@@ -3124,8 +3124,6 @@ function setupProfileManagement() {
             };
         }
     }
-    const logoutBtnMain = document.getElementById('sidebarLogoutBtn');
-    if (logoutBtnMain) logoutBtnMain.onclick = logout;
     
     const topBarLogoutBtn = document.getElementById('topBarLogoutBtn');
     if (topBarLogoutBtn) topBarLogoutBtn.onclick = logout;

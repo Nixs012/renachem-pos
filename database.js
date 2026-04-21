@@ -846,6 +846,7 @@ module.exports = {
     resetUserPassword,
     deactivateUser,
     reactivateUser,
+    deleteUser,
     getLoginAttempts,
     incrementLoginAttempts,
     resetLoginAttempts,
