@@ -814,10 +814,10 @@ async function renderInventory(searchQuery = '', filterType = '') {
                     <p>Track stock levels, expiry dates, and pricing</p>
                 </div>
                 <div style="display:flex; gap:12px;">
-                    <button class="btn-primary" style="background:var(--royal-blue); opacity:0.8;" onclick="jumpToReport('inventory')"><i class="fas fa-chart-line"></i> Stock Insights</button>
-                    <button class="btn-primary" id="bulkCsvImportBtn" style="background:#10b981; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);"><i class="fas fa-file-csv"></i> Bulk CSV Import</button>
+                    <button class="btn-primary" style="background:var(--emerald); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);" onclick="showIntakeModal()"><i class="fas fa-truck-loading"></i> Log Stock Intake</button>
+                    <button class="btn-primary" id="bulkCsvImportBtn" style="background:#64748b; opacity:0.8;"><i class="fas fa-file-csv"></i> Bulk CSV</button>
                     <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
-                    <button class="btn-primary" id="addMedBtn"><i class="fas fa-plus"></i> Add New Product</button>
+                    <button class="btn-primary" id="addMedBtn"><i class="fas fa-plus"></i> New Catalog Item</button>
                 </div>
             </div>
         </div>
@@ -2137,116 +2137,153 @@ async function showIntakeModal() {
 
     const modal = document.getElementById('genericModal');
     const inner = document.getElementById('modalInner');
+    
+    // Create datalist for medicine searching
+    const dataListId = `med-list-${Date.now()}`;
     inner.innerHTML = `
-        <h3 style="margin-bottom:24px; color:var(--royal-blue);"><i class="fas fa-dolly-flatbed"></i> New Stock Intake</h3>
-        <div class="input-group">
-            <label>Select Medicine</label>
-            <select id="intake_med" class="premium-select" style="width:100%;">
-                <option value="">-- Choose Product --</option>
-                ${medicines.map(m => `<option value="${m.id}" data-name="${m.name}" data-batch="${m.batch}">${m.name} (${m.batch})</option>`).join('')}
-            </select>
+        <datalist id="${dataListId}">
+            ${medicines.map(m => `<option value="${m.name}" data-price="${m.price}" data-barcode="${m.barcode || ''}" data-id="${m.id}"></option>`).join('')}
+        </datalist>
+
+        <h3 style="margin-bottom:28px; color:var(--royal-blue); display:flex; align-items:center; gap:12px;">
+            <i class="fas fa-file-invoice-dollar" style="font-size:2rem;"></i> 
+            <div>
+                <span style="display:block;">Record New Stock Receipt</span>
+                <small style="font-size:0.75rem; color:#94a3b8; font-weight:400;">Logged stock will automatically sync with Inventory & POS Pricing</small>
+            </div>
+        </h3>
+
+        <div style="background:rgba(30, 58, 138, 0.03); padding:24px; border-radius:24px; border:1px solid rgba(30, 58, 138, 0.05); margin-bottom:24px;">
+            <div class="input-group" style="margin-bottom:20px;">
+                <label style="color:var(--royal-blue); font-weight:700;"><i class="fas fa-capsules"></i> Medicine Name</label>
+                <input type="text" id="intake_med_name" list="${dataListId}" class="premium-input" placeholder="Type new or select existing medicine...">
+                <input type="hidden" id="intake_med_id" value="">
+            </div>
+
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:20px;">
+                <div class="input-group">
+                    <label style="font-weight:700;"><i class="fas fa-boxes"></i> Quantity to Receive</label>
+                    <input type="number" id="intake_qty" class="premium-input" placeholder="e.g. 100">
+                </div>
+                <div class="input-group">
+                    <label style="font-weight:700;"><i class="fas fa-truck"></i> Supplier</label>
+                    <select id="intake_sup" class="premium-select">
+                        <option value="">-- Choose Supplier --</option>
+                        ${suppliers.map(s => `<option value="${s.name}">${s.name}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
         </div>
-        <div class="form-grid">
-            <div class="input-group">
-                <label>Quantity to Receive</label>
-                <input type="number" id="intake_qty" class="premium-input" placeholder="e.g. 50">
-            </div>
-            <div class="input-group">
-                <label>Supplier</label>
-                <select id="intake_sup" class="premium-select" style="width:100%;">
-                    <option value="">-- Select Supplier --</option>
-                    ${suppliers.map(s => `<option value="${s.name}">${s.name}</option>`).join('')}
-                </select>
-            </div>
-        </div>
-        <div class="form-grid">
-            <div class="input-group">
-                <label>Unit Price (KES)</label>
-                <input type="number" step="0.01" id="intake_price" class="premium-input" placeholder="e.g. 10.00">
-            </div>
-            <div class="input-group">
-                <label>Total Cost (KES)</label>
-                <input type="number" id="intake_total" class="premium-input" style="background:#f1f5f9; color:#0f172a; font-weight:800;" readonly placeholder="Auto-calculates">
-            </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+             <!-- FINANCIALS -->
+             <div style="background:white; border:1px solid #e2e8f0; padding:20px; border-radius:20px;">
+                <h4 style="margin-top:0; margin-bottom:16px; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.5px; color:#64748b;">Pricing & Costing</h4>
+                <div class="input-group" style="margin-bottom:12px;">
+                    <label style="font-size:0.8rem;">Buying Price (Unit Cost)</label>
+                    <input type="number" step="0.01" id="intake_buying_price" class="premium-input" placeholder="0.00">
+                </div>
+                <div class="input-group" style="margin-bottom:12px;">
+                    <label style="font-size:0.8rem; color:var(--emerald); font-weight:700;">Selling Price (Retail)</label>
+                    <input type="number" step="0.01" id="intake_selling_price" class="premium-input" style="border-color:var(--emerald); border-width:2px;" placeholder="0.00">
+                </div>
+                <div class="input-group">
+                    <label style="font-size:0.8rem;">Total Inventory Value Change</label>
+                    <input type="text" id="intake_total_cost" class="premium-input" style="background:#f8fafc; font-weight:800; border:none;" readonly value="KES 0.00">
+                </div>
+             </div>
+
+             <!-- LOGISTICS -->
+             <div style="background:white; border:1px solid #e2e8f0; padding:20px; border-radius:20px;">
+                <h4 style="margin-top:0; margin-bottom:16px; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.5px; color:#64748b;">Batch Information</h4>
+                <div class="input-group" style="margin-bottom:12px;">
+                    <label style="font-size:0.8rem;">Expiry Date</label>
+                    <input type="date" id="intake_expiry" class="premium-input">
+                </div>
+                <div class="input-group" style="margin-bottom:12px;">
+                    <label style="font-size:0.8rem;">Batch Number</label>
+                    <input type="text" id="intake_batch" class="premium-input" placeholder="e.g. B-101">
+                </div>
+                <div class="input-group">
+                    <label style="font-size:0.8rem;"><i class="fas fa-barcode"></i> Barcode / SKU</label>
+                    <input type="text" id="intake_barcode" class="premium-input" placeholder="Scan or type...">
+                </div>
+             </div>
         </div>
         
-        <div style="display:flex; gap:12px; margin-top:32px;">
-            <button class="btn-primary" id="intakeModalSaveBtn" style="flex:1;"><i class="fas fa-check-circle"></i> Log Intake</button>
-            <button class="btn-primary" id="intakeModalCancelBtn" style="flex:1; background:#f1f5f9; color:#475569;">Cancel</button>
+        <div style="display:flex; gap:16px; margin-top:32px;">
+            <button class="btn-primary" id="intakeSaveBtn" style="flex:2; padding:16px; border-radius:16px; font-size:1.1rem; box-shadow:0 10px 15px -3px rgba(37, 99, 235, 0.25);">
+                <i class="fas fa-check-circle"></i> Confirm & Sync Inventory
+            </button>
+            <button class="btn-primary" id="intakeCancelBtn" style="flex:1; background:#f1f5f9; color:#475569; border-radius:16px;">Cancel</button>
         </div>
     `;
     modal.style.display = 'flex';
 
-    const qtyInput = document.getElementById('intake_qty');
-    const priceInput = document.getElementById('intake_price');
-    const totalInput = document.getElementById('intake_total');
+    // UI Logic: Auto-fill for existing meds
+    const nameInput = document.getElementById('intake_med_name');
+    const idInput = document.getElementById('intake_med_id');
+    const sellPriceInput = document.getElementById('intake_selling_price');
+    const barcodeInput = document.getElementById('intake_barcode');
     
+    nameInput.addEventListener('input', (e) => {
+        const val = e.target.value;
+        const option = document.querySelector(`#${dataListId} option[value="${val}"]`);
+        if (option) {
+            idInput.value = option.dataset.id;
+            sellPriceInput.value = option.dataset.price;
+            barcodeInput.value = option.dataset.barcode;
+            showToast(`Registered medicine "${val}" recognized.`, 'info');
+        } else {
+            idInput.value = ''; // Treatment as NEW med
+        }
+    });
+
+    // UI Logic: Auto-calc Total Cost
+    const qtyInput = document.getElementById('intake_qty');
+    const buyPriceInput = document.getElementById('intake_buying_price');
+    const totalDisplay = document.getElementById('intake_total_cost');
+
     const updateCalc = () => {
         const q = parseFloat(qtyInput.value) || 0;
-        const p = parseFloat(priceInput.value) || 0;
-        totalInput.value = (q * p).toFixed(2);
+        const b = parseFloat(buyPriceInput.value) || 0;
+        totalDisplay.value = `KES ${(q * b).toLocaleString(undefined, {minimumFractionDigits:2})}`;
     };
-    
-    if (qtyInput) qtyInput.addEventListener('input', updateCalc);
-    if (priceInput) priceInput.addEventListener('input', updateCalc);
 
-    const cancelBtn = document.getElementById('intakeModalCancelBtn');
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', (e) => {
-            e.preventDefault();
+    qtyInput.addEventListener('input', updateCalc);
+    buyPriceInput.addEventListener('input', updateCalc);
+
+    document.getElementById('intakeCancelBtn').onclick = () => modal.style.display = 'none';
+
+    document.getElementById('intakeSaveBtn').onclick = async () => {
+        const data = {
+            med_id: idInput.value || null,
+            med_name: nameInput.value.trim(),
+            qty: parseInt(qtyInput.value) || 0,
+            supplier: document.getElementById('intake_sup').value,
+            unit_price: parseFloat(buyPriceInput.value) || 0,
+            selling_price: parseFloat(sellPriceInput.value) || 0,
+            expiry: document.getElementById('intake_expiry').value,
+            batch: document.getElementById('intake_batch').value.trim(),
+            barcode: barcodeInput.value.trim()
+        };
+
+        if (!data.med_name || data.qty <= 0) {
+            return showToast('Medicine name and valid quantity are required', 'warning');
+        }
+
+        const res = await window.db.recordStockIntake(data);
+        if (res.success) {
+            showToast(`Inventory updated! ${data.med_name} stock increased and price synced.`, 'success');
             modal.style.display = 'none';
-        });
-    }
-
-    const saveBtn = document.getElementById('intakeModalSaveBtn');
-    if (saveBtn) {
-        saveBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            try {
-                const medId = document.getElementById('intake_med').value;
-                const qty = parseInt(document.getElementById('intake_qty').value);
-                const supInput = document.getElementById('intake_sup').value;
-                const unitP = parseFloat(document.getElementById('intake_price').value) || 0;
-                const totalC = parseFloat(document.getElementById('intake_total').value) || 0;
-                
-                if (!medId || !qty || qty <= 0) return showToast('Please select a medicine and enter a valid quantity', 'warning');
-
-                const freshMeds = await window.db.getMedicines();
-                const med = freshMeds.data.find(m => m.id === medId);
-                
-                if (med) {
-                    const newStock = med.stock + qty;
-                    const updateRes = await window.db.updateMedicine(medId, { ...med, stock: newStock });
-                    
-                    if (updateRes.success) {
-                        const purRes = await window.db.addPurchase({
-                            med_name: med.name,
-                            batch: med.batch,
-                            qty: qty,
-                            date: new Date().toISOString().slice(0, 10),
-                            supplier: supInput,
-                            unit_price: unitP,
-                            total_cost: totalC
-                        });
-
-                        if (purRes && purRes.success) {
-                            showToast(`Stock updated! Added ${qty} units to ${med.name}.`, 'success');
-                            modal.style.display = 'none';
-                            renderPurchases();
-                        } else {
-                            showToast("Purchase logged failed: " + (purRes ? purRes.error : "Unknown IPC"), 'error');
-                        }
-                    } else {
-                        showToast(updateRes.error, 'error');
-                    }
-                }
-            } catch (err) {
-                console.error("Intake Error:", err);
-                showToast("Intake crashed: " + err.message, 'error');
-            }
-        });
-    }
+            renderPurchases();
+            // If we are looking at inventory, we'd want to refresh that too if user navigates back
+        } else {
+            showToast(res.error, 'error');
+        }
+    };
 }
+
 async function renderReports(subPage = 'overview') {
     if (!hasAccess('reports')) return document.getElementById('pageContainer').innerHTML = '<div class="stat-card">Access Denied</div>';
     

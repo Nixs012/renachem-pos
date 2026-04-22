@@ -354,6 +354,16 @@ ipcMain.handle('db:addPurchase', wrapHandler(async (event, t, data) => {
     return db.addPurchase(data);
 }));
 
+ipcMain.handle('db:recordStockIntake', wrapHandler(async (event, t, data) => {
+    // Access control handled by wrapHandler with admin/pharmacist check below if needed, 
+    // but we can also do it explicitly here or via the options.
+    const res = db.recordStockIntake(data);
+    if (res.success) {
+        db.insertAuditLog(currentSessionUserId, null, 'STOCK_INTAKE', 'INVENTORY', `Intake recorded for ${data.med_name}. Qty: ${data.qty}`);
+    }
+    return res;
+}, { adminOrPharmacistOnly: true }));
+
 ipcMain.handle('db:getSales', wrapHandler(async () => db.getSales()));
 ipcMain.handle('db:addSale', wrapHandler(async (event, t, data) => {
     // Strict Schema Validation

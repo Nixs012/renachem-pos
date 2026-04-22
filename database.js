@@ -637,6 +637,65 @@ function addPurchase(data) {
     }
 }
 
+function recordStockIntake(data) {
+    const trx = db.transaction((d) => {
+        // 1. Check if medicine exists by name (case insensitive) or ID if provided
+        let med = null;
+        if (d.med_id) {
+            med = db.prepare('SELECT * FROM medicines WHERE id = ?').get(d.med_id);
+        } else {
+            med = db.prepare('SELECT * FROM medicines WHERE LOWER(name) = LOWER(?)').get(d.med_name);
+        }
+
+        let targetMedId = d.med_id;
+
+        if (med) {
+            targetMedId = med.id;
+            // UPDATE EXISTING
+            db.prepare(`
+                UPDATE medicines 
+                SET stock = stock + ?, 
+                    price = ?, 
+                    expiry = ?, 
+                    batch = ?, 
+                    barcode = ?,
+                    supplier = ?
+                WHERE id = ?
+            `).run(d.qty, d.selling_price || med.price, d.expiry || med.expiry, d.batch || med.batch, d.barcode || med.barcode, d.supplier || med.supplier, targetMedId);
+        } else {
+            // CREATE NEW
+            targetMedId = d.med_id || (Date.now().toString() + Math.random().toString(36).substr(2, 4));
+            db.prepare(`
+                INSERT INTO medicines (id, name, supplier, batch, expiry, stock, reorder_level, price, barcode)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(targetMedId, d.med_name, d.supplier || '', d.batch || '', d.expiry || '', d.qty, 10, d.selling_price || 0, d.barcode || '');
+        }
+
+        // 2. Record the Purchase
+        const purResult = db.prepare(`
+            INSERT INTO purchases (med_name, batch, qty, date, supplier, unit_price, total_cost)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(
+            d.med_name, 
+            d.batch || '', 
+            d.qty, 
+            new Date().toISOString().slice(0, 10), 
+            d.supplier || '', 
+            d.unit_price || 0, 
+            (d.qty * (d.unit_price || 0))
+        );
+
+        return { success: true, med_id: targetMedId, purchase_id: purResult.lastInsertRowid };
+    });
+
+    try {
+        return trx(data);
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+
 // --- Sale Functions ---
 
 function getSales() {
@@ -870,6 +929,7 @@ module.exports = {
     deleteSupplier,
     getPurchases,
     addPurchase,
+    recordStockIntake,
     getSales,
     addSale,
     getCredits,

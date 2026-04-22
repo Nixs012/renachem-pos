@@ -220,6 +220,13 @@ const db = {
             return { success: false, error: error.message };
         }
     },
+    recordStockIntake: async (data) => {
+        try {
+            return await ipcRenderer.invoke('db:recordStockIntake', sessionToken, data);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
     getSettings: async () => {
         try {
             return await ipcRenderer.invoke('db:getSettings', sessionToken);
