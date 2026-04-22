@@ -461,11 +461,15 @@ body {
 
 .modal-content {
     background: white;
-    width: 560px;
-    max-width: 90%;
+    width: 680px; /* Increased width for better grid layout */
+    max-width: 95%;
+    max-height: 92vh; /* Use most of the screen height */
+    overflow-y: auto; /* Enable scrolling for long forms */
     border-radius: 40px;
-    padding: 32px;
-    box-shadow: 0 30px 40px rgba(0,0,0,0.2);
+    padding: 36px;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.25);
+    position: relative;
+    scroll-behavior: smooth;
 }
 
 .pos-layout {
@@ -804,6 +808,64 @@ body {
     font-weight: 700;
     color: #94a3b8;
     text-transform: uppercase;
+}
+
+/* Custom Search Dropdown Component */
+.search-container {
+    position: relative;
+    width: 100%;
+}
+
+.search-results-dropdown {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e8f0;
+    z-index: 2000;
+    max-height: 250px;
+    overflow-y: auto;
+    display: none; /* Controlled by JS */
+}
+
+.search-result-item {
+    padding: 12px 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover {
+    background: rgba(30, 58, 138, 0.05);
+}
+
+.search-result-item .item-title {
+    font-weight: 700;
+    color: var(--royal-blue);
+    font-size: 0.95rem;
+}
+
+.search-result-item .item-sub {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.search-result-item.no-results {
+    color: #94a3b8;
+    font-style: italic;
+    cursor: default;
+    background: transparent !important;
 }
 
 /* Premium Table Action Buttons (Matches Pic 3) */

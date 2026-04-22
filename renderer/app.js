@@ -2138,36 +2138,42 @@ async function showIntakeModal() {
     const modal = document.getElementById('genericModal');
     const inner = document.getElementById('modalInner');
     
-    // Create datalist for medicine searching
-    const dataListId = `med-list-${Date.now()}`;
+    // We no longer use native datalist to avoid browser-specific styling (like the black background)
     inner.innerHTML = `
-        <datalist id="${dataListId}">
-            ${medicines.map(m => `<option value="${m.name}" data-price="${m.price}" data-barcode="${m.barcode || ''}" data-id="${m.id}"></option>`).join('')}
-        </datalist>
-
-        <h3 style="margin-bottom:28px; color:var(--royal-blue); display:flex; align-items:center; gap:12px;">
-            <i class="fas fa-file-invoice-dollar" style="font-size:2rem;"></i> 
+        <h3 style="margin-bottom:32px; color:var(--royal-blue); display:flex; align-items:center; gap:16px;">
+            <div style="background:rgba(30, 58, 138, 0.1); width:54px; height:54px; border-radius:16px; display:flex; align-items:center; justify-content:center;">
+                <i class="fas fa-file-invoice-dollar" style="font-size:1.6rem;"></i> 
+            </div>
             <div>
-                <span style="display:block;">Record New Stock Receipt</span>
-                <small style="font-size:0.75rem; color:#94a3b8; font-weight:400;">Logged stock will automatically sync with Inventory & POS Pricing</small>
+                <span style="display:block; font-size:1.4rem; letter-spacing:-0.5px;">Record New Stock Receipt</span>
+                <small style="font-size:0.8rem; color:#64748b; font-weight:400;">Log stock to update Inventory levels and POS retail prices.</small>
             </div>
         </h3>
 
-        <div style="background:rgba(30, 58, 138, 0.03); padding:24px; border-radius:24px; border:1px solid rgba(30, 58, 138, 0.05); margin-bottom:24px;">
-            <div class="input-group" style="margin-bottom:20px;">
-                <label style="color:var(--royal-blue); font-weight:700;"><i class="fas fa-capsules"></i> Medicine Name</label>
-                <input type="text" id="intake_med_name" list="${dataListId}" class="premium-input" placeholder="Type new or select existing medicine...">
+        <div style="background:rgba(30, 58, 138, 0.02); padding:30px; border-radius:28px; border:1px solid rgba(30, 58, 138, 0.06); margin-bottom:28px;">
+            <div class="input-group" style="margin-bottom:24px; position:relative;">
+                <label style="color:var(--royal-blue); font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-capsules" style="font-size:0.9rem;"></i> Medicine Name
+                </label>
+                <div class="search-container">
+                    <input type="text" id="intake_med_name" class="premium-input" style="padding:14px 20px;" placeholder="Search existing or type new name..." autocomplete="off">
+                    <div id="intake_search_results" class="search-results-dropdown"></div>
+                </div>
                 <input type="hidden" id="intake_med_id" value="">
             </div>
 
-            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:20px;">
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:24px;">
                 <div class="input-group">
-                    <label style="font-weight:700;"><i class="fas fa-boxes"></i> Quantity to Receive</label>
-                    <input type="number" id="intake_qty" class="premium-input" placeholder="e.g. 100">
+                    <label style="font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-cubes" style="font-size:0.9rem;"></i> Quantity
+                    </label>
+                    <input type="number" id="intake_qty" class="premium-input" style="padding:14px 20px;" placeholder="e.g. 100">
                 </div>
                 <div class="input-group">
-                    <label style="font-weight:700;"><i class="fas fa-truck"></i> Supplier</label>
-                    <select id="intake_sup" class="premium-select">
+                    <label style="font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-truck-moving" style="font-size:0.9rem;"></i> Supplier
+                    </label>
+                    <select id="intake_sup" class="premium-select" style="padding:14px 20px; height:auto;">
                         <option value="">-- Choose Supplier --</option>
                         ${suppliers.map(s => `<option value="${s.name}">${s.name}</option>`).join('')}
                     </select>
@@ -2175,68 +2181,118 @@ async function showIntakeModal() {
             </div>
         </div>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:28px;">
              <!-- FINANCIALS -->
-             <div style="background:white; border:1px solid #e2e8f0; padding:20px; border-radius:20px;">
-                <h4 style="margin-top:0; margin-bottom:16px; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.5px; color:#64748b;">Pricing & Costing</h4>
-                <div class="input-group" style="margin-bottom:12px;">
-                    <label style="font-size:0.8rem;">Buying Price (Unit Cost)</label>
+             <div style="background:white; border:1px solid #e2e8f0; padding:24px; border-radius:24px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.02);">
+                <h4 style="margin-top:0; margin-bottom:20px; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:#94a3b8; display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-hand-holding-dollar"></i> Pricing & Costing
+                </h4>
+                <div class="input-group" style="margin-bottom:16px;">
+                    <label style="font-size:0.8rem; font-weight:600; color:#64748b;">Buying Price (Unit Cost)</label>
                     <input type="number" step="0.01" id="intake_buying_price" class="premium-input" placeholder="0.00">
                 </div>
-                <div class="input-group" style="margin-bottom:12px;">
+                <div class="input-group" style="margin-bottom:16px;">
                     <label style="font-size:0.8rem; color:var(--emerald); font-weight:700;">Selling Price (Retail)</label>
-                    <input type="number" step="0.01" id="intake_selling_price" class="premium-input" style="border-color:var(--emerald); border-width:2px;" placeholder="0.00">
+                    <input type="number" step="0.01" id="intake_selling_price" class="premium-input" style="border-color:var(--emerald); border-width:2px; font-weight:700;" placeholder="0.00">
                 </div>
-                <div class="input-group">
-                    <label style="font-size:0.8rem;">Total Inventory Value Change</label>
-                    <input type="text" id="intake_total_cost" class="premium-input" style="background:#f8fafc; font-weight:800; border:none;" readonly value="KES 0.00">
+                <div class="input-group" style="margin:0;">
+                    <label style="font-size:0.85rem; font-weight:700; color:var(--royal-blue);">Total Intake Value</label>
+                    <input type="text" id="intake_total_cost" class="premium-input" style="background:#f8fafc; font-weight:900; border:none; font-size:1.1rem; color:var(--royal-blue);" readonly value="KES 0.00">
                 </div>
              </div>
 
              <!-- LOGISTICS -->
-             <div style="background:white; border:1px solid #e2e8f0; padding:20px; border-radius:20px;">
-                <h4 style="margin-top:0; margin-bottom:16px; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.5px; color:#64748b;">Batch Information</h4>
-                <div class="input-group" style="margin-bottom:12px;">
-                    <label style="font-size:0.8rem;">Expiry Date</label>
-                    <input type="date" id="intake_expiry" class="premium-input">
+             <div style="background:white; border:1px solid #e2e8f0; padding:24px; border-radius:24px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.02);">
+                <h4 style="margin-top:0; margin-bottom:20px; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:#94a3b8; display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-barcode"></i> Batch Information
+                </h4>
+                <div class="input-group" style="margin-bottom:16px;">
+                    <label style="font-size:0.8rem; font-weight:600; color:#64748b;">Expiry Date</label>
+                    <input type="date" id="intake_expiry" class="premium-input" style="color-scheme:light;">
                 </div>
-                <div class="input-group" style="margin-bottom:12px;">
-                    <label style="font-size:0.8rem;">Batch Number</label>
+                <div class="input-group" style="margin-bottom:16px;">
+                    <label style="font-size:0.8rem; font-weight:600; color:#64748b;">Batch Number</label>
                     <input type="text" id="intake_batch" class="premium-input" placeholder="e.g. B-101">
                 </div>
-                <div class="input-group">
-                    <label style="font-size:0.8rem;"><i class="fas fa-barcode"></i> Barcode / SKU</label>
-                    <input type="text" id="intake_barcode" class="premium-input" placeholder="Scan or type...">
+                <div class="input-group" style="margin:0;">
+                    <label style="font-size:0.8rem; font-weight:600; color:#64748b;">Barcode / SKU</label>
+                    <input type="text" id="intake_barcode" class="premium-input" placeholder="Scan or type barcode...">
                 </div>
              </div>
         </div>
         
-        <div style="display:flex; gap:16px; margin-top:32px;">
-            <button class="btn-primary" id="intakeSaveBtn" style="flex:2; padding:16px; border-radius:16px; font-size:1.1rem; box-shadow:0 10px 15px -3px rgba(37, 99, 235, 0.25);">
+        <div style="display:flex; gap:20px; margin-top:36px; padding-bottom:10px;">
+            <button class="btn-primary" id="intakeSaveBtn" style="flex:2; padding:18px; border-radius:20px; font-size:1.1rem; font-weight:700; box-shadow:0 12px 24px -6px rgba(37, 99, 235, 0.3);">
                 <i class="fas fa-check-circle"></i> Confirm & Sync Inventory
             </button>
-            <button class="btn-primary" id="intakeCancelBtn" style="flex:1; background:#f1f5f9; color:#475569; border-radius:16px;">Cancel</button>
+            <button class="btn-primary" id="intakeCancelBtn" style="flex:1; background:#f1f5f9; color:#475569; border-radius:20px; font-weight:700;">Cancel</button>
         </div>
+
     `;
     modal.style.display = 'flex';
 
-    // UI Logic: Auto-fill for existing meds
+    // UI Logic: Custom Search Dropdown
     const nameInput = document.getElementById('intake_med_name');
     const idInput = document.getElementById('intake_med_id');
+    const resultsDropdown = document.getElementById('intake_search_results');
     const sellPriceInput = document.getElementById('intake_selling_price');
     const barcodeInput = document.getElementById('intake_barcode');
     
-    nameInput.addEventListener('input', (e) => {
-        const val = e.target.value;
-        const option = document.querySelector(`#${dataListId} option[value="${val}"]`);
-        if (option) {
-            idInput.value = option.dataset.id;
-            sellPriceInput.value = option.dataset.price;
-            barcodeInput.value = option.dataset.barcode;
-            showToast(`Registered medicine "${val}" recognized.`, 'info');
-        } else {
-            idInput.value = ''; // Treatment as NEW med
+    const showResults = (query) => {
+        if (!query || query.length < 1) {
+            resultsDropdown.style.display = 'none';
+            return;
         }
+
+        const filtered = medicines.filter(m => 
+            m.name.toLowerCase().includes(query.toLowerCase()) || 
+            (m.barcode && m.barcode.includes(query))
+        );
+
+        if (filtered.length > 0) {
+            resultsDropdown.innerHTML = filtered.map(m => `
+                <div class="search-result-item" data-id="${m.id}" data-name="${m.name}" data-price="${m.price}" data-barcode="${m.barcode || ''}">
+                    <span class="item-title">${m.name}</span>
+                    <span class="item-sub">Current Stock: ${m.stock} | Price: KES ${m.price}</span>
+                </div>
+            `).join('');
+            resultsDropdown.style.display = 'block';
+
+            // Bind click events to items
+            resultsDropdown.querySelectorAll('.search-result-item').forEach(item => {
+                item.onclick = () => {
+                    nameInput.value = item.dataset.name;
+                    idInput.value = item.dataset.id;
+                    sellPriceInput.value = item.dataset.price;
+                    barcodeInput.value = item.dataset.barcode;
+                    resultsDropdown.style.display = 'none';
+                    showToast(`Loaded ${item.dataset.name} details.`, 'info');
+                };
+            });
+        } else {
+            resultsDropdown.innerHTML = `<div class="search-result-item no-results">No medicine matches found. Typing new name...</div>`;
+            resultsDropdown.style.display = 'block';
+            idInput.value = ''; // New item
+        }
+    };
+
+    nameInput.oninput = (e) => showResults(e.target.value);
+    nameInput.onclick = (e) => showResults(e.target.value);
+
+    const dismissDropdown = (event) => {
+        if (!event.target.matches('#intake_med_name') && !event.target.closest('.search-results-dropdown')) {
+            resultsDropdown.style.display = 'none';
+        }
+    };
+    document.addEventListener('click', dismissDropdown);
+
+    // Ensure we remove the listener when modal closes or button clicked to avoid leaks
+    document.getElementById('intakeCancelBtn').addEventListener('click', () => {
+        document.removeEventListener('click', dismissDropdown);
+        modal.style.display = 'none';
+    });
+    document.getElementById('intakeSaveBtn').addEventListener('click', () => {
+        document.removeEventListener('click', dismissDropdown);
     });
 
     // UI Logic: Auto-calc Total Cost
