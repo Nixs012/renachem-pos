@@ -164,6 +164,11 @@ function initialize() {
             console.log('MIGRATION: Adding supplier column to medicines table');
             db.prepare("ALTER TABLE medicines ADD COLUMN supplier TEXT DEFAULT ''").run();
         }
+        const hasCostPrice = medTableInfo.some(col => col.name === 'cost_price');
+        if (!hasCostPrice) {
+            console.log('MIGRATION: Adding cost_price column to medicines table');
+            db.prepare("ALTER TABLE medicines ADD COLUMN cost_price REAL DEFAULT 0").run();
+        }
 
         const purTableInfo = db.prepare("PRAGMA table_info('purchases')").all();
         const hasUnitPrice = purTableInfo.some(col => col.name === 'unit_price');
@@ -421,9 +426,9 @@ function addMedicine(data) {
     try {
         const id = Date.now().toString() + Math.random().toString(36).substr(2, 4);
         db.prepare(`
-            INSERT INTO medicines (id, name, supplier, batch, expiry, stock, reorder_level, price, barcode)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(id, data.name, data.supplier || '', data.batch, data.expiry, data.stock || 0, data.reorder_level || 10, data.price || 0, data.barcode);
+            INSERT INTO medicines (id, name, supplier, batch, expiry, stock, reorder_level, price, cost_price, barcode)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(id, data.name, data.supplier || '', data.batch, data.expiry, data.stock || 0, data.reorder_level || 10, data.price || 0, data.cost_price || 0, data.barcode);
         return { success: true, id };
     } catch (error) {
         return { success: false, error: error.message };
@@ -434,9 +439,9 @@ function updateMedicine(id, data) {
     try {
         db.prepare(`
             UPDATE medicines 
-            SET name = ?, supplier = ?, batch = ?, expiry = ?, stock = ?, reorder_level = ?, price = ?, barcode = ?
+            SET name = ?, supplier = ?, batch = ?, expiry = ?, stock = ?, reorder_level = ?, price = ?, cost_price = ?, barcode = ?
             WHERE id = ?
-        `).run(data.name, data.supplier || '', data.batch, data.expiry, data.stock, data.reorder_level, data.price, data.barcode, id);
+        `).run(data.name, data.supplier || '', data.batch, data.expiry, data.stock, data.reorder_level, data.price, data.cost_price || 0, data.barcode, id);
         return { success: true };
     } catch (error) {
         return { success: false, error: error.message };
@@ -446,14 +451,14 @@ function updateMedicine(id, data) {
 function bulkAddMedicines(medicinesArray) {
     try {
         const insert = db.prepare(`
-            INSERT INTO medicines (id, name, supplier, batch, expiry, stock, reorder_level, price, barcode)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO medicines (id, name, supplier, batch, expiry, stock, reorder_level, price, cost_price, barcode)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         const insertMany = db.transaction((meds) => {
             let count = 0;
             for (const data of meds) {
                 const id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
-                insert.run(id, data.name, data.supplier || '', data.batch || '', data.expiry || '', data.stock || 0, data.reorder_level || 10, data.price || 0, data.barcode || '');
+                insert.run(id, data.name, data.supplier || '', data.batch || '', data.expiry || '', data.stock || 0, data.reorder_level || 10, data.price || 0, data.cost_price || 0, data.barcode || '');
                 count++;
             }
             return count;
@@ -656,19 +661,20 @@ function recordStockIntake(data) {
                 UPDATE medicines 
                 SET stock = stock + ?, 
                     price = ?, 
+                    cost_price = ?,
                     expiry = ?, 
                     batch = ?, 
                     barcode = ?,
                     supplier = ?
                 WHERE id = ?
-            `).run(d.qty, d.selling_price || med.price, d.expiry || med.expiry, d.batch || med.batch, d.barcode || med.barcode, d.supplier || med.supplier, targetMedId);
+            `).run(d.qty, d.selling_price || med.price, d.buying_price || med.cost_price, d.expiry || med.expiry, d.batch || med.batch, d.barcode || med.barcode, d.supplier || med.supplier, targetMedId);
         } else {
             // CREATE NEW
             targetMedId = d.med_id || (Date.now().toString() + Math.random().toString(36).substr(2, 4));
             db.prepare(`
-                INSERT INTO medicines (id, name, supplier, batch, expiry, stock, reorder_level, price, barcode)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(targetMedId, d.med_name, d.supplier || '', d.batch || '', d.expiry || '', d.qty, 10, d.selling_price || 0, d.barcode || '');
+                INSERT INTO medicines (id, name, supplier, batch, expiry, stock, reorder_level, price, cost_price, barcode)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(targetMedId, d.med_name, d.supplier || '', d.batch || '', d.expiry || '', d.qty, 10, d.selling_price || 0, d.buying_price || 0, d.barcode || '');
         }
 
         // 2. Record the Purchase
@@ -681,8 +687,8 @@ function recordStockIntake(data) {
             d.qty, 
             new Date().toISOString().slice(0, 10), 
             d.supplier || '', 
-            d.unit_price || 0, 
-            (d.qty * (d.unit_price || 0))
+            d.buying_price || 0, 
+            (d.qty * (d.buying_price || 0))
         );
 
         return { success: true, med_id: targetMedId, purchase_id: purResult.lastInsertRowid };
@@ -714,6 +720,45 @@ function addSale(data) {
             VALUES (?, ?, ?, ?, ?, ?, ?)
         `).run(data.date, data.date_time, data.items_json, data.total, data.payment_mode, data.customer_name, data.mpesa_code);
         return { success: true, id: result.lastInsertRowid };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function recordSaleTransaction(saleData, cartItems) {
+    const trx = db.transaction((data) => {
+        const { saleObj, items } = data;
+        
+        // 1. Stock Verification & Deduction
+        for (const item of items) {
+            const med = db.prepare('SELECT stock, name FROM medicines WHERE id = ?').get(item.id);
+            if (!med) throw new Error(`Medicine "${item.name}" no longer exists in catalog.`);
+            if (med.stock < item.qty) throw new Error(`Insufficient stock for "${med.name}". Available: ${med.stock}, Requested: ${item.qty}`);
+            
+            db.prepare('UPDATE medicines SET stock = stock - ? WHERE id = ?').run(item.qty, item.id);
+        }
+
+        // 2. Record Sale
+        const saleResult = db.prepare(`
+            INSERT INTO sales (date, date_time, items_json, total, payment_mode, customer_name, mpesa_code)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(saleObj.date, saleObj.date_time, saleObj.items_json, saleObj.total, saleObj.payment_mode, saleObj.customer_name, saleObj.mpesa_code);
+        
+        const saleId = saleResult.lastInsertRowid;
+
+        // 3. Record Credit if applicable
+        if (saleObj.payment_mode === 'Credit') {
+            db.prepare(`
+                INSERT INTO credits (sale_id, customer_name, total_amount, balance)
+                VALUES (?, ?, ?, ?)
+            `).run(saleId, saleObj.customer_name, saleObj.total, saleObj.total);
+        }
+
+        return { success: true, id: saleId };
+    });
+
+    try {
+        return trx({ saleObj: saleData, items: cartItems });
     } catch (error) {
         return { success: false, error: error.message };
     }

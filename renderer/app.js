@@ -45,11 +45,13 @@ function setupConnectivityMonitoring() {
 
 // --- Global Filter Helper ---
 function filterTable(query, data, fields) {
-    const q = query.toLowerCase();
+    if (!query) return data;
+    const q = query.toLowerCase().trim();
     return data.filter(item => {
         return fields.some(field => {
             const val = item[field];
-            return val && String(val).toLowerCase().includes(q);
+            if (val === null || val === undefined) return false;
+            return String(val).toLowerCase().includes(q);
         });
     });
 }
@@ -365,23 +367,7 @@ async function finalizeSale(paymentMethod) {
         return;
     }
 
-    // M-Pesa is now handled manually (no prompts)
-
-
-    // Step 5: Save the sale
     try {
-        // Deduct inventory
-        for (let item of cart) {
-            const medsRes = await window.db.getMedicines();
-            const matchingMed = medsRes.data.find(m => m.id === item.id);
-            if (matchingMed) {
-                await window.db.updateMedicine(matchingMed.id, {
-                    ...matchingMed,
-                    stock: matchingMed.stock - item.qty
-                });
-            }
-        }
-
         const saleObj = {
             date: new Date().toISOString().slice(0, 10),
             date_time: new Date().toLocaleString(),
@@ -392,33 +378,24 @@ async function finalizeSale(paymentMethod) {
             mpesa_code: mpesaCode || ''
         };
 
-            const saveRes = await window.db.addSale(saleObj);
-            if (saveRes.success) {
-                // If this was a credit sale, create the credit entry
-                if (paymentMethod === 'Credit') {
-                    // We assume the sale ID is returned in saveRes.id if addSale is designed that way, 
-                    // otherwise we fetch the latest sale ID for this customer.
-                    // Designing addSale to return the ID is safer. (Checked database.js: addSale returns {success, id})
-                    await window.db.addCredit({
-                        sale_id: saveRes.id,
-                        customer_name: customerName,
-                        total_amount: total,
-                        balance: total
-                    });
-                }
-
-                showToast(`Sale completed! KES ${total.toFixed(2)} via ${paymentMethod}` + (mpesaCode ? `. Code: ${mpesaCode}` : ''));
-                
-                // Wait for user to select print format
-                await promptPrintReceipt(saleObj, [...cart]);
-                
-                cart = [];
-                await renderPOS();
-            } else {
-                showToast(`Sale saved locally but record failed. Note M-Pesa code: ${mpesaCode} and contact support.`, 'warning');
-            }
+        // ATOMIC TRANSACTION: Check stock, deduct inventory, and save sale in one step
+        const res = await window.db.recordSaleTransaction(saleObj, [...cart]);
+        
+        if (res.success) {
+            showToast(`Sale completed! KES ${total.toFixed(2)} via ${paymentMethod}`);
+            
+            // Wait for user to select print format
+            await promptPrintReceipt(saleObj, [...cart]);
+            
+            cart = [];
+            await renderPOS();
+        } else {
+            // Robust error feedback (e.g. "Insufficient stock for [Med Name]")
+            showToast(res.error, 'error');
+            console.error("Sale transaction failed:", res.error);
+        }
     } catch (error) {
-        showToast('System error saving sale. Please contact admin.', 'error');
+        showToast('System crash during sale. Please contact admin.', 'error');
         console.error(error);
     }
 }
@@ -791,6 +768,11 @@ async function renderInventory(searchQuery = '', filterType = '') {
         medicines = medicines.filter(m => m.stock <= (m.reorder_level || 10));
     }
 
+    // APPLY SEARCH FILTER
+    if (searchQuery) {
+        medicines = filterTable(searchQuery, medicines, ['name', 'batch', 'barcode', 'supplier']);
+    }
+
     // --- PAGINATION RESET & LOGIC ---
     if (searchQuery || filterType) {
         if (window.lastInvSearch !== searchQuery || window.lastInvFilter !== filterType) {
@@ -867,8 +849,8 @@ async function renderInventory(searchQuery = '', filterType = '') {
                             <td style="font-family:monospace; color:#475569;">${m.barcode || 'N/A'}</td>
                             <td style="text-align:right; padding-right:16px;">
                                 <div style="display:flex; justify-content:flex-end; gap:8px;">
-                                    <button class="action-btn-refined btn-icon-view" onclick="showSupplierRecallModal('${m.name.replace(/'/g, "\\'")}', '${(m.supplier || '').replace(/'/g, "\\'")}')" title="Contact Supplier">
-                                        <i class="fas fa-envelope-open-text"></i>
+                                    <button class="action-btn-refined btn-icon-view" onclick="handleDownloadMedicineReport('${m.id}')" title="Download Product Report">
+                                        <i class="fas fa-file-pdf"></i>
                                     </button>
                                     <button class="action-btn-refined btn-icon-edit edit-med-btn" data-id="${m.id}" title="Edit Product">
                                         <i class="fas fa-pencil-alt"></i>
@@ -971,7 +953,7 @@ async function renderInventory(searchQuery = '', filterType = '') {
 
 async function showMedicineModal(id = null) {
     try {
-        let med = { name: '', supplier: '', batch: '', expiry: '', stock: 0, reorder_level: 10, price: 0, barcode: '' };
+        let med = { name: '', supplier: '', batch: '', expiry: '', stock: 0, reorder_level: 10, price: 0, cost_price: 0, barcode: '' };
         if (id) {
             const res = await window.db.getMedicines();
             med = res.data.find(m => m.id === id);
@@ -980,8 +962,10 @@ async function showMedicineModal(id = null) {
         const supRes = await window.db.getSuppliers();
         const suppliers = supRes && supRes.success ? supRes.data : [];
         let supOptions = `<option value="">-- Select Supplier --</option>`;
+        const medSupplierClean = (med.supplier || '').trim();
         suppliers.forEach(s => {
-            supOptions += `<option value="${s.name}" ${med.supplier === s.name ? 'selected' : ''}>${s.name}</option>`;
+            const isSelected = medSupplierClean === s.name.trim();
+            supOptions += `<option value="${s.name}" ${isSelected ? 'selected' : ''}>${s.name}</option>`;
         });
 
     const modal = document.getElementById('genericModal');
@@ -996,20 +980,30 @@ async function showMedicineModal(id = null) {
                 <input type="text" id="modal_m_name" value="${med.name}" class="premium-input" placeholder="e.g. Paracetamol 500mg">
             </div>
             <div class="input-group">
+                <label>Quantity (Current Stock)</label>
+                <input type="number" id="modal_m_stock" value="${med.stock}" class="premium-input">
+            </div>
+        </div>
+        <div class="form-grid">
+            <div class="input-group">
                 <label>Supplier Name</label>
                 <select id="modal_m_supplier" class="premium-select" style="width:100%; border-radius:12px; border:1px solid #cbd5e1; padding:12px 16px; font-weight:500;">
                     ${supOptions}
                 </select>
             </div>
+            <div class="input-group">
+                <label>Barcode / SKU</label>
+                <input type="text" id="modal_m_barcode" value="${med.barcode || ''}" class="premium-input" placeholder="Scan or type barcode">
+            </div>
         </div>
         <div class="form-grid">
             <div class="input-group">
-                <label>Quantity (Current Stock)</label>
-                <input type="number" id="modal_m_stock" value="${med.stock}" class="premium-input">
+                <label style="color:#64748b; font-weight:600;">Buying Price (Unit Cost)</label>
+                <input type="number" step="0.01" id="modal_m_cost_price" value="${med.cost_price || 0}" class="premium-input" placeholder="0.00">
             </div>
             <div class="input-group">
-                <label>Price (KES)</label>
-                <input type="number" step="0.01" id="modal_m_price" value="${med.price}" class="premium-input">
+                <label style="color:var(--royal-blue); font-weight:700;">Selling Price (Retail)</label>
+                <input type="number" step="0.01" id="modal_m_price" value="${med.price}" class="premium-input" style="border-color:var(--emerald); border-width:2px; font-weight:700;">
             </div>
         </div>
         <div class="form-grid">
@@ -1018,19 +1012,15 @@ async function showMedicineModal(id = null) {
                 <input type="date" id="modal_m_expiry" value="${med.expiry}" class="premium-input">
             </div>
             <div class="input-group">
-                <label>Reorder Level (Alert when below)</label>
-                <input type="number" id="modal_m_reorder" value="${med.reorder_level}" class="premium-input">
-            </div>
-        </div>
-
-        <div class="form-grid">
-            <div class="input-group">
                 <label>Batch Number</label>
                 <input type="text" id="modal_m_batch" value="${med.batch || ''}" class="premium-input" placeholder="e.g. BATCH-123">
             </div>
-            <div class="input-group">
-                <label>Barcode / SKU</label>
-                <input type="text" id="modal_m_barcode" value="${med.barcode || ''}" class="premium-input" placeholder="Scan or type barcode">
+        </div>
+        <div class="form-grid">
+            <div class="input-group" style="grid-column: span 2;">
+                <label style="color:var(--warning); font-weight:700;">Reorder Level (Alert when stock falls below)</label>
+                <input type="number" id="modal_m_reorder" value="${med.reorder_level || 10}" class="premium-input" style="border:2px dashed var(--warning);">
+                <small style="color:#64748b; margin-top:4px; display:block;">Default is 10. The system will highlight this item in red when stock hits this number.</small>
             </div>
         </div>
         
@@ -1059,17 +1049,21 @@ async function showMedicineModal(id = null) {
             e.preventDefault();
             try {
                 const data = {
-                    name: document.getElementById('modal_m_name').value,
+                    name: document.getElementById('modal_m_name').value.trim(),
                     supplier: document.getElementById('modal_m_supplier').value,
-                    batch: document.getElementById('modal_m_batch').value,
+                    batch: document.getElementById('modal_m_batch').value.trim(),
                     expiry: document.getElementById('modal_m_expiry').value,
                     price: parseFloat(document.getElementById('modal_m_price').value) || 0,
+                    cost_price: parseFloat(document.getElementById('modal_m_cost_price').value) || 0,
                     stock: parseInt(document.getElementById('modal_m_stock').value) || 0,
                     reorder_level: parseInt(document.getElementById('modal_m_reorder').value) || 10,
-                    barcode: document.getElementById('modal_m_barcode').value
+                    barcode: document.getElementById('modal_m_barcode').value.trim()
                 };
 
-        if (!data.name) return showToast('Product name is required', 'warning');
+                if (!data.name) return showToast('Product name is required', 'warning');
+                if (data.price < 0) return showToast('Selling Price cannot be negative', 'warning');
+                if (data.cost_price < 0) return showToast('Unit Cost cannot be negative', 'warning');
+                if (data.reorder_level < 0) return showToast('Reorder level cannot be negative', 'warning');
 
                 let res;
                 if (id) {
@@ -1124,6 +1118,79 @@ window.handleDeleteMedicine = async (id, name) => {
     }
 };
 
+window.handleDownloadMedicineReport = async (id) => {
+    try {
+        showToast('Generating report...', 'info');
+        
+        // Correctly access jsPDF from the local UMD bundle
+        const jsPDFLib = window.jspdf ? window.jspdf.jsPDF : (window.jsPDF || null);
+        if (!jsPDFLib) {
+            throw new Error("PDF Library (jsPDF) is not loaded properly. Please refresh the page.");
+        }
+
+        const res = await window.db.getMedicines();
+        const med = (res.data || []).find(m => String(m.id) === String(id));
+        
+        if (!med) return showToast('Medicine record not found!', 'error');
+
+        const doc = new jsPDFLib();
+        
+        // Header
+        doc.setFontSize(22);
+        doc.setTextColor(30, 58, 138); // Royal Blue
+        doc.text("RENACHEM PHARMACY", 14, 22);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text("MEDICATION PRODUCT PROFILE & STOCK AUDIT", 14, 28);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 33);
+        
+        // Horizontal Line
+        doc.setDrawColor(200);
+        doc.line(14, 38, 196, 38);
+
+        // Content
+        const tableData = [
+            ["Attribute", "Value"],
+            ["Medicine Name", med.name],
+            ["Inventory ID", `#${med.id}`],
+            ["Barcode / SKU", med.barcode || "N/A"],
+            ["Supplier", med.supplier || "N/A"],
+            ["Current Stock", `${med.stock} Units`],
+            ["Reorder Alert Level", `${med.reorder_level || 10} Units`],
+            ["Buying Price (Unit Cost)", `KES ${Number(med.cost_price || 0).toLocaleString(undefined, {minimumFractionDigits:2})}`],
+            ["Selling Price (Retail)", `KES ${Number(med.price || 0).toLocaleString(undefined, {minimumFractionDigits:2})}`],
+            ["Estimated Margin/Unit", `KES ${Number((med.price || 0) - (med.cost_price || 0)).toLocaleString(undefined, {minimumFractionDigits:2})}`],
+            ["Batch Number", med.batch || "N/A"],
+            ["Expiry Date", med.expiry || "N/A"]
+        ];
+
+        doc.autoTable({
+            startY: 45,
+            head: [tableData[0]],
+            body: tableData.slice(1),
+            theme: 'striped',
+            headStyles: { fillColor: [30, 58, 138], textColor: 255, fontStyle: 'bold' },
+            bodyStyles: { textColor: 50 },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            margin: { left: 14, right: 14 }
+        });
+
+        const finalY = doc.lastAutoTable.finalY + 20;
+        doc.setFontSize(9);
+        doc.setTextColor(150);
+        doc.text("This is a system-generated document for internal inventory tracking.", 14, finalY);
+        doc.text("Authorized by Renachem Pharmacy Management Suite.", 14, finalY + 5);
+
+        doc.save(`${med.name.replace(/\s+/g, '_')}_Report.pdf`);
+        showToast('Report downloaded successfully!', 'success');
+        
+    } catch (e) {
+        console.error(e);
+        showToast('PDF Export failed: ' + e.message, 'error');
+    }
+};
+
 async function renderPOS() {
     if (!hasAccess('pos')) return document.getElementById('pageContainer').innerHTML = '<div class="stat-card">Access Denied</div>';
     
@@ -1152,7 +1219,7 @@ async function renderPOS() {
                 <div id="posMedList" style="max-height:500px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;">
                     ${medicines.map(m => `
                         <div class="cart-item pos-add-btn" data-id="${m.id}">
-                            <span>${m.name} (${m.batch}) - KES ${m.price}</span>
+                            <span>${m.name}${m.batch ? ' (' + m.batch + ')' : ''} - KES ${m.price}</span>
                             <i class="fas fa-plus-circle" style="color:var(--cyna-blue); pointer-events:none;"></i>
                         </div>
                     `).join('')}
@@ -1208,7 +1275,7 @@ async function renderPOS() {
         const filtered = medicines.filter(m => m.name.toLowerCase().includes(query) || (m.barcode && m.barcode.toLowerCase().includes(query)));
         document.getElementById('posMedList').innerHTML = filtered.map(m => `
             <div class="cart-item pos-add-btn" data-id="${m.id}">
-                <span>${m.name} (${m.batch}) - KES ${m.price}</span>
+                <span>${m.name}${m.batch ? ' (' + m.batch + ')' : ''} - KES ${m.price}</span>
                 <i class="fas fa-plus-circle" style="color:var(--cyna-blue); pointer-events:none;"></i>
             </div>
         `).join('');
@@ -2164,8 +2231,9 @@ async function showIntakeModal() {
 
             <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:24px;">
                 <div class="input-group">
-                    <label style="font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
-                        <i class="fas fa-cubes" style="font-size:0.9rem;"></i> Quantity
+                    <label style="font-weight:700; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between;">
+                        <span><i class="fas fa-cubes" style="font-size:0.9rem;"></i> Intake Quantity</span>
+                        <span id="intake_current_stock_display" style="font-size:0.75rem; color:#64748b; font-weight:400; background:#f1f5f9; padding:2px 8px; border-radius:6px;">Current: 0</span>
                     </label>
                     <input type="number" id="intake_qty" class="premium-input" style="padding:14px 20px;" placeholder="e.g. 100">
                 </div>
@@ -2251,7 +2319,17 @@ async function showIntakeModal() {
 
         if (filtered.length > 0) {
             resultsDropdown.innerHTML = filtered.map(m => `
-                <div class="search-result-item" data-id="${m.id}" data-name="${m.name}" data-price="${m.price}" data-barcode="${m.barcode || ''}">
+                <div class="search-result-item" 
+                    data-id="${m.id}" 
+                    data-name="${m.name}" 
+                    data-price="${m.price}" 
+                    data-cost_price="${m.cost_price || 0}"
+                    data-stock="${m.stock || 0}"
+                    data-barcode="${m.barcode || ''}"
+                    data-supplier="${m.supplier || ''}"
+                    data-batch="${m.batch || ''}"
+                    data-expiry="${m.expiry || ''}"
+                >
                     <span class="item-title">${m.name}</span>
                     <span class="item-sub">Current Stock: ${m.stock} | Price: KES ${m.price}</span>
                 </div>
@@ -2265,8 +2343,25 @@ async function showIntakeModal() {
                     idInput.value = item.dataset.id;
                     sellPriceInput.value = item.dataset.price;
                     barcodeInput.value = item.dataset.barcode;
+                    
+                    // Populate Buying Price & Stock Display
+                    const buyPriceInput = document.getElementById('intake_buying_price');
+                    const stockDisplay = document.getElementById('intake_current_stock_display');
+                    
+                    if (buyPriceInput) buyPriceInput.value = item.dataset.cost_price;
+                    if (stockDisplay) stockDisplay.innerText = `Current: ${item.dataset.stock}`;
+                    
+                    // Auto-fill entire profile as requested
+                    const supSelect = document.getElementById('intake_sup');
+                    const batchInput = document.getElementById('intake_batch');
+                    const expiryInput = document.getElementById('intake_expiry');
+                    
+                    if (supSelect) supSelect.value = item.dataset.supplier;
+                    if (batchInput) batchInput.value = item.dataset.batch;
+                    if (expiryInput) expiryInput.value = item.dataset.expiry;
+
                     resultsDropdown.style.display = 'none';
-                    showToast(`Loaded ${item.dataset.name} details.`, 'info');
+                    showToast(`Loaded details for ${item.dataset.name}.`, 'info');
                 };
             });
         } else {
@@ -2317,16 +2412,16 @@ async function showIntakeModal() {
             med_name: nameInput.value.trim(),
             qty: parseInt(qtyInput.value) || 0,
             supplier: document.getElementById('intake_sup').value,
-            unit_price: parseFloat(buyPriceInput.value) || 0,
+            buying_price: parseFloat(buyPriceInput.value) || 0,
             selling_price: parseFloat(sellPriceInput.value) || 0,
             expiry: document.getElementById('intake_expiry').value,
             batch: document.getElementById('intake_batch').value.trim(),
             barcode: barcodeInput.value.trim()
         };
 
-        if (!data.med_name || data.qty <= 0) {
-            return showToast('Medicine name and valid quantity are required', 'warning');
-        }
+        if (!data.med_name) return showToast('Medicine name is required', 'warning');
+        if (data.qty <= 0) return showToast('Intake Quantity must be greater than 0', 'warning');
+        if (data.buying_price < 0 || data.selling_price < 0) return showToast('Prices cannot be negative', 'warning');
 
         const res = await window.db.recordStockIntake(data);
         if (res.success) {
