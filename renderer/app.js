@@ -14,6 +14,7 @@ let currentUser = null;
 let currentPage = 'dashboard';
 let cart = [];
 let loginFailCount = 0;
+let idleTimer;
 
 // Pagination state
 let paginationState = {
@@ -345,6 +346,7 @@ async function initAppAfterLogin(role, username) {
     document.getElementById('appMain').style.display = 'flex';
     
     await renderCurrentPage();
+    refreshNotifications();
 }
 
 
@@ -3152,6 +3154,7 @@ async function handleLogin() {
         }
 
         currentUser = res.user;
+        resetIdleTimer();
         await initAppAfterLogin(res.user.role, res.user.username);
     } else {
         btn.disabled = false;
@@ -3380,6 +3383,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setupConnectivityMonitoring();
     setupProfileManagement();
+    setupNotifications();
+    setupIdleTimer();
 
     // Global Event Delegation (Bypasses CSP Inline restrictions)
     document.addEventListener('click', (e) => {
@@ -4004,5 +4009,239 @@ async function printStatement(name, creditId) {
     } catch (error) {
         console.error(error);
         showToast(`Failed to initialize print: ${error.message}`, 'error');
+    }
+}
+
+function setupNotifications() {
+    const bell = document.getElementById('notificationBell');
+    const dropdown = document.getElementById('notificationDropdown');
+    const clearBtn = document.getElementById('clearAllNotifs');
+
+    if (bell) {
+        bell.onclick = (e) => {
+            e.stopPropagation();
+            const isVisible = dropdown.style.display === 'flex';
+            dropdown.style.display = isVisible ? 'none' : 'flex';
+        };
+    }
+
+    if (clearBtn) {
+        clearBtn.onclick = (e) => {
+            e.stopPropagation();
+            document.getElementById('notifList').innerHTML = '<div class="notif-placeholder">No active alerts</div>';
+            updateBellState(0);
+        };
+    }
+
+    document.addEventListener('click', () => {
+        if (dropdown) dropdown.style.display = 'none';
+    });
+
+    if (dropdown) {
+        dropdown.onclick = (e) => e.stopPropagation();
+    }
+
+    // Initial check and periodic refresh
+    refreshNotifications();
+    setInterval(refreshNotifications, 60000 * 5); // Every 5 minutes
+}
+
+async function refreshNotifications() {
+    try {
+        const medRes = await window.db.getMedicines();
+        const creditRes = await window.db.getCredits();
+        
+        let alerts = [];
+        const today = new Date();
+        const thirtyDaysOut = new Date();
+        thirtyDaysOut.setDate(today.getDate() + 30);
+
+        // 1. Check Medicines (Stock & Expiry)
+        if (medRes.success) {
+            medRes.data.forEach(m => {
+                // Stock Alert
+                if (m.stock <= (m.reorder_level || 10)) {
+                    alerts.push({
+                        type: 'inventory',
+                        targetId: m.id,
+                        targetName: m.name, // Include name for search
+                        title: 'Low Stock Alert',
+                        desc: `${m.name} is low (${m.stock} left).`,
+                        icon: 'fa-box-open',
+                        color: 'bg-amber'
+                    });
+                }
+
+                // Expiry Check
+                if (m.expiry) {
+                    const expDate = new Date(m.expiry);
+                    if (expDate < today) {
+                        alerts.push({
+                            type: 'expiry',
+                            targetId: m.id,
+                            targetName: m.name,
+                            title: 'Item Expired!',
+                            desc: `${m.name} (Batch ${m.batch}) has expired.`,
+                            icon: 'fa-skull-crossbones',
+                            color: 'bg-red'
+                        });
+                    } else if (expDate < thirtyDaysOut) {
+                        alerts.push({
+                            type: 'expiry',
+                            targetId: m.id,
+                            targetName: m.name,
+                            title: 'Expiring Soon',
+                            desc: `${m.name} expires on ${m.expiry}.`,
+                            icon: 'fa-hourglass-half',
+                            color: 'bg-amber'
+                        });
+                    }
+                }
+            });
+        }
+
+        // 2. Check Credits (Unpaid > 14 Days)
+        if (creditRes.success) {
+            creditRes.data.forEach(c => {
+                if (c.balance > 0) {
+                    const createdDate = new Date(c.created_at);
+                    const ageInDays = Math.floor((today - createdDate) / (1000 * 60 * 60 * 24));
+                    if (ageInDays >= 14) {
+                        alerts.push({
+                            type: 'finance',
+                            targetId: c.id,
+                            targetName: c.customer_name,
+                            title: 'Overdue Credit',
+                            desc: `${c.customer_name} owes KES ${c.balance.toFixed(2)} (> 2 weeks).`,
+                            icon: 'fa-hand-holding-usd',
+                            color: 'bg-red'
+                        });
+                    }
+                }
+            });
+        }
+
+        renderNotifList(alerts);
+        updateBellState(alerts.length);
+
+    } catch (error) {
+        console.error('Notification refresh failed:', error);
+    }
+}
+
+function renderNotifList(alerts) {
+    const list = document.getElementById('notifList');
+    if (!list) return;
+
+    if (alerts.length === 0) {
+        list.innerHTML = '<div class="notif-placeholder">No active alerts</div>';
+        return;
+    }
+
+    list.innerHTML = alerts.map(a => `
+        <div class="notif-item" onclick="handleNotifClick('${a.type}', '${a.targetId || ''}', '${(a.targetName || '').replace(/'/g, "\\'")}')">
+            <div class="notif-icon ${a.color}">
+                <i class="fas ${a.icon}"></i>
+            </div>
+            <div class="notif-content">
+                <div class="notif-title">${a.title}</div>
+                <div class="notif-desc">${a.desc}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateBellState(count) {
+    const badge = document.getElementById('bellBadge');
+    const icon = document.getElementById('bellIcon');
+    
+    if (badge) {
+        badge.innerText = count;
+        badge.style.display = count > 0 ? 'flex' : 'none';
+    }
+
+    if (icon) {
+        if (count > 0) {
+            icon.classList.add('bell-dancing');
+        } else {
+            icon.classList.remove('bell-dancing');
+        }
+    }
+}
+
+async function handleNotifClick(type, targetId, targetName) {
+    const dropdown = document.getElementById('notificationDropdown');
+    if (dropdown) dropdown.style.display = 'none';
+
+    // RBAC Check
+    if (type === 'finance' && !hasAccess('finance')) {
+        return showToast('Access denied! Please notify the Admin.', 'error');
+    }
+    if (type === 'inventory' && !hasAccess('inventory')) {
+        return showToast('Access denied! Please notify the Admin.', 'error');
+    }
+
+    // Map notification types to internal pages
+    const pageMap = {
+        'inventory': 'inventory',
+        'expiry': 'inventory', 
+        'finance': 'finance'
+    };
+
+    const targetPage = pageMap[type];
+    if (targetPage && currentPage !== targetPage) {
+        const navItem = document.querySelector(`.nav-item[data-page="${targetPage}"]`);
+        if (navItem) navItem.click();
+    }
+
+    // Deep Linking to Individual Item
+    setTimeout(async () => {
+        if (type === 'inventory' || type === 'expiry') {
+            if (targetId) {
+                // Auto-search for the item in the list behind the modal
+                const searchInput = document.getElementById('medSearch');
+                if (searchInput) {
+                    searchInput.value = targetName;
+                    await renderInventory(targetName);
+                }
+                showMedicineModal(targetId);
+            }
+        } else if (type === 'finance') {
+            if (targetId && targetName) viewDebtorStatement(targetId, targetName);
+        }
+    }, 100);
+}
+
+function setupIdleTimer() {
+    // Reset timer on any user activity
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    activityEvents.forEach(evt => {
+        window.addEventListener(evt, resetIdleTimer, true);
+    });
+
+    // Start initial timer
+    resetIdleTimer();
+}
+
+function resetIdleTimer() {
+    clearTimeout(idleTimer);
+    
+    // Only timeout if a user is actually logged in
+    if (currentUser) {
+        idleTimer = setTimeout(() => {
+            // Check if user is still logged in before firing
+            if (currentUser) {
+                showToast('Session expired due to 5 minutes of inactivity.', 'warning');
+                // Trigger the logout logic
+                const logoutBtn = document.getElementById('topBarLogoutBtn');
+                if (logoutBtn) {
+                    logoutBtn.click();
+                } else {
+                    // Fallback if UI is weird
+                    location.reload();
+                }
+            }
+        }, 1000 * 60 * 5); // 5 minutes
     }
 }
