@@ -367,6 +367,16 @@ async function finalizeSale(paymentMethod) {
         return;
     }
 
+    const clientSelect = document.getElementById('posCustomerSelect');
+    let clientId = null;
+    let clientType = null;
+
+    if (clientSelect && clientSelect.selectedIndex !== -1) {
+        const selectedOption = clientSelect.options[clientSelect.selectedIndex];
+        clientId = selectedOption ? selectedOption.getAttribute('data-id') : null;
+        clientType = selectedOption ? selectedOption.getAttribute('data-type') : null;
+    }
+
     try {
         const saleObj = {
             date: new Date().toISOString().slice(0, 10),
@@ -375,7 +385,9 @@ async function finalizeSale(paymentMethod) {
             total,
             payment_mode: paymentMethod,
             customer_name: customerName,
-            mpesa_code: mpesaCode || ''
+            mpesa_code: mpesaCode || '',
+            client_id: clientId,
+            client_type: clientType
         };
 
         // ATOMIC TRANSACTION: Check stock, deduct inventory, and save sale in one step
@@ -1176,7 +1188,7 @@ window.handleDownloadMedicineReport = async (id) => {
             margin: { left: 14, right: 14 }
         });
 
-        const finalY = doc.lastAutoTable.finalY + 20;
+        const finalY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 120) + 20;
         doc.setFontSize(9);
         doc.setTextColor(150);
         doc.text("This is a system-generated document for internal inventory tracking.", 14, finalY);
@@ -1233,7 +1245,7 @@ async function renderPOS() {
                 <h4 style="font-size:0.9rem; margin-bottom:8px; color:#64748b;">Client Selection</h4>
                 <select id="posCustomerSelect" style="width:100%; padding:12px; border-radius:30px; margin-bottom:12px; border:1px solid #ddd; font-weight:600; color:var(--royal-blue);">
                     <option value="Walk-in">Walk-in Customer</option>
-                    ${combinedClients.map(c => `<option value="${c.name}" data-type="${c.type}">${c.display}</option>`).join('')}
+                    ${combinedClients.map(c => `<option value="${c.name}" data-id="${c.id}" data-type="${c.type}">${c.display}</option>`).join('')}
                 </select>
 
                 <!-- Clinical Insight Badge (Visible only for Patients) -->
@@ -1783,43 +1795,43 @@ async function showProfileModal(id, type) {
     const modal = document.getElementById('genericModal');
     const inner = document.getElementById('modalInner');
     
+    // CLEANER STRUCTURE: Single scroll container, no double bars
     inner.innerHTML = `
-        <div style="max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto; padding:10px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; border-bottom:1px solid #f1f5f9; padding-bottom:16px;">
+        <div style="height: 100%; display: flex; flex-direction: column; overflow: hidden;">
+            <div style="padding: 24px; border-bottom: 2px solid #f1f5f9; background: white; border-radius: 20px 20px 0 0; display:flex; justify-content:space-between; align-items:center;">
                 <div>
                     <h2 style="margin:0; color:var(--royal-blue);"><i class="fas fa-id-card"></i> ${person.name}</h2>
-                    <p style="margin:5px 0 0; color:#64748b; font-size:0.9rem;">${type} Profile & Individual History</p>
+                    <p style="margin:5px 0 0; color:#64748b; font-size:0.9rem;">${type} Profile & Clinical History</p>
                 </div>
-                <button onclick="document.getElementById('genericModal').style.display='none'" style="background:none; border:none; font-size:1.5rem; color:#94a3b8; cursor:pointer;"><i class="fas fa-times"></i></button>
+                <button onclick="document.getElementById('genericModal').style.display='none'" style="background:#f1f5f9; border:none; padding:12px; border-radius:12px; cursor:pointer; color:#94a3b8;"><i class="fas fa-times"></i></button>
             </div>
 
-            <div style="display:grid; grid-template-columns: 350px 1fr; gap:30px;">
-                <!-- Left Side: Clinical Profile & Update -->
-                <div style="background:#f8fafc; border-radius:16px; padding:20px; border:1px solid #e2e8f0;">
-                    <h4 style="margin-top:0; color:#334155; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:15px;">
-                        <i class="fas fa-user-md"></i> Clinical Record
-                    </h4>
-                    
-                    <div class="input-group">
-                        <label>Active Prescriptions</label>
-                        <textarea id="profile_prescriptions" class="premium-input" style="height:120px; resize:none; font-size:0.85rem;">${person.prescriptions || ''}</textarea>
-                    </div>
-                    
-                    <div class="input-group" style="margin-top:15px;">
-                        <label>Clinical History</label>
-                        <textarea id="profile_history" class="premium-input" style="height:120px; resize:none; font-size:0.85rem;">${person.history || ''}</textarea>
+            <div style="flex: 1; overflow-y: auto; padding: 24px;">
+                <div style="display:grid; grid-template-columns: 350px 1fr; gap:30px;">
+                    <!-- Left Side: Clinical Profile & Update -->
+                    <div style="background:#f8fafc; border-radius:16px; padding:20px; border:1px solid #e2e8f0; align-self: flex-start;">
+                        <h4 style="margin-top:0; color:#334155; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:15px;">
+                            <i class="fas fa-user-md"></i> Clinical Record
+                        </h4>
+                        
+                        <div class="input-group">
+                            <label style="font-size:0.75rem; color:#64748b; font-weight:600;">Active Prescriptions (Auto-updated)</label>
+                            <textarea id="profile_prescriptions" class="premium-input" style="height:180px; resize:none; font-size:0.85rem; line-height:1.5; border-radius:12px;">${person.prescriptions || ''}</textarea>
+                        </div>
+                        
+                        <div class="input-group" style="margin-top:15px;">
+                            <label style="font-size:0.75rem; color:#64748b; font-weight:600;">Clinical History</label>
+                            <textarea id="profile_history" class="premium-input" style="height:180px; resize:none; font-size:0.85rem; line-height:1.5; border-radius:12px;">${person.history || ''}</textarea>
+                        </div>
+
+                        <button class="btn-primary" id="saveProfileChanges" style="width:100%; margin-top:20px; padding:14px; font-weight:700;">
+                            <i class="fas fa-save"></i> Save Clinical Data
+                        </button>
                     </div>
 
-                    <button class="btn-primary" id="saveProfileChanges" style="width:100%; margin-top:20px;">
-                        <i class="fas fa-save"></i> Save Clinical Data
-                    </button>
-                    <p style="font-size:0.7rem; color:#94a3b8; text-align:center; margin-top:12px;">Updates are permanent after saving.</p>
-                </div>
-
-                <!-- Right Side: Sales History -->
-                <div>
-                    <h4 style="margin-top:0; color:#334155; margin-bottom:15px;"><i class="fas fa-shopping-cart"></i> Recent Transactions</h4>
-                    <div style="max-height:450px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:12px;">
+                    <!-- Right Side: Sales History -->
+                    <div>
+                        <h4 style="margin-top:0; color:#334155; margin-bottom:15px;"><i class="fas fa-shopping-cart"></i> Recent Transactions</h4>
                         <table class="data-table" style="font-size:0.85rem;">
                             <thead style="position:sticky; top:0; background:white; z-index:1;">
                                 <tr style="background:#f1f5f9;">
@@ -1831,21 +1843,19 @@ async function showProfileModal(id, type) {
                             </thead>
                             <tbody>
                                 ${history.length > 0 ? history.map(s => {
-                                    let itemsDesc = s.items_json;
+                                    let itemsDesc = "";
                                     try {
                                         const parsed = JSON.parse(s.items_json);
-                                        if (Array.isArray(parsed)) {
-                                            itemsDesc = parsed.map(i => typeof i === 'object' ? `${i.name} (x${i.qty})` : i).join(', ');
-                                        }
-                                    } catch(e){}
+                                        itemsDesc = parsed.map(i => `${i.name} (x${i.qty})`).join(', ');
+                                    } catch(e){ itemsDesc = s.items_json; }
                                     
                                     return `
                                     <tr>
                                         <td>${s.date}</td>
-                                        <td><div style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${itemsDesc}">${itemsDesc}</div></td>
+                                        <td><div style="max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${itemsDesc}">${itemsDesc}</div></td>
                                         <td style="font-weight:700; color:var(--royal-blue);">KES ${s.total.toFixed(2)}</td>
                                         <td style="text-align:right;">
-                                            <button class="action-btn-refined btn-icon-view reprint-history-btn" data-id="${s.id}" title="Reprint Receipt">
+                                            <button class="action-btn-refined btn-icon-view" onclick="promptPrintReceipt(null, null, '${s.id}')" title="Reprint Receipt">
                                                 <i class="fas fa-print"></i>
                                             </button>
                                         </td>
@@ -3712,7 +3722,7 @@ async function viewDebtorStatement(creditId, name) {
                     <button class="btn-primary" onclick="downloadStatement('${name.replace(/'/g, "\\'")}', ${creditId})" style="padding:8px 16px; font-size:0.8rem; background:var(--emerald);">
                         <i class="fas fa-download"></i> Download
                     </button>
-                    <button class="btn-primary" onclick="window.print()" style="padding:8px 16px; font-size:0.8rem; background:var(--royal-blue);">
+                    <button class="btn-primary" onclick="printStatement('${name.replace(/'/g, "\\'")}', ${creditId})" style="padding:8px 16px; font-size:0.8rem; background:var(--royal-blue);">
                         <i class="fas fa-print"></i> Print
                     </button>
                 </div>
@@ -3761,15 +3771,238 @@ async function viewDebtorStatement(creditId, name) {
     modal.style.display = 'flex';
 }
 
-function downloadStatement(name, creditId) {
-    const content = document.getElementById('statementContent').innerText;
-    const blob = new Blob([`DEBTOR STATEMENT: ${name}\n\n${content}`], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Statement_${name.replace(/\s/g, '_')}_${new Date().toISOString().slice(0,10)}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    showToast('Statement downloaded successfully.', 'success');
+async function downloadStatement(name, creditId) {
+    try {
+        showToast('Generating PDF statement...', 'info');
+        
+        const jsPDFLib = window.jspdf ? window.jspdf.jsPDF : (window.jsPDF || null);
+        if (!jsPDFLib) throw new Error("PDF Library (jsPDF) is not loaded.");
+
+        // 1. Fetch data
+        const creditsRes = await window.db.getCredits();
+        const credit = creditsRes.data.find(c => String(c.id) === String(creditId));
+        if (!credit) throw new Error("Credit record not found.");
+
+        const historyRes = await window.db.getCreditHistory(creditId);
+        const payments = historyRes.data || [];
+
+        const doc = new jsPDFLib();
+        
+        // Header
+        doc.setFontSize(22);
+        doc.setTextColor(30, 58, 138); // Royal Blue
+        doc.text("RENACHEM PHARMACY", 14, 22);
+        
+        doc.setFontSize(12);
+        doc.setTextColor(100);
+        doc.text("OFFICIAL DEBTOR STATEMENT", 14, 30);
+        doc.setFontSize(10);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 36);
+        
+        // Separator
+        doc.setDrawColor(220);
+        doc.line(14, 42, 196, 42);
+
+        // Customer Summary
+        doc.setFontSize(11);
+        doc.setTextColor(30);
+        doc.text(`Customer Name: ${name}`, 14, 52);
+        doc.text(`Statement ID: #STMT-${creditId}`, 14, 58);
+        
+        // Summary Cards (Values)
+        doc.setFillColor(248, 250, 252);
+        doc.rect(14, 65, 85, 25, 'F'); // Original Debt Box
+        doc.rect(110, 65, 85, 25, 'F'); // Balance Box
+        
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.text("ORIGINAL DEBT", 18, 73);
+        doc.text("CURRENT BALANCE", 114, 73);
+        
+        doc.setFontSize(14);
+        doc.setTextColor(30);
+        doc.text(`KES ${Number(credit.total_amount).toFixed(2)}`, 18, 83);
+        doc.setTextColor(220, 38, 38); // Red for balance
+        doc.text(`KES ${Number(credit.balance).toFixed(2)}`, 114, 83);
+
+        // Payment History Table
+        doc.setFontSize(12);
+        doc.setTextColor(30, 58, 138);
+        doc.text("Payment History", 14, 105);
+
+        const tableBody = payments.map(p => [
+            p.payment_date,
+            `KES ${Number(p.amount).toFixed(2)}`,
+            p.payment_mode,
+            p.received_by || 'Admin'
+        ]);
+
+        doc.autoTable({
+            startY: 110,
+            head: [['Date & Time', 'Amount Paid', 'Method', 'Received By']],
+            body: tableBody.length > 0 ? tableBody : [['-', 'No payments recorded yet', '-', '-']],
+            theme: 'striped',
+            headStyles: { fillColor: [0, 163, 204] }, // Cyan Blue
+            styles: { fontSize: 9 }
+        });
+
+        // Footer
+        const finalY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 120);
+        doc.setFontSize(9);
+        doc.setTextColor(150);
+        doc.text("Thank you for your continued partnership with Renachem Pharmacy.", 14, finalY + 20);
+        doc.text("This is a computer-generated document and does not require a signature.", 14, finalY + 25);
+
+        doc.save(`Statement_${name.replace(/\s/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`);
+        showToast('PDF Statement downloaded.', 'success');
+
+    } catch (error) {
+        console.error(error);
+        showToast(`Failed to generate PDF: ${error.message}`, 'error');
+    }
+}
+
+async function printStatement(name, creditId) {
+    try {
+        showToast('Initializing Statement Print...', 'info');
+        
+        // 1. Fetch data
+        const creditsRes = await window.db.getCredits();
+        const credit = creditsRes.data.find(c => String(c.id) === String(creditId));
+        if (!credit) throw new Error("Credit record not found.");
+
+        const historyRes = await window.db.getCreditHistory(creditId);
+        const payments = historyRes.data || [];
+
+        const settingsReq = await window.db.getSettings();
+        const config = {};
+        if (settingsReq.success) {
+            settingsReq.data.forEach(s => config[s.key] = s.value);
+        }
+        
+        const pharmacyName = config.pharmacy_name || 'RENACHEM PHARMACY';
+        const pharmacyAddress = config.pharmacy_address || '';
+        const pharmacyPhone = config.pharmacy_phone || '';
+
+        // Default to A4 layout for statements
+        let styles = `
+            body { font-family: 'Courier New', Courier, monospace; width: 600px; margin: 0 auto; padding: 40px; color: #000; background: white; }
+            .header { text-align: center; font-weight: bold; font-size: 24px; margin-bottom: 30px; text-transform: uppercase; }
+            .sub-header { text-align: center; font-size: 16px; margin-bottom: 20px; color: #444; }
+            .flex-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 16px; }
+            .divider { border-bottom: 2px dashed #000; margin: 24px 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { text-align: left; vertical-align: top; padding: 10px 5px; font-size: 15px; border-bottom: 1px solid #eee; }
+            th { font-weight: bold; border-bottom: 2px solid #000; }
+            .right { text-align: right; }
+            .bold { font-weight: bold; }
+            .footer { text-align: center; margin-top: 50px; font-size: 14px; font-style: italic; }
+        `;
+
+        let statementHtml = `
+            <html>
+            <head><style>${styles}</style></head>
+            <body>
+                <div class="header">DEBTOR STATEMENT</div>
+                <div class="sub-header">${pharmacyName}</div>
+                
+                <div class="flex-row">
+                    <span>Customer: <b>${name}</b></span>
+                    <span>Date: ${new Date().toLocaleDateString()}</span>
+                </div>
+                <div class="flex-row">
+                    <span>Statement ID: #STMT-${creditId}</span>
+                    <span>Phone: ${pharmacyPhone}</span>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="flex-row" style="font-size:1.2rem;">
+                    <span><b>Original Debt:</b></span>
+                    <span><b>KES ${Number(credit.total_amount).toFixed(2)}</b></span>
+                </div>
+                <div class="flex-row" style="font-size:1.2rem; color:red;">
+                    <span><b>Current Balance:</b></span>
+                    <span><b>KES ${Number(credit.balance).toFixed(2)}</b></span>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="bold" style="margin-top:20px; font-size:18px;">Payment History</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${payments.map(p => `
+                            <tr>
+                                <td>${p.payment_date}</td>
+                                <td>KES ${Number(p.amount).toFixed(2)}</td>
+                                <td>${p.payment_mode}</td>
+                            </tr>
+                        `).join('') || '<tr><td colspan="3" style="text-align:center;">No payments recorded yet.</td></tr>'}
+                    </tbody>
+                </table>
+
+                <div class="footer">
+                    <p>Thank you for choosing ${pharmacyName}.</p>
+                    <p>This is a computer-generated statement.</p>
+                </div>
+            </body>
+            </html>
+        `;
+
+        // Reuse the Print Preview Modal
+        const modalInner = document.getElementById('modalInner');
+        modalInner.innerHTML = `
+            <div style="padding:32px; max-width:650px; margin:0 auto; text-align:center;">
+                <i class="fas fa-print" style="font-size:2.8rem; color:var(--royal-blue); margin-bottom:16px;"></i>
+                <h3 style="margin:0 0 8px; color:#0f172a; font-size:1.4rem;">Print Statement</h3>
+                <p style="color:#64748b; margin-bottom:24px; font-size:0.95rem;">Review the statement layout for <b>${name}</b>.</p>
+                
+                <div style="width:100%; height:450px; border: 2px solid #cbd5e1; border-radius:12px; background:#e2e8f0; padding:16px; box-sizing:border-box;">
+                    <iframe id="previewIframe" style="width:100%; height:100%; border:none; background:#ffffff; border-radius:8px;"></iframe>
+                </div>
+
+                <div style="display:flex; gap:16px; width:100%; margin-top:24px;">
+                    <button id="executePrintBtn" class="btn-primary" style="flex:2; background:#3b82f6; padding:16px; font-size:1.2rem; border-radius:16px;"><i class="fas fa-print"></i> Print Now</button>
+                    <button id="cancelPrintBtn" style="flex:1; background:#f1f5f9; color:#475569; border:none; border-radius:16px; cursor:pointer; font-weight:700;">Cancel</button>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('genericModal').style.display = 'flex';
+        
+        const previewIframe = document.getElementById('previewIframe');
+        previewIframe.contentDocument.open();
+        previewIframe.contentDocument.write(statementHtml);
+        previewIframe.contentDocument.close();
+
+        document.getElementById('executePrintBtn').onclick = () => {
+            document.getElementById('genericModal').style.display = 'none';
+            const printFrame = document.getElementById('printFrame');
+            if (printFrame) {
+                printFrame.contentDocument.open();
+                printFrame.contentDocument.write(statementHtml);
+                printFrame.contentDocument.close();
+                setTimeout(() => {
+                    printFrame.contentWindow.focus();
+                    printFrame.contentWindow.print();
+                }, 300);
+            }
+        };
+
+        document.getElementById('cancelPrintBtn').onclick = () => {
+            document.getElementById('genericModal').style.display = 'none';
+            // Optional: reopen statement modal?
+        };
+
+    } catch (error) {
+        console.error(error);
+        showToast(`Failed to initialize print: ${error.message}`, 'error');
+    }
 }

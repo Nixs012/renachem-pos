@@ -641,7 +641,6 @@ function addPurchase(data) {
         return { success: false, error: error.message };
     }
 }
-
 function recordStockIntake(data) {
     const trx = db.transaction((d) => {
         // 1. Check if medicine exists by name (case insensitive) or ID if provided
@@ -752,6 +751,28 @@ function recordSaleTransaction(saleData, cartItems) {
                 INSERT INTO credits (sale_id, customer_name, total_amount, balance)
                 VALUES (?, ?, ?, ?)
             `).run(saleId, saleObj.customer_name, saleObj.total, saleObj.total);
+        }
+
+        // 4. Clinical Record Sync (NEW) - Wrapped in inner try to prevent blocking the sale
+        if (saleObj.client_id && saleObj.client_type) {
+            try {
+                const table = saleObj.client_type === 'Patient' ? 'patients' : 'customers';
+                const client = db.prepare(`SELECT prescriptions, history FROM ${table} WHERE id = ?`).get(saleObj.client_id);
+                
+                if (client) {
+                    const datePrefix = `\n[${saleObj.date}] `;
+                    const medSummary = items.map(i => `${i.name || 'Unknown Item'} (${i.qty || 0})`).join(', ');
+                    
+                    const newPresc = (client.prescriptions ? client.prescriptions + '\n' : '') + datePrefix + medSummary;
+                    const newHistory = (client.history ? client.history + '\n' : '') + datePrefix + `Purchased: ${medSummary}`;
+
+                    db.prepare(`UPDATE ${table} SET prescriptions = ?, history = ? WHERE id = ?`)
+                      .run(newPresc, newHistory, saleObj.client_id);
+                }
+            } catch (clinicalError) {
+                console.error("Clinical Sync Failed (Non-critical):", clinicalError);
+                // We do NOT throw here because we want the sale to complete even if profile update fails
+            }
         }
 
         return { success: true, id: saleId };
@@ -987,5 +1008,6 @@ module.exports = {
     getLastAuditHash,
     verifyAuditChain,
     getSetting,
-    setSetting
+    setSetting,
+    recordSaleTransaction
 };

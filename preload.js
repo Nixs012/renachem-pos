@@ -296,6 +296,13 @@ const db = {
         } catch (error) {
             return { success: false, error: error.message };
         }
+    },
+    recordSaleTransaction: async (saleData, cartItems) => {
+        try {
+            return await ipcRenderer.invoke('db:recordSaleTransaction', sessionToken, saleData, cartItems);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
     }
 };
 
