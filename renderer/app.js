@@ -239,34 +239,17 @@ async function renderSettings() {
                 <button class="btn-primary" id="saveProfileBtn" style="width: 100%;"><i class="fas fa-save"></i> Update Profile</button>
             </div>
 
-            <!-- Security Section -->
-            <div class="stat-card">
-                <h3><i class="fas fa-shield-alt"></i> Account Security</h3>
-                <p style="margin-bottom: 20px; font-size: 0.8rem; color: #64748b;">Update your portal access credentials.</p>
-                
-                <div class="input-group">
-                    <label>New Password</label>
-                    <input type="password" id="set_new_password" placeholder="Enter new password">
-                </div>
-                <div class="input-group">
-                    <label>Confirm New Password</label>
-                    <input type="password" id="set_confirm_password" placeholder="Confirm new password">
-                </div>
-                
-                <div id="settingsPassError" style="color: #ef4444; font-size: 0.8rem; margin-bottom: 12px;" hidden></div>
-                
-                <button class="btn-primary" id="updatePasswordBtn" style="width: 100%; background: var(--royal-blue);"><i class="fas fa-key"></i> Update Password</button>
+
             </div>
 
             <!-- Environment Info Section -->
-            <div class="stat-card" style="background: rgba(248, 250, 252, 0.5); border: 1px dashed #cbd5e1; backdrop-filter: blur(4px);">
+            <div class="stat-card" style="background: rgba(248, 250, 252, 0.5); border: 1px solid #e2e8f0; backdrop-filter: blur(4px);">
                 <h3><i class="fas fa-circle-nodes"></i> Environment Status</h3>
-                <div style="font-size: 0.9rem; line-height: 2.2;">
+                <div style="font-size: 0.85rem; line-height: 2.2;">
                     <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;">
                         <span>App Version</span>
                         <span style="font-weight:bold;">v1.0.0-gold</span>
                     </div>
-                    
                     <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;">
                         <span>Database Engine</span>
                         <span style="font-weight:bold;">SQLite Core</span>
@@ -276,8 +259,32 @@ async function renderSettings() {
                         <span style="color:#64748b;">${new Date().toLocaleDateString()}</span>
                     </div>
                 </div>
-                <div style="margin-top:20px; padding:12px; background:rgba(30,58,138,0.05); border-radius:12px; font-size:0.75rem; color:#1e40af;">
-                    <i class="fas fa-info-circle"></i> Changes to Pharmacy Profile will take effect on next receipt generation.
+                <div style="margin-top:15px; padding:10px; background:rgba(30,58,138,0.05); border-radius:10px; font-size:0.7rem; color:#1e40af;">
+                    <i class="fas fa-info-circle"></i> Profile updates affect future receipts only.
+                </div>
+            </div>
+            
+            <!-- System Maintenance Section -->
+            <div class="stat-card" style="border: 1.5px dashed #fecaca; background: #fffafb;">
+                <h3 style="color:#b91c1c;"><i class="fas fa-triangle-exclamation"></i> System Maintenance</h3>
+                <p style="margin-bottom: 15px; font-size: 0.8rem; color: #7f1d1d; font-weight:500;">DANGER ZONE: Irreversible Actions</p>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="padding:10px; background:white; border:1px solid #fee2e2; border-radius:12px;">
+                        <div style="font-weight:700; color:#1e293b; font-size:0.85rem; margin-bottom:2px;">Purchase History</div>
+                        <p style="font-size:0.7rem; color:#64748b; margin-bottom:10px;">Wipes intake history. Keeps stock levels.</p>
+                        <button class="btn-primary" id="resetPurchasesBtn" style="background:#ef4444; width: 100%; padding:8px; font-size:0.75rem; font-weight:700;">
+                            <i class="fas fa-trash-can"></i> RESET PURCHASES
+                        </button>
+                    </div>
+
+                    <div style="padding:10px; background:white; border:1px solid #fee2e2; border-radius:12px;">
+                        <div style="font-weight:700; color:#1e293b; font-size:0.85rem; margin-bottom:2px;">Sales & Reports</div>
+                        <p style="font-size:0.7rem; color:#64748b; margin-bottom:10px;">Wipes sales, credits & audit logs.</p>
+                        <button class="btn-primary" id="resetReportsBtn" style="background:#dc2626; width: 100%; padding:8px; font-size:0.75rem; font-weight:700;">
+                            <i class="fas fa-broom"></i> RESET SALES LOGS
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -298,33 +305,76 @@ async function renderSettings() {
         showToast('Pharmacy profile updated successfully', 'success');
     };
 
-    document.getElementById('updatePasswordBtn').onclick = async () => {
-        const p1 = document.getElementById('set_new_password').value;
-        const p2 = document.getElementById('set_confirm_password').value;
-        const errEl = document.getElementById('settingsPassError');
+    // Maintenance Handlers
+    document.getElementById('resetPurchasesBtn').onclick = () => handleModuleReset('purchases');
+    document.getElementById('resetReportsBtn').onclick = () => handleModuleReset('reports');
+}
 
-        if (!p1 || p1 !== p2) {
-            errEl.innerText = 'Passwords do not match or are empty';
-            errEl.hidden = false;
-            return;
+async function handleModuleReset(module) {
+    const moduleName = module === 'purchases' ? 'Purchase History' : 'Sales & Reports';
+    const impactList = module === 'purchases' 
+        ? ['All historical purchase/intake logs', 'Stock arrival history', 'Supplier transaction links']
+        : ['All sales transactions', 'All patient/customer credit records', 'Detailed financial reports', 'System audit logs'];
+
+    document.getElementById('modalInner').innerHTML = `
+        <div style="padding:10px;">
+            <div style="text-align:center; margin-bottom:20px;">
+                <div style="width:60px; height:60px; border-radius:50%; background:#fee2e2; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
+                    <i class="fas fa-triangle-exclamation" style="font-size:30px; color:#ef4444;"></i>
+                </div>
+                <h2 style="color:#1e293b; margin:0;">Reset ${moduleName}?</h2>
+                <p style="color:#64748b; font-size:0.9rem;">This action is permanent and cannot be undone.</p>
+            </div>
+
+            <div style="background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:20px;">
+                <div style="font-weight:700; color:#475569; font-size:0.8rem; text-transform:uppercase; margin-bottom:10px;">Data to be Wiped:</div>
+                <ul style="margin:0; padding-left:20px; color:#1e293b; font-size:0.85rem; line-height:1.6;">
+                    ${impactList.map(i => `<li>${i}</li>`).join('')}
+                </ul>
+            </div>
+
+            <div class="input-group" style="margin-bottom:20px;">
+                <label style="color:#b91c1c; font-weight:700;">Confirm Admin Password</label>
+                <input type="password" id="resetConfirmPass" placeholder="Enter your password to authorize" style="border-color:#fecaca;">
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <button class="btn-primary" id="confirmResetBtn" style="background:#ef4444; padding:14px;">CONFIRM WIPE</button>
+                <button class="btn-primary" id="cancelResetBtn" style="background:#94a3b8; padding:14px;">CANCEL</button>
+            </div>
+        </div>
+    `;
+    document.getElementById('genericModal').style.display = 'flex';
+
+    document.getElementById('cancelResetBtn').onclick = () => {
+        document.getElementById('genericModal').style.display = 'none';
+    };
+
+    document.getElementById('confirmResetBtn').onclick = async () => {
+        const password = document.getElementById('resetConfirmPass').value;
+        if (!password) return showToast('Password required to proceed', 'error');
+
+        const btn = document.getElementById('confirmResetBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> VERIFYING...';
+
+        const authRes = await window.auth.verifyAdminPassword(password);
+        if (!authRes.success) {
+            btn.disabled = false;
+            btn.innerHTML = 'CONFIRM WIPE';
+            return showToast('Incorrect Admin password', 'error');
         }
 
-        const check = validatePassword(p1);
-        if (!check.valid) {
-            errEl.innerText = check.errors[0];
-            errEl.hidden = false;
-            return;
-        }
-
-        const res = await window.auth.resetPassword(currentUser.id, p1);
-        if (res.success) {
-            showToast('Password updated successfully', 'success');
-            document.getElementById('set_new_password').value = '';
-            document.getElementById('set_confirm_password').value = '';
-            errEl.hidden = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> WIPING DATA...';
+        const resetRes = await window.db.resetModuleData(module);
+        
+        if (resetRes) {
+            showToast(`${moduleName} has been reset successfully.`, 'success');
+            setTimeout(() => window.location.reload(), 1500);
         } else {
-            errEl.innerText = res.error;
-            errEl.hidden = false;
+            showToast('Reset failed. Please check logs.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = 'CONFIRM WIPE';
         }
     };
 }
@@ -503,7 +553,7 @@ async function printReceipt(saleObj, cartItems, format = 'thermal') {
         <html>
         <head><style>${styles}</style></head>
         <body>
-            <div class="receipt-header">${saleObj.payment_mode ? saleObj.payment_mode.toUpperCase() : 'CASH'} RECEIPT</div>
+            <div class="receipt-header">${(saleObj && saleObj.payment_mode) ? saleObj.payment_mode.toUpperCase() : 'CASH'} RECEIPT</div>
             
             <div class="flex-row">
                 <span>${pharmacyName}</span>
@@ -511,7 +561,7 @@ async function printReceipt(saleObj, cartItems, format = 'thermal') {
             </div>
             <div class="flex-row">
                 <span>Date:</span>
-                <span>${saleObj.date}</span>
+                <span>${saleObj ? saleObj.date : new Date().toLocaleDateString()}</span>
             </div>
             <div class="flex-row">
                 <span>Time:</span>
@@ -544,7 +594,7 @@ async function printReceipt(saleObj, cartItems, format = 'thermal') {
             
             <div class="total-section">
                 <span>Total</span>
-                <span>KES ${saleObj.total.toFixed(2)}</span>
+                <span>KES ${saleObj ? Number(saleObj.total).toFixed(2) : '0.00'}</span>
             </div>
             
             ${saleObj.mpesa_code ? `
@@ -1848,7 +1898,7 @@ async function showProfileModal(id, type) {
                                     let itemsDesc = "";
                                     try {
                                         const parsed = JSON.parse(s.items_json);
-                                        itemsDesc = parsed.map(i => `${i.name} (x${i.qty})`).join(', ');
+                                        itemsDesc = parsed.map(i => `${i.name || i.medicine_name || 'Unknown'} (x${i.qty || i.quantity || 1})`).join(', ');
                                     } catch(e){ itemsDesc = s.items_json; }
                                     
                                     return `
@@ -1857,7 +1907,7 @@ async function showProfileModal(id, type) {
                                         <td><div style="max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${itemsDesc}">${itemsDesc}</div></td>
                                         <td style="font-weight:700; color:var(--royal-blue);">KES ${s.total.toFixed(2)}</td>
                                         <td style="text-align:right;">
-                                            <button class="action-btn-refined btn-icon-view" onclick="promptPrintReceipt(null, null, '${s.id}')" title="Reprint Receipt">
+                                            <button class="action-btn-refined btn-icon-view reprint-history-btn" data-id="${s.id}" title="Reprint Receipt">
                                                 <i class="fas fa-print"></i>
                                             </button>
                                         </td>
@@ -2741,34 +2791,75 @@ function renderExpiryReport(container, medicines) {
 }
 
 function renderProfitLoss(container, sales, medicines = []) {
-    // Top Performers Logic ported in (renamed as per specs)
-    const itemMap = {};
+    let totalRevenue = 0;
+    let actualProfit = 0;
+    const itemPerformance = {};
+
+    // Map medicines for quick lookup
+    const medLookup = {};
+    medicines.forEach(m => medLookup[m.id] = m);
+    // Also map by name for legacy data/flexibility
+    const medNameLookup = {};
+    medicines.forEach(m => medNameLookup[m.name.toLowerCase()] = m);
+
     sales.forEach(s => {
+        totalRevenue += (Number(s.total) || 0);
         try {
             const items = JSON.parse(s.items_json);
-            items.forEach(name => {
-                itemMap[name] = (itemMap[name] || 0) + 1;
+            items.forEach(i => {
+                const name = i.name || i.medicine_name || 'Unknown';
+                const qty = Number(i.qty || i.quantity || 1);
+                const price = Number(i.price || 0);
+                const itemTotal = price * qty;
+
+                // Track volume for performers
+                itemPerformance[name] = (itemPerformance[name] || 0) + qty;
+
+                // Calculate Profit
+                // 1. Try lookup by ID
+                let med = medLookup[i.id];
+                // 2. Try lookup by Name if ID fails
+                if (!med) med = medNameLookup[name.toLowerCase()];
+
+                if (med && med.cost_price > 0) {
+                    const itemCostTotal = med.cost_price * qty;
+                    actualProfit += (itemTotal - itemCostTotal);
+                } else {
+                    // Fallback to 30% estimate for items with missing cost data
+                    actualProfit += (itemTotal * 0.3);
+                }
             });
         } catch (e) {}
     });
 
-    const sorted = Object.entries(itemMap)
+    const sortedPerformers = Object.entries(itemPerformance)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10);
 
-    const totalRev = sales.reduce((s, t) => s + (Number(t.total) || 0), 0);
-    // Estimated Margin (rough proxy 30% for quick BI visual until full cost mapping exists)
-    const margin = totalRev * 0.3; 
+    const profitMargin = totalRevenue > 0 ? (actualProfit / totalRevenue) * 100 : 0;
 
     container.innerHTML = `
         <div class="stats-grid" style="margin-bottom:24px;">
              <div class="stat-card" style="background:linear-gradient(135deg, #f8fafc, #f1f5f9);">
                 <h4 style="color:#64748b;">Total Gross Revenue</h4>
-                <div class="stat-number" style="font-size:1.8rem; color:#0f172a;">KES ${totalRev.toLocaleString()}</div>
+                <div class="stat-number" style="font-size:1.8rem; color:#0f172a;">KES ${totalRevenue.toLocaleString()}</div>
             </div>
             <div class="stat-card" style="background:linear-gradient(135deg, #10b981, #059669); color:white;">
-                <h4 style="opacity:0.9;">Estimated Gross Profit (30% Margin)</h4>
-                <div class="stat-number" style="font-size:1.8rem; color:white;">KES ${margin.toLocaleString(undefined, {minimumFractionDigits:2})}</div>
+                <h4 style="opacity:0.9;">Actual Gross Profit (${profitMargin.toFixed(1)}% Avg Margin)</h4>
+                <div class="stat-number" style="font-size:1.8rem; color:white;">KES ${actualProfit.toLocaleString(undefined, {minimumFractionDigits:2})}</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <h4 style="margin-bottom:20px;"><i class="fas fa-trophy" style="color:#f59e0b;"></i> Top Performance Leaderboard (By Volume)</h4>
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:16px;">
+                ${sortedPerformers.map(([name, qty], idx) => `
+                    <div style="padding:16px; background:#f8fafc; border-radius:12px; border-left:4px solid ${idx < 3 ? '#f59e0b' : '#e2e8f0'};">
+                        <div style="font-size:0.75rem; color:#64748b; font-weight:700;"># ${idx + 1}</div>
+                        <div style="font-weight:700; color:#1e293b; margin:4px 0;">${name}</div>
+                        <div style="font-size:1.1rem; font-weight:800; color:var(--royal-blue);">${qty} Units Sold</div>
+                    </div>
+                `).join('') || '<p style="color:#94a3b8; text-align:center; padding:20px;">No performance data available yet.</p>'}
             </div>
         </div>
     `;
@@ -3314,16 +3405,12 @@ function setupProfileManagement() {
 
     const changePassBtn = document.getElementById('changePasswordBtn');
     if (changePassBtn) {
-        if (currentUser && currentUser.role !== 'Admin') {
-            changePassBtn.style.display = 'none';
-        } else {
-            changePassBtn.style.display = 'flex';
-            changePassBtn.onclick = () => {
-                currentPage = 'settings';
-                renderCurrentPage();
-                dropdown.style.display = 'none';
-            };
-        }
+        changePassBtn.onclick = () => {
+            if (currentUser) {
+                showResetPasswordModal(currentUser.id, currentUser.username);
+            }
+            dropdown.style.display = 'none';
+        };
     }
     
     const topBarLogoutBtn = document.getElementById('topBarLogoutBtn');
@@ -4233,14 +4320,15 @@ function resetIdleTimer() {
             // Check if user is still logged in before firing
             if (currentUser) {
                 showToast('Session expired due to 5 minutes of inactivity.', 'warning');
-                // Trigger the logout logic
-                const logoutBtn = document.getElementById('topBarLogoutBtn');
-                if (logoutBtn) {
-                    logoutBtn.click();
-                } else {
-                    // Fallback if UI is weird
-                    location.reload();
-                }
+                // Trigger the logout logic after a small delay so toast is visible
+                setTimeout(() => {
+                    const logoutBtn = document.getElementById('topBarLogoutBtn');
+                    if (logoutBtn) {
+                        logoutBtn.click();
+                    } else {
+                        location.reload();
+                    }
+                }, 5000);
             }
         }, 1000 * 60 * 5); // 5 minutes
     }

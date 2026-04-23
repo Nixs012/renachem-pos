@@ -344,7 +344,7 @@ body {
     align-items: center;
     color: white;
     backdrop-filter: blur(2px);
-    z-index: 2500;
+    z-index: 500;
 }
 
 .user-info {

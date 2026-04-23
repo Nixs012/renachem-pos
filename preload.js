@@ -83,6 +83,13 @@ const auth = {
         } catch (error) {
             return { success: false, error: error.message };
         }
+    },
+    verifyAdminPassword: async (password) => {
+        try {
+            return await ipcRenderer.invoke('auth:verifyAdminPassword', sessionToken, password);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
     }
 };
 
@@ -300,6 +307,13 @@ const db = {
     recordSaleTransaction: async (saleData, cartItems) => {
         try {
             return await ipcRenderer.invoke('db:recordSaleTransaction', sessionToken, saleData, cartItems);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+    resetModuleData: async (module) => {
+        try {
+            return await ipcRenderer.invoke('db:resetModuleData', sessionToken, module);
         } catch (error) {
             return { success: false, error: error.message };
         }

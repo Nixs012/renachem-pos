@@ -962,6 +962,55 @@ process.on('exit', () => {
     if (db) db.close();
 });
 
+function verifyAdminPassword(userId, password) {
+    try {
+        const user = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(userId);
+        if (!user) return false;
+        return bcrypt.compareSync(password, user.password_hash);
+    } catch (e) {
+        return false;
+    }
+}
+
+function resetModuleData(module) {
+    const trx = db.transaction(() => {
+        if (module === 'purchases') {
+            db.prepare('DELETE FROM purchases').run();
+            db.prepare("DELETE FROM sqlite_sequence WHERE name = 'purchases'").run();
+        } else if (module === 'reports') {
+            // Disable audit trigger
+            db.exec('DROP TRIGGER IF EXISTS prevent_audit_delete');
+            
+            // Delete in correct order (child tables first)
+            db.prepare('DELETE FROM credit_payments').run();
+            db.prepare('DELETE FROM credits').run();
+            db.prepare('DELETE FROM sales').run();
+            db.prepare('DELETE FROM audit_log').run();
+            
+            // Reset sequences
+            ['credit_payments', 'credits', 'sales', 'audit_log'].forEach(table => {
+                db.prepare("DELETE FROM sqlite_sequence WHERE name = ?").run(table);
+            });
+
+            // Re-enable audit trigger
+            db.exec(`
+                CREATE TRIGGER prevent_audit_delete 
+                BEFORE DELETE ON audit_log 
+                BEGIN 
+                    SELECT RAISE(ABORT, 'Audit log deletion not permitted'); 
+                END;
+            `);
+        }
+        return true;
+    });
+
+    try {
+        return trx();
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
 module.exports = {
     initialize,
     verifyLogin,
@@ -1009,5 +1058,7 @@ module.exports = {
     verifyAuditChain,
     getSetting,
     setSetting,
-    recordSaleTransaction
+    recordSaleTransaction,
+    verifyAdminPassword,
+    resetModuleData
 };

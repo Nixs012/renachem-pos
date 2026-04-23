@@ -400,6 +400,15 @@ ipcMain.handle('db:getCreditHistory', wrapHandler(async (event, t, creditId) => 
 
 ipcMain.handle('db:getAuditLog', wrapHandler(async (event, t, filters) => db.getAuditLog(filters), { adminOnly: true }));
 
+ipcMain.handle('auth:verifyAdminPassword', wrapHandler(async (event, t, password) => {
+    return { success: db.verifyAdminPassword(currentSessionUserId, password) };
+}, { adminOnly: true }));
+
+ipcMain.handle('db:resetModuleData', wrapHandler(async (event, t, module) => {
+    db.insertAuditLog(currentSessionUserId, null, 'FACTORY_RESET', 'SYSTEM', `Modular Reset triggered for: ${module}`);
+    return db.resetModuleData(module);
+}, { adminOnly: true }));
+
 // Lifecycle listeners
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
