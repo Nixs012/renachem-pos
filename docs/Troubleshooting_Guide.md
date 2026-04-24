@@ -64,10 +64,17 @@ This document provides solutions for common issues and technical errors that may
 ## 4. Technical Recovery
 
 ### **Database Integrity Error**
-*   **Cause**: Unexpected power failure during a database write operation.
+*   **Cause**: Unexpected power failure or hard drive error during a database write operation.
 *   **Solution**: 
-    1.  The system will attempt to auto-recover from the last daily backup.
-    2.  If the app fails to start, navigate to `C:\Users\Nixon\AppData\Roaming\renachem-pos\backups` and restore the most recent `.renabackup` file.
+    1.  **Close the Application**: Ensure the app is completely closed (check Task Manager).
+    2.  **Locate Backups**: Navigate to `C:\Users\Nixon\AppData\Roaming\renachem-pos\backups`.
+    3.  **Identify Latest Backup**: Find the file with the most recent date (e.g., `renachem-2026-04-24.renabackup`).
+    4.  **Restore File**:
+        *   Go back to the parent folder: `C:\Users\Nixon\AppData\Roaming\renachem-pos\`.
+        *   Delete or rename the corrupted `renachem.db` (e.g., to `renachem_broken.db`).
+        *   Copy your chosen backup file into this folder.
+        *   **Rename** the backup file exactly to `renachem.db`.
+    5.  **Restart**: Open the application again. Your data will be restored to the state of that backup.
 
 ### **Reporting a New Bug**
 If you encounter a recurring error:
