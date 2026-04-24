@@ -51,7 +51,33 @@ If you need immediate remote access without rewriting the database logic:
 
 ---
 
-## 4. Security Considerations
-*   **Encryption**: All data synced to the cloud must be encrypted via HTTPS/SSL.
-*   **Data Residency**: Ensure cloud backups comply with local medical data privacy laws.
-*   **Access Keys**: Never hardcode cloud passwords; use environment variables (`.env`).
+## 4. Cost & Infrastructure Analysis
+
+### **A. Monthly Costs (Using Supabase)**
+*   **Database (Supabase)**: **$0 / month** (Free Tier). 
+    *   Supabase's free tier allows for 500MB of data. For a pharmacy, this will typically cover **1-2 years of transactions** before needing an upgrade.
+    *   *Upgrade Cost*: $25/month for the Pro tier (up to 8GB of data).
+*   **Hosting (Vercel/Netlify)**: **$0 / month** (Free Tier).
+    *   The Owner Dashboard can be hosted for free on platforms like Vercel.
+*   **Domain Name**: **Optional ($0 to $15/year)**.
+    *   Free: `renachem-reports.vercel.app`
+    *   Custom: `reports.renachem.com` (~$15/year).
+
+**Total Startup Cost: $0.00**
+
+---
+
+## 5. M-Pesa Integration (Non-Daraja)
+Since this system uses **Manual M-Pesa Code Entry** (not Daraja API), the sync process is very simple:
+1.  The cashier enters the M-Pesa code locally as they do now.
+2.  The code is saved to the local `sales` table.
+3.  The **Sync Engine** simply uploads that code along with the sale details to the cloud.
+4.  The owner sees the M-Pesa code in their remote dashboard and can verify it against their business phone.
+*   *Benefit*: No need for expensive API certificates or static IPs required by Daraja.
+
+---
+
+## 6. Security & Data Residency
+*   **Encryption**: All data synced to the cloud is encrypted via HTTPS/SSL by default in Supabase.
+*   **Access Control**: Only the Admin user account created in Phase 4 will have permission to view the cloud data.
+*   **Environment Variables**: We will use a `.env` file to store the Supabase URL and API Keys so they are never exposed in the source code.
