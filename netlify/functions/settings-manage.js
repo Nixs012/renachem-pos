@@ -9,7 +9,7 @@ exports.handler = async (event) => {
             if (action === 'getUsers') {
                 const { data, error } = await supabase.from('users').select('*').order('username', { ascending: true });
                 if (error) throw error;
-                return { statusCode: 200, body: JSON.stringify({ success: true, users: data }) };
+                return { statusCode: 200, body: JSON.stringify({ success: true, data }) };
             }
 
             if (key) {

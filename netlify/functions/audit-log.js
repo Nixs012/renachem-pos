@@ -12,7 +12,7 @@ exports.handler = async (event) => {
 
             const { data, error } = await query;
             if (error) throw error;
-            return { statusCode: 200, body: JSON.stringify({ success: true, logs: data }) };
+            return { statusCode: 200, body: JSON.stringify({ success: true, data }) };
         }
 
         if (event.httpMethod === 'POST') {

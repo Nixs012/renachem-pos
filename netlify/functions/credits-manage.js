@@ -8,12 +8,12 @@ exports.handler = async (event) => {
             if (creditId) {
                 const { data, error } = await supabase.from('credit_payments').select('*').eq('credit_id', creditId).order('payment_date', { ascending: false });
                 if (error) throw error;
-                return { statusCode: 200, body: JSON.stringify({ success: true, history: data }) };
+                return { statusCode: 200, body: JSON.stringify({ success: true, data }) };
             }
 
             const { data, error } = await supabase.from('credits').select('*').order('created_at', { ascending: false });
             if (error) throw error;
-            return { statusCode: 200, body: JSON.stringify({ success: true, credits: data }) };
+            return { statusCode: 200, body: JSON.stringify({ success: true, data }) };
         }
 
         if (event.httpMethod === 'POST') {
