@@ -8,7 +8,7 @@ const API_BASE = '/.netlify/functions';
 
 const callApi = async (functionName, body = {}, method = 'POST') => {
     try {
-        const url = `${API_BASE}/${functionName}`;
+        let url = `${API_BASE}/${functionName}`;
         const options = {
             method,
             headers: { 'Content-Type': 'application/json' }
