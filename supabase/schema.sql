@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS public.customers (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     phone TEXT,
+    email TEXT,
     prescriptions TEXT,
     history TEXT
 );
@@ -58,6 +59,10 @@ CREATE TABLE IF NOT EXISTS public.customers (
 CREATE TABLE IF NOT EXISTS public.suppliers (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    contact_person TEXT,
+    phone TEXT,
+    email TEXT,
+    address TEXT,
     contact TEXT,
     items TEXT
 );
@@ -68,7 +73,10 @@ CREATE TABLE IF NOT EXISTS public.purchases (
     med_name TEXT,
     batch TEXT,
     qty INTEGER,
-    date TEXT
+    date TEXT,
+    supplier TEXT,
+    unit_price REAL,
+    total_cost REAL
 );
 
 -- SALES
