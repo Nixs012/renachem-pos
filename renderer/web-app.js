@@ -44,7 +44,7 @@ if (window.api) {
         reactivateUser: async (id) => await callApi('settings-manage', { action: 'reactivateUser', id }),
         deleteUser: async (id) => await callApi('settings-manage', { action: 'deleteUser', id }),
         verifyAdminPassword: async (password) => await callApi('auth-verify', { password, requireAdmin: true }),
-        recoverAdminPassword: async (data) => ({ success: false, error: 'Recovery via web requires server intervention. Contact Admin.' })
+        recoverAdminPassword: async (data) => await callApi('auth-recover', data)
     };
 
     // --- EMULATED DB MODULE ---
