@@ -29,7 +29,7 @@ exports.handler = async (event) => {
 
         if (event.httpMethod === 'POST') {
             const body = JSON.parse(event.body);
-            const { action, id, ...clientData } = body;
+            const { action, id, table: bodyTable, ...clientData } = body;
 
             if (action === 'add') {
                 const prefix = table === 'patients' ? 'P-' : 'C-';
