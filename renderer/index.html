@@ -195,6 +195,19 @@
 <iframe id="printFrame" style="display:none;"></iframe>
 
 <!-- App Logic -->
-<script src="app.js?v=3"></script>
+    <script>
+        // Automatic environment detection
+        if (window.api) {
+            console.log("RENACHEM: Desktop Mode Detected (Local SQLite)");
+            const script = document.createElement('script');
+            script.src = "app.js?v=3";
+            document.body.appendChild(script);
+        } else {
+            console.log("RENACHEM: Web Mode Detected (Cloud Supabase)");
+            const script = document.createElement('script');
+            script.src = "web-app.js?v=1";
+            document.body.appendChild(script);
+        }
+    </script>
 </body>
 </html>

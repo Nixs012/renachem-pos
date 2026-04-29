@@ -63,3 +63,4 @@ After the codebase is transformed into a standard Web App, deploying to Netlify 
 
 ## Summary
 Deploying the *current* system to Netlify isn't a simple drag-and-drop due to its desktop architecture. However, by migrating the database to Supabase and converting the backend to Netlify Functions, you can successfully launch a fully cloud-based version of Renachem POS.
+supabase database ps vbmVcyBFZa0UcmLA
