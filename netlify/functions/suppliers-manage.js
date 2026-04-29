@@ -13,7 +13,8 @@ exports.handler = async (event) => {
             const { action, id, ...supplierData } = body;
 
             if (action === 'add') {
-                const { data, error } = await supabase.from('suppliers').insert([supplierData]);
+                const id = 'S-' + Date.now();
+                const { data, error } = await supabase.from('suppliers').insert([{ id, ...supplierData }]);
                 if (error) throw error;
                 return { statusCode: 200, body: JSON.stringify({ success: true }) };
             }

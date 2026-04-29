@@ -8,11 +8,15 @@ exports.handler = async (event) => {
     try {
         const product = JSON.parse(event.body);
 
-        if (!product.id || !product.name) {
+        if (!product.id) {
+            product.id = Date.now().toString() + Math.random().toString(36).substr(2, 4);
+        }
+
+        if (!product.name) {
             return {
                 statusCode: 400,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ success: false, error: 'Product ID and Name are required' })
+                body: JSON.stringify({ success: false, error: 'Product Name is required' })
             };
         }
 

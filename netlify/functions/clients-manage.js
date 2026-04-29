@@ -22,7 +22,9 @@ exports.handler = async (event) => {
             const { action, id, ...clientData } = body;
 
             if (action === 'add') {
-                const { data, error } = await supabase.from(table).insert([clientData]);
+                const prefix = table === 'patients' ? 'P-' : 'C-';
+                const id = prefix + Date.now();
+                const { error } = await supabase.from(table).insert([{ id, ...clientData }]);
                 if (error) throw error;
                 return { statusCode: 200, body: JSON.stringify({ success: true, message: 'Added successfully' }) };
             }
