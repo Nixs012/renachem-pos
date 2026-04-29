@@ -53,6 +53,12 @@ if (window.api) {
         addMedicine: async (data) => await callApi('products-add', data),
         updateMedicine: async (id, data) => await callApi('products-update', { id, ...data }),
         deleteMedicine: async (id) => await callApi('products-delete', { id }),
+        bulkAddMedicines: async (medicinesArray) => {
+            for (const med of medicinesArray) {
+                await callApi('products-add', med);
+            }
+            return { success: true };
+        },
         
         getPatients: async () => await callApi('clients-manage', { table: 'patients' }, 'GET'),
         addPatient: async (data) => await callApi('clients-manage', { action: 'add', ...data }),
@@ -63,18 +69,30 @@ if (window.api) {
         addCustomer: async (data) => await callApi('clients-manage', { action: 'add', ...data }),
         updateCustomer: async (id, data) => await callApi('clients-manage', { action: 'update', id, ...data }),
         deleteCustomer: async (id) => await callApi('clients-manage', { action: 'delete', id }),
+
+        getSuppliers: async () => await callApi('suppliers-manage', {}, 'GET'),
+        addSupplier: async (data) => await callApi('suppliers-manage', { action: 'add', ...data }),
+        updateSupplier: async (id, data) => await callApi('suppliers-manage', { action: 'update', id, ...data }),
+        deleteSupplier: async (id) => await callApi('suppliers-manage', { action: 'delete', id }),
+
+        getPurchases: async () => await callApi('purchases-manage', {}, 'GET'),
+        addPurchase: async (data) => await callApi('purchases-manage', { action: 'add', ...data }),
+        recordStockIntake: async (data) => await callApi('purchases-manage', { action: 'recordStockIntake', ...data }),
         
         getSales: async () => await callApi('sales-get', {}, 'GET'),
         addSale: async (data) => await callApi('sales-add', { saleObj: data, cartItems: data.items }),
         recordSaleTransaction: async (saleData, cartItems) => await callApi('sales-add', { saleObj: saleData, cartItems }),
         
         getCredits: async () => await callApi('credits-manage', {}, 'GET'),
+        addCredit: async (data) => await callApi('sales-add', { saleObj: { ...data, payment_mode: 'Credit' }, cartItems: data.items }),
         addCreditPayment: async (data) => await callApi('credits-manage', { action: 'addPayment', ...data }),
         getCreditHistory: async (creditId) => await callApi('credits-manage', { creditId }, 'GET'),
+        cleanupOldCredits: async () => ({ success: true }), // Placeholder
         
         getAuditLog: async (filters) => await callApi('audit-log', filters, 'GET'),
         insertAuditLog: async (logEntry) => await callApi('audit-log', logEntry),
         
+        getSettings: async () => await callApi('settings-manage', { action: 'getSettings' }, 'GET'),
         getSetting: async (key) => {
             const res = await callApi('settings-manage', { key }, 'GET');
             return res.value;

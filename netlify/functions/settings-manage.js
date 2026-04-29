@@ -12,6 +12,12 @@ exports.handler = async (event) => {
                 return { statusCode: 200, body: JSON.stringify({ success: true, data }) };
             }
 
+            if (action === 'getSettings') {
+                const { data, error } = await supabase.from('settings').select('*');
+                if (error) throw error;
+                return { statusCode: 200, body: JSON.stringify({ success: true, data }) };
+            }
+
             if (key) {
                 const { data, error } = await supabase.from('settings').select('value').eq('key', key).single();
                 if (error) throw error;
