@@ -61,14 +61,14 @@ if (window.api) {
         },
         
         getPatients: async () => await callApi('clients-manage', { table: 'patients' }, 'GET'),
-        addPatient: async (data) => await callApi('clients-manage', { action: 'add', ...data }),
-        updatePatient: async (id, data) => await callApi('clients-manage', { action: 'update', id, ...data }),
-        deletePatient: async (id) => await callApi('clients-manage', { action: 'delete', id }),
+        addPatient: async (data) => await callApi('clients-manage', { action: 'add', table: 'patients', ...data }),
+        updatePatient: async (id, data) => await callApi('clients-manage', { action: 'update', table: 'patients', id, ...data }),
+        deletePatient: async (id) => await callApi('clients-manage', { action: 'delete', table: 'patients', id }),
         
         getCustomers: async () => await callApi('clients-manage', { table: 'customers' }, 'GET'),
-        addCustomer: async (data) => await callApi('clients-manage', { action: 'add', ...data }),
-        updateCustomer: async (id, data) => await callApi('clients-manage', { action: 'update', id, ...data }),
-        deleteCustomer: async (id) => await callApi('clients-manage', { action: 'delete', id }),
+        addCustomer: async (data) => await callApi('clients-manage', { action: 'add', table: 'customers', ...data }),
+        updateCustomer: async (id, data) => await callApi('clients-manage', { action: 'update', table: 'customers', id, ...data }),
+        deleteCustomer: async (id) => await callApi('clients-manage', { action: 'delete', table: 'customers', id }),
 
         getSuppliers: async () => await callApi('suppliers-manage', {}, 'GET'),
         addSupplier: async (data) => await callApi('suppliers-manage', { action: 'add', ...data }),

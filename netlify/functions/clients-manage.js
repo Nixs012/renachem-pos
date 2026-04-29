@@ -1,7 +1,17 @@
 const { supabase } = require('./utils/supabase');
 
 exports.handler = async (event) => {
-    const table = event.path.includes('patients') ? 'patients' : 'customers';
+    let table = 'customers'; // Default
+    
+    // Check query params (GET) or body (POST)
+    if (event.queryStringParameters && event.queryStringParameters.table) {
+        table = event.queryStringParameters.table;
+    } else if (event.body) {
+        try {
+            const body = JSON.parse(event.body);
+            if (body.table) table = body.table;
+        } catch(e) {}
+    }
     
     try {
         if (event.httpMethod === 'GET') {
