@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS public.medicines (
     stock INTEGER DEFAULT 0,
     reorder_level INTEGER DEFAULT 10,
     price REAL DEFAULT 0,
+    cost_price REAL DEFAULT 0,
     barcode TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
