@@ -3445,7 +3445,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (showRecoveryModalBtn) {
         showRecoveryModalBtn.onclick = (e) => {
             e.preventDefault();
+            console.log("Recovery button clicked!");
             recoveryModal.style.display = 'flex';
+            // Alert to ensure the user knows it was clicked
+            alert("Recovery modal opening...");
         };
     }
     
