@@ -3436,6 +3436,59 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Admin Password Recovery Logic
+    const showRecoveryModalBtn = document.getElementById('showRecoveryModalBtn');
+    const recoveryModal = document.getElementById('recoveryModal');
+    const closeRecoveryModalBtn = document.getElementById('closeRecoveryModalBtn');
+    const doRecoverBtn = document.getElementById('doRecoverBtn');
+
+    if (showRecoveryModalBtn) {
+        showRecoveryModalBtn.onclick = (e) => {
+            e.preventDefault();
+            recoveryModal.style.display = 'flex';
+        };
+    }
+    
+    if (closeRecoveryModalBtn) {
+        closeRecoveryModalBtn.onclick = () => {
+            recoveryModal.style.display = 'none';
+        };
+    }
+
+    if (doRecoverBtn) {
+        doRecoverBtn.onclick = async () => {
+            const username = document.getElementById('recoveryUsername').value.trim();
+            const recoveryKey = document.getElementById('recoveryKey').value.trim();
+            const newPassword = document.getElementById('recoveryNewPassword').value.trim();
+            const errEl = document.getElementById('recoveryError');
+
+            if (!username || !recoveryKey || !newPassword) {
+                errEl.innerText = 'Please fill in all fields';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            doRecoverBtn.disabled = true;
+            doRecoverBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            
+            const res = await window.auth.recoverAdminPassword({ username, recoveryKey, newPassword });
+            
+            doRecoverBtn.disabled = false;
+            doRecoverBtn.innerHTML = '<i class="fas fa-unlock-alt"></i> Reset Password';
+
+            if (res.success) {
+                errEl.style.display = 'none';
+                recoveryModal.style.display = 'none';
+                document.getElementById('loginUsername').value = username;
+                document.getElementById('loginPassword').value = '';
+                showToast('Admin password successfully recovered. Please log in.', 'success');
+            } else {
+                errEl.innerText = res.error;
+                errEl.style.display = 'block';
+            }
+        };
+    }
+
     document.querySelectorAll('.nav-item').forEach(item => {
         item.onclick = async function() {
             const page = this.dataset.page;

@@ -90,6 +90,13 @@ const auth = {
         } catch (error) {
             return { success: false, error: error.message };
         }
+    },
+    recoverAdminPassword: async (data) => {
+        try {
+            return await ipcRenderer.invoke('auth:recoverAdminPassword', data);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
     }
 };
 

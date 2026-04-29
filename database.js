@@ -342,6 +342,33 @@ function resetUserPassword(id, newPassword) {
     }
 }
 
+function recoverAdminPassword(username, recoveryKey, newPassword) {
+    try {
+        require('dotenv').config();
+        const systemKey = process.env.APP_SECRET;
+        
+        if (!systemKey || systemKey !== recoveryKey) {
+            throw new Error('Invalid System Recovery Key');
+        }
+
+        const user = db.prepare('SELECT id, role FROM users WHERE username = ?').get(username);
+        if (!user) throw new Error('Admin user not found');
+        if (user.role !== 'Admin') throw new Error('Password recovery is restricted to Admins only');
+
+        if (newPassword.length < 8) throw new Error('New password must be at least 8 characters');
+        
+        const hash = bcrypt.hashSync(newPassword, 12);
+        db.prepare('UPDATE users SET password_hash = ?, is_temp_password = 0, is_active = 1 WHERE id = ?').run(hash, user.id);
+        
+        // Also unlock the account if it was locked due to brute force
+        db.prepare('UPDATE login_attempts SET attempts = 0, locked_until = NULL WHERE username = ?').run(username);
+        
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
 function deactivateUser(id) {
     try {
         db.prepare('UPDATE users SET is_active = 0 WHERE id = ?').run(id);
@@ -1018,6 +1045,7 @@ module.exports = {
     getAllUsers,
     updateUserRole,
     resetUserPassword,
+    recoverAdminPassword,
     deactivateUser,
     reactivateUser,
     deleteUser,

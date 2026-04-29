@@ -285,6 +285,17 @@ ipcMain.handle('auth:resetPassword', wrapHandler(async (event, t, { id, password
     return db.resetUserPassword(id, password);
 }, { adminOnly: true }));
 
+ipcMain.handle('auth:recoverAdminPassword', wrapHandler(async (event, { username, recoveryKey, newPassword }) => {
+    const result = db.recoverAdminPassword(username, recoveryKey, newPassword);
+    if (result.success) {
+        db.insertAuditLog(null, username, 'PASSWORD_RECOVERED', 'AUTH', `Admin password recovered via System Key for ${username}`);
+    } else {
+        db.insertAuditLog(null, username, 'RECOVERY_FAILED', 'AUTH', `Failed admin recovery attempt for ${username}`);
+    }
+    return result;
+}, { noAuth: true }));
+
+
 ipcMain.handle('auth:deactivateUser', wrapHandler(async (event, t, id) => {
     if (id === currentSessionUserId) throw new Error('Cannot deactivate yourself');
     db.insertAuditLog(currentSessionUserId, null, 'USER_DEACTIVATED', 'AUTH', `Deactivated user ${id}`);
