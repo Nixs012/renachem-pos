@@ -2925,7 +2925,7 @@ async function renderUsers(subPage = 'list') {
                         <td style="font-weight:600;">${l.username || 'SYSTEM'}</td>
                         <td><span class="audit-badge ${l.action.includes('FAILED') ? 'audit-failed' : 'audit-success'}">${l.action}</span></td>
                         <td>${l.module}</td>
-                        <td style="font-family:monospace; font-size:0.7rem; color:#94a3b8;">${l.row_hash.substring(0, 12)}...</td>
+                        <td style="font-family:monospace; font-size:0.7rem; color:#94a3b8;">${l.row_hash ? l.row_hash.substring(0, 12) + '...' : 'GEN-BRIDGE-HASH'}</td>
                     </tr>
                 `).join('') || '<tr><td colspan="5" style="text-align:center;">No audit records found</td></tr>'}</tbody>
             </table>

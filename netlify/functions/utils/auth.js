@@ -45,13 +45,31 @@ function unauthorizedResponse() {
  */
 async function logAction(user, action, module, details) {
     try {
+        const crypto = require('crypto');
+        const timestamp = new Date().toISOString();
+
+        // 1. Get the last hash for chaining
+        const { data: lastEntry } = await supabase
+            .from('audit_log')
+            .select('row_hash')
+            .order('id', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        const prevHash = lastEntry ? lastEntry.row_hash : '';
+        
+        // 2. Generate new hash (PrevHash + Action + UserID + Timestamp)
+        const hashBase = (prevHash || '') + action + String(user.id) + timestamp;
+        const row_hash = crypto.createHash('sha256').update(hashBase).digest('hex');
+
         const logEntry = {
             user_id: user.id,
             username: user.username,
             action,
             module,
             details,
-            timestamp: new Date().toISOString()
+            row_hash,
+            timestamp
         };
         await supabase.from('audit_log').insert([logEntry]);
     } catch (e) {
