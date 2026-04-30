@@ -1,5 +1,5 @@
 const { supabase } = require('./utils/supabase');
-const { verifySession, unauthorizedResponse } = require('./utils/auth');
+const { verifySession, unauthorizedResponse, logAction } = require('./utils/auth');
 
 exports.handler = async (event) => {
     // 1. Verify Authentication
@@ -87,6 +87,9 @@ exports.handler = async (event) => {
                 console.error("Clinical Sync Failed:", clinicalError);
             }
         }
+
+        // Log the Sale Action
+        await logAction(user, 'SALE_COMPLETED', 'SALES', `Sale Total: ${saleObj.total}, Mode: ${saleObj.payment_mode}`);
 
         return {
             statusCode: 200,

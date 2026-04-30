@@ -32,9 +32,6 @@ async function verifySession(event) {
     };
 }
 
-/**
- * Standard unauthorized response.
- */
 function unauthorizedResponse() {
     return {
         statusCode: 401,
@@ -43,4 +40,23 @@ function unauthorizedResponse() {
     };
 }
 
-module.exports = { verifySession, unauthorizedResponse };
+/**
+ * Logs an action to the audit_log table.
+ */
+async function logAction(user, action, module, details) {
+    try {
+        const logEntry = {
+            user_id: user.id,
+            username: user.username,
+            action,
+            module,
+            details,
+            timestamp: new Date().toISOString()
+        };
+        await supabase.from('audit_log').insert([logEntry]);
+    } catch (e) {
+        console.error('Audit Log Insertion Failed:', e);
+    }
+}
+
+module.exports = { verifySession, unauthorizedResponse, logAction };

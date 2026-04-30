@@ -1,5 +1,6 @@
 const { supabase } = require('./utils/supabase');
 const bcrypt = require('bcryptjs');
+const { logAction } = require('./utils/auth');
 
 exports.handler = async (event) => {
     if (event.httpMethod !== 'POST') {
@@ -98,6 +99,9 @@ exports.handler = async (event) => {
             token,
             expires_at
         }]);
+
+        // Log the Login Action
+        await logAction({ id: user.id, username: user.username }, 'USER_LOGIN', 'AUTH', `User logged in from web.`);
 
         return {
             statusCode: 200,
