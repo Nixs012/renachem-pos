@@ -27,9 +27,8 @@ if (window.api) {
 
             const response = await fetch(url, options);
             if (response.status === 401 && !functionName.includes('auth-login')) {
-                // Token expired or invalid
+                // Token expired or invalid - clear it but don't force reload here
                 localStorage.removeItem('renachem_token');
-                window.location.reload();
                 return { success: false, error: 'Session expired. Please login again.' };
             }
 
