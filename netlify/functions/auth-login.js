@@ -88,11 +88,23 @@ exports.handler = async (event) => {
         // Success - reset attempts
         await supabase.from('login_attempts').delete().eq('username', username);
 
+        // Generate Session Token (for Web Auth)
+        const crypto = require('crypto');
+        const token = crypto.randomBytes(32).toString('hex');
+        const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
+
+        await supabase.from('sessions').insert([{
+            user_id: user.id,
+            token,
+            expires_at
+        }]);
+
         return {
             statusCode: 200,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 success: true, 
+                token,
                 user: {
                     id: user.id,
                     username: user.username,

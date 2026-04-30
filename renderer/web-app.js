@@ -8,9 +8,14 @@ if (window.api) {
     const callApi = async (functionName, body = {}, method = 'POST') => {
         try {
             let url = `${API_BASE}/${functionName}`;
+            const token = localStorage.getItem('renachem_token');
+            
             const options = {
                 method,
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : ''
+                }
             };
             
             if (method === 'POST') {
@@ -21,6 +26,13 @@ if (window.api) {
             }
 
             const response = await fetch(url, options);
+            if (response.status === 401 && !functionName.includes('auth-login')) {
+                // Token expired or invalid
+                localStorage.removeItem('renachem_token');
+                window.location.reload();
+                return { success: false, error: 'Session expired. Please login again.' };
+            }
+
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.error || `Server returned ${response.status}`);
@@ -34,8 +46,17 @@ if (window.api) {
 
     // --- EMULATED AUTH MODULE ---
     window.auth = {
-        login: async (creds) => await callApi('auth-login', creds),
-        logout: async () => ({ success: true }),
+        login: async (creds) => {
+            const res = await callApi('auth-login', creds);
+            if (res.success && res.token) {
+                localStorage.setItem('renachem_token', res.token);
+            }
+            return res;
+        },
+        logout: async () => {
+            localStorage.removeItem('renachem_token');
+            return { success: true };
+        },
         createUser: async (data) => await callApi('settings-manage', { action: 'createUser', ...data }),
         getUsers: async () => await callApi('settings-manage', { action: 'getUsers' }, 'GET'),
         updateRole: async (id, role) => await callApi('settings-manage', { action: 'updateUserRole', id, role }),

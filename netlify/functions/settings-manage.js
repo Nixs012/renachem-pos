@@ -1,7 +1,21 @@
 const { supabase } = require('./utils/supabase');
 const bcrypt = require('bcryptjs');
+const { verifySession, unauthorizedResponse } = require('./utils/auth');
 
 exports.handler = async (event) => {
+    // 1. Verify Authentication
+    const user = await verifySession(event);
+    if (!user) return unauthorizedResponse();
+
+    // 2. Role-Based Access Control (Most actions here require Admin)
+    const isAdminAction = (event.httpMethod === 'POST' || (event.queryStringParameters && event.queryStringParameters.action === 'getUsers'));
+    if (isAdminAction && user.role !== 'Admin') {
+        return {
+            statusCode: 403,
+            body: JSON.stringify({ success: false, error: 'Forbidden: Admin access required.' })
+        };
+    }
+
     try {
         if (event.httpMethod === 'GET') {
             const { action, key } = event.queryStringParameters || {};
