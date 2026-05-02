@@ -878,7 +878,8 @@ async function renderInventory(searchQuery = '', filterType = '') {
         </div>
 
         <div class="stat-card" style="padding:0; overflow:hidden;">
-            <table class="data-table">
+            <div class="table-responsive">
+                <table class="data-table">
                 <thead>
                     <tr>
                         <th>Name</th>
@@ -929,6 +930,7 @@ async function renderInventory(searchQuery = '', filterType = '') {
                     }).join('') : '<tr><td colspan="7" style="text-align:center; padding:40px; color:#64748b;">No medicines found matching your search.</td></tr>'}
                 </tbody>
             </table>
+            </div>
             ${renderPaginationControls('inventory', totalFiltered)}
         </div>
     `;
@@ -2917,18 +2919,20 @@ async function renderUsers(subPage = 'list') {
                 <h3>Cryptographic Audit Chain</h3>
                 <div id="chainStatusBadge" style="font-size:0.8rem; font-weight:700;">Verifying Integrity...</div>
             </div>
-            <table class="data-table">
-                <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Module</th><th>Hash String</th></tr></thead>
-                <tbody>${logs.slice((paginationState.audit - 1) * paginationState.limit, paginationState.audit * paginationState.limit).map(l => `
-                    <tr>
-                        <td style="font-size:0.8rem;">${new Date(l.timestamp).toLocaleString()}</td>
-                        <td style="font-weight:600;">${l.username || 'SYSTEM'}</td>
-                        <td><span class="audit-badge ${l.action.includes('FAILED') ? 'audit-failed' : 'audit-success'}">${l.action}</span></td>
-                        <td>${l.module}</td>
-                        <td style="font-family:monospace; font-size:0.7rem; color:#94a3b8;">${l.row_hash ? l.row_hash.substring(0, 12) + '...' : 'GEN-BRIDGE-HASH'}</td>
-                    </tr>
-                `).join('') || '<tr><td colspan="5" style="text-align:center;">No audit records found</td></tr>'}</tbody>
-            </table>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Module</th><th>Hash String</th></tr></thead>
+                    <tbody>${logs.slice((paginationState.audit - 1) * paginationState.limit, paginationState.audit * paginationState.limit).map(l => `
+                        <tr>
+                            <td style="font-size:0.8rem;">${new Date(l.timestamp).toLocaleString()}</td>
+                            <td style="font-weight:600;">${l.username || 'SYSTEM'}</td>
+                            <td><span class="audit-badge ${l.action.includes('FAILED') ? 'audit-failed' : 'audit-success'}">${l.action}</span></td>
+                            <td>${l.module}</td>
+                            <td style="font-family:monospace; font-size:0.7rem; color:#94a3b8;">${l.row_hash ? l.row_hash.substring(0, 12) + '...' : 'GEN-BRIDGE-HASH'}</td>
+                        </tr>
+                    `).join('') || '<tr><td colspan="5" style="text-align:center;">No audit records found</td></tr>'}</tbody>
+                </table>
+            </div>
             ${renderPaginationControls('audit', logs.length)}
         `;
         
@@ -3525,6 +3529,35 @@ document.addEventListener('DOMContentLoaded', () => {
     setupProfileManagement();
     setupNotifications();
     setupIdleTimer();
+
+    // --- Mobile Responsive Logic ---
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const mobileOverlay = document.getElementById('mobileSidebarOverlay');
+    const sidebar = document.querySelector('.sidebar');
+
+    const toggleMobileMenu = (forceClose = false) => {
+        if (!sidebar || !mobileOverlay) return;
+        if (forceClose) {
+            sidebar.classList.remove('mobile-open');
+            mobileOverlay.style.display = 'none';
+        } else {
+            const isOpen = sidebar.classList.contains('mobile-open');
+            sidebar.classList.toggle('mobile-open');
+            mobileOverlay.style.display = isOpen ? 'none' : 'block';
+        }
+    };
+
+    if (mobileMenuBtn) mobileMenuBtn.onclick = (e) => { e.stopPropagation(); toggleMobileMenu(); };
+    if (mobileOverlay) mobileOverlay.onclick = () => toggleMobileMenu(true);
+
+    // Update nav-item click to close mobile menu
+    document.querySelectorAll('.nav-item').forEach(item => {
+        const existingClick = item.onclick;
+        item.onclick = async function(e) {
+            if (existingClick) await existingClick.apply(this, [e]);
+            if (window.innerWidth <= 768) toggleMobileMenu(true);
+        };
+    });
 
     // Global Event Delegation (Bypasses CSP Inline restrictions)
     document.addEventListener('click', (e) => {

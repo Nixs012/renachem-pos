@@ -140,7 +140,8 @@
     <div class="main-content">
         <div class="top-bar">
             <div style="display:flex; align-items:center; gap:16px;">
-                <h3><i class="fas fa-prescription-bottle"></i> RENACHEM PHARMACY SYSTEM</h3>
+                <button id="mobileMenuBtn" class="mobile-menu-btn"><i class="fas fa-bars"></i></button>
+                <h3><i class="fas fa-prescription-bottle"></i> <span class="top-bar-title">RENACHEM PHARMACY SYSTEM</span></h3>
             </div>
             <div class="top-bar-actions">
                 <div class="notification-bell" id="notificationBell">
@@ -162,6 +163,8 @@
         <div class="page-container" id="pageContainer"></div>
     </div>
 </div>
+
+<div id="mobileSidebarOverlay" class="mobile-overlay"></div>
 
 <!-- MODALS -->
 <div id="genericModal" class="modal">
