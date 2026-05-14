@@ -45,7 +45,7 @@ module.exports = async (req, res) => {
         
         return res.status(200).json({
             success: true,
-            token: authData ? authData.session.access_token : 'fallback-token',
+            token: (authData && authData.session) ? authData.session.access_token : 'local-session-active',
             user: {
                 id: user.id,
                 username: user.username,
