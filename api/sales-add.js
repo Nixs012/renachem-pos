@@ -23,12 +23,13 @@ module.exports = async (req, res) => {
 
         if (saleErr) throw saleErr;
 
-        if (payment_mode === 'Credit' && client_id) {
-            await supabase.from('patient_credits').insert([{
-                patient_id: client_id,
+        if (payment_mode === 'Credit') {
+            await supabase.from('credits').insert([{
+                customer_name: customer_name,
                 total_amount: total,
                 balance: total,
-                sale_id: sale.id
+                sale_id: sale.id,
+                status: 'Pending'
             }]);
         }
 

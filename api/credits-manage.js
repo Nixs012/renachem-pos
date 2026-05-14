@@ -6,7 +6,7 @@ module.exports = async (req, res) => {
     if (!user) return unauthorizedResponse(res);
 
     if (req.method === 'GET') {
-        const { data, error } = await supabase.from('patient_credits').select('*').order('created_at', { ascending: false });
+        const { data, error } = await supabase.from('credits').select('*').order('created_at', { ascending: false });
         if (error) return res.status(500).json({ success: false, error: error.message });
         return res.status(200).json({ success: true, data });
     }
@@ -15,13 +15,13 @@ module.exports = async (req, res) => {
         const { creditId, amount, paymentMode, receivedBy } = req.body;
         
         // 1. Get current credit
-        const { data: credit, error: fetchErr } = await supabase.from('patient_credits').select('balance').eq('id', creditId).single();
+        const { data: credit, error: fetchErr } = await supabase.from('credits').select('balance').eq('id', creditId).single();
         if (fetchErr) return res.status(500).json({ success: false, error: fetchErr.message });
 
         const newBalance = credit.balance - amount;
 
         // 2. Update balance
-        const { error: updErr } = await supabase.from('patient_credits').update({ balance: newBalance }).eq('id', creditId);
+        const { error: updErr } = await supabase.from('credits').update({ balance: newBalance }).eq('id', creditId);
         if (updErr) return res.status(500).json({ success: false, error: updErr.message });
 
         // 3. Log payment
