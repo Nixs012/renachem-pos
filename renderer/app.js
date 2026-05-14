@@ -2502,32 +2502,50 @@ async function showIntakeModal() {
 async function renderReports(subPage = 'overview') {
     if (!hasAccess('reports')) return document.getElementById('pageContainer').innerHTML = '<div class="stat-card">Access Denied</div>';
     
+    // Redirect non-admins if they try to access overview
+    if (currentUser.role !== 'Admin' && subPage === 'overview') {
+        subPage = 'sales';
+    }
+    const isAdmin = currentUser.role === 'Admin';
+    const isPharmacist = currentUser.role === 'Pharmacist';
+    
     document.getElementById('pageContainer').innerHTML = `
         <div class="view-header">
-            <h2><i class="fas fa-chart-pie"></i> Business Intelligence & Reports</h2>
-            <p>Analyze sales performance, inventory health, and financial metrics</p>
+            <h2><i class="fas fa-chart-pie"></i> Reports & History</h2>
+            <p>View transaction logs and inventory status</p>
         </div>
 
         <div class="tab-container">
-            <div class="tab-header" style="margin-bottom: 24px;">
-                <button class="tab-btn ${subPage === 'overview' ? 'active' : ''}" id="tabRev">Sales Report</button>
+            <div class="tab-header" style="margin-bottom: 24px; flex-wrap: wrap;">
                 <button class="tab-btn ${subPage === 'sales' ? 'active' : ''}" id="tabSales">Detailed Sales Log</button>
-                <button class="tab-btn ${subPage === 'inventory' ? 'active' : ''}" id="tabInv">Stock Report</button>
-                <button class="tab-btn ${subPage === 'expiry' ? 'active' : ''}" id="tabExp">Expiry Report</button>
-                <button class="tab-btn ${subPage === 'profit' ? 'active' : ''}" id="tabProfit">Profit/Loss</button>
+                <button class="tab-btn ${subPage === 'returns' ? 'active' : ''}" id="tabRet">Returns History</button>
+                ${isAdmin || isPharmacist ? `
+                    <button class="tab-btn ${subPage === 'inventory' ? 'active' : ''}" id="tabInv">Stock Report</button>
+                    <button class="tab-btn ${subPage === 'expiry' ? 'active' : ''}" id="tabExp">Expiry Report</button>
+                ` : ''}
+                ${isAdmin ? `
+                    <button class="tab-btn ${subPage === 'overview' ? 'active' : ''}" id="tabRev">Financial Summary</button>
+                    <button class="tab-btn ${subPage === 'profit' ? 'active' : ''}" id="tabProfit">Profit/Loss</button>
+                ` : ''}
                 <button class="tab-btn ${subPage === 'credit' ? 'active' : ''}" id="tabCred">Credit Tracking</button>
             </div>
             <div id="reportContent"></div>
         </div>
     `;
 
-    // Bind Tabs
-    document.getElementById('tabRev').onclick = () => renderReports('overview');
-    document.getElementById('tabSales').onclick = () => renderReports('sales');
-    document.getElementById('tabInv').onclick = () => renderReports('inventory');
-    document.getElementById('tabExp').onclick = () => renderReports('expiry');
-    document.getElementById('tabProfit').onclick = () => renderReports('profit');
-    document.getElementById('tabCred').onclick = () => renderReports('credit');
+    // Bind Tabs (Safely)
+    const bindTab = (id, page) => {
+        const el = document.getElementById(id);
+        if (el) el.onclick = () => renderReports(page);
+    };
+
+    bindTab('tabSales', 'sales');
+    bindTab('tabRet', 'returns');
+    bindTab('tabInv', 'inventory');
+    bindTab('tabExp', 'expiry');
+    bindTab('tabRev', 'overview');
+    bindTab('tabProfit', 'profit');
+    bindTab('tabCred', 'credit');
 
     const content = document.getElementById('reportContent');
     const salesRes = await window.db.getSales();
@@ -2547,6 +2565,8 @@ async function renderReports(subPage = 'overview') {
         renderProfitLoss(content, sales, medicines);
     } else if (subPage === 'credit') {
         renderCreditTracking();
+    } else if (subPage === 'returns') {
+        renderReturnsHistory(content);
     }
 }
 
@@ -2704,9 +2724,14 @@ function renderDetailedSalesLog(container, sales) {
                                     <td style="font-weight:700;">${Number(s.total).toLocaleString()}</td>
                                     <td><span class="role-pill" style="font-size:0.7rem;">${s.payment_mode}</span></td>
                                     <td style="text-align:right; padding-right:20px;">
-                                        <button class="action-btn-refined btn-icon-view reprint-general-btn" data-id="${s.id}" title="Reprint Transaction">
-                                            <i class="fas fa-print"></i>
-                                        </button>
+                                        <div style="display:flex; justify-content:flex-end; gap:8px;">
+                                            <button class="action-btn-refined return-sale-btn" data-id="${s.id}" title="Process Return" style="background:rgba(239, 68, 68, 0.1); color:#ef4444;">
+                                                <i class="fas fa-undo"></i>
+                                            </button>
+                                            <button class="action-btn-refined btn-icon-view reprint-general-btn" data-id="${s.id}" title="Reprint Transaction">
+                                                <i class="fas fa-print"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             `;
@@ -2727,6 +2752,165 @@ function renderDetailedSalesLog(container, sales) {
             }
         };
     });
+
+    document.querySelectorAll('.return-sale-btn').forEach(btn => {
+        btn.onclick = async () => {
+            const saleId = btn.getAttribute('data-id');
+            const sale = sales.find(s => String(s.id) === String(saleId));
+            if (sale) {
+                showReturnModal(sale);
+            }
+        };
+    });
+}
+
+async function showReturnModal(sale) {
+    if (!['Admin', 'Pharmacist', 'Cashier'].includes(currentUser.role)) {
+        return showToast('Access Denied: You do not have permission to process returns.', 'error');
+    }
+
+    let items = [];
+    try {
+        items = JSON.parse(sale.items_json);
+    } catch (e) {
+        return showToast('Failed to parse sale items.', 'error');
+    }
+
+    const modal = document.getElementById('genericModal');
+    const inner = document.getElementById('modalInner');
+
+    inner.innerHTML = `
+        <h3 style="margin-bottom:24px; color:var(--royal-blue);"><i class="fas fa-undo"></i> Process Medicine Return</h3>
+        <p style="color:#64748b; font-size:0.9rem; margin-bottom:20px;">
+            Processing return for <b>Receipt #${sale.id}</b> (${sale.customer_name || 'Walk-in'}). 
+            Stock will be restored to inventory upon confirmation.
+        </p>
+
+        <div style="background:#f8fafc; padding:20px; border-radius:16px; border:1px solid #e2e8f0; margin-bottom:24px;">
+            <label style="font-weight:700; display:block; margin-bottom:12px; font-size:0.85rem; color:#475569; text-transform:uppercase;">Select Item to Return</label>
+            <select id="return_item_select" class="premium-select" style="width:100%; margin-bottom:16px;">
+                ${items.map((item, idx) => `<option value="${idx}">${item.name} (Sold: ${item.qty} units @ KES ${item.price})</option>`).join('')}
+            </select>
+
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:16px;">
+                <div class="input-group">
+                    <label>Quantity to Return</label>
+                    <input type="number" id="return_qty" class="premium-input" min="1" value="1">
+                </div>
+                <div class="input-group">
+                    <label>Refund Amount (Estimated)</label>
+                    <input type="text" id="return_refund_display" class="premium-input" style="background:#f1f5f9; font-weight:700;" readonly value="KES 0.00">
+                </div>
+            </div>
+
+            <div class="input-group" style="margin-top:16px;">
+                <label>Reason for Return</label>
+                <textarea id="return_reason" class="premium-input" style="height:80px; padding:12px; resize:none;" placeholder="e.g. Wrong prescription, Expired, Customer changed mind..."></textarea>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:12px;">
+            <button class="btn-primary" id="confirmReturnBtn" style="flex:2; background:#ef4444; border-color:#dc2626;">
+                <i class="fas fa-check-circle"></i> Confirm Return & Update Stock
+            </button>
+            <button class="btn-primary" style="flex:1; background:#f1f5f9; color:#475569;" onclick="document.getElementById('genericModal').style.display='none'">Cancel</button>
+        </div>
+    `;
+
+    const itemSelect = document.getElementById('return_item_select');
+    const qtyInput = document.getElementById('return_qty');
+    const refundDisplay = document.getElementById('return_refund_display');
+
+    const updateRefund = () => {
+        const idx = itemSelect.value;
+        const item = items[idx];
+        const qty = parseInt(qtyInput.value) || 0;
+        refundDisplay.value = `KES ${(qty * item.price).toFixed(2)}`;
+    };
+
+    itemSelect.onchange = updateRefund;
+    qtyInput.oninput = updateRefund;
+    updateRefund();
+
+    modal.style.display = 'flex';
+
+    document.getElementById('confirmReturnBtn').onclick = async () => {
+        const idx = itemSelect.value;
+        const item = items[idx];
+        const qty = parseInt(qtyInput.value) || 0;
+        const reason = document.getElementById('return_reason').value.trim();
+
+        if (qty <= 0) return showToast('Quantity must be at least 1', 'warning');
+        if (qty > item.qty) return showToast(`Cannot return more than was sold (${item.qty})`, 'warning');
+        if (!reason) return showToast('Please provide a reason for the return', 'warning');
+
+        if (!await showConfirm(`Proceed with returning ${qty}x ${item.name}? This will update inventory and log the action.`)) return;
+
+        const res = await window.db.recordReturnTransaction({
+            saleId: sale.id,
+            itemId: item.id,
+            qty: qty,
+            refundAmount: qty * item.price,
+            reason: reason,
+            processedBy: currentUser.username
+        });
+
+        if (res.success) {
+            showToast('Return processed successfully. Stock updated.', 'success');
+            modal.style.display = 'none';
+            renderReports('returns');
+        } else {
+            showToast(res.error, 'error');
+        }
+    };
+}
+
+async function renderReturnsHistory(container) {
+    let returns = [];
+    try {
+        const res = await window.db.getReturns();
+        returns = (res && res.data) ? res.data : [];
+    } catch (e) {
+        console.error("Error fetching returns:", e);
+        showToast('Failed to load returns history', 'error');
+    }
+
+    container.innerHTML = `
+        <div class="stat-card" style="padding:0; overflow:hidden; border-radius:16px;">
+            <div style="padding:20px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <h4 style="margin:0;"><i class="fas fa-undo-alt"></i> Medicine Returns History</h4>
+                <div style="font-size:0.85rem; color:#64748b;">Total Returns Logged: ${returns.length}</div>
+            </div>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead style="background:var(--royal-blue); color:white;">
+                        <tr>
+                            <th style="color:white; padding-left:20px;">Return Date</th>
+                            <th style="color:white;">Medicine</th>
+                            <th style="color:white;">Qty</th>
+                            <th style="color:white;">Refunded</th>
+                            <th style="color:white;">Sale Date</th>
+                            <th style="color:white;">Processed By</th>
+                            <th style="color:white; padding-right:20px;">Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${returns.length > 0 ? returns.map(r => `
+                            <tr>
+                                <td style="padding-left:20px; font-size:0.8rem;">${new Date(r.created_at).toLocaleString()}</td>
+                                <td style="font-weight:700;">${r.medicine_name}</td>
+                                <td style="color:var(--emerald); font-weight:700;">+ ${r.qty}</td>
+                                <td style="font-weight:700;">KES ${Number(r.total_refund).toFixed(2)}</td>
+                                <td style="font-size:0.8rem; color:#64748b;">${r.sale_date}</td>
+                                <td style="font-weight:600;">${r.processed_by}</td>
+                                <td style="padding-right:20px; font-style:italic; font-size:0.85rem; color:#475569;">${r.reason}</td>
+                            </tr>
+                        `).join('') : '<tr><td colspan="7" style="text-align:center; padding:50px;">No returns have been processed yet.</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
 }
 
 function renderExpiryReport(container, medicines) {
@@ -3350,16 +3534,19 @@ async function renderCurrentPage() {
 function hasAccess(module) {
     if (!currentUser) return false;
     
-    // Modules restricted to Admin only
-    const adminModules = ['settings', 'users', 'reports'];
-    if (adminModules.includes(module) && currentUser.role !== 'Admin') return false;
-    
-    // Full access for Admin
+    // Admin has full access
     if (currentUser.role === 'Admin') return true;
+
+    // Modules restricted to Admin only (Security/Management)
+    const adminOnly = ['settings', 'users'];
+    if (adminOnly.includes(module)) return false;
+
+    // Reports module is now accessible to all (with internal sub-page filtering)
+    if (module === 'reports') return true;
     
     // Pharmacist: Inventory & Stock Focus
     if (currentUser.role === 'Pharmacist') {
-        return ['dashboard', 'inventory', 'purchases', 'suppliers', 'patients'].includes(module);
+        return ['dashboard', 'inventory', 'purchases', 'suppliers', 'patients', 'customers'].includes(module);
     }
     
     // Cashier: POS & Sales Focus

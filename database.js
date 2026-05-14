@@ -141,6 +141,19 @@ function initialize() {
                 FOREIGN KEY(credit_id) REFERENCES credits(id)
             );
 
+            CREATE TABLE IF NOT EXISTS medicine_returns (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sale_id INTEGER,
+                medicine_id TEXT,
+                qty INTEGER NOT NULL,
+                total_refund REAL NOT NULL,
+                reason TEXT,
+                processed_by TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(sale_id) REFERENCES sales(id),
+                FOREIGN KEY(medicine_id) REFERENCES medicines(id)
+            );
+
             CREATE TRIGGER IF NOT EXISTS prevent_audit_delete 
             BEFORE DELETE ON audit_log 
             BEGIN 
@@ -807,6 +820,48 @@ function recordSaleTransaction(saleData, cartItems) {
 
     try {
         return trx({ saleObj: saleData, items: cartItems });
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function recordReturnTransaction(data) {
+    const trx = db.transaction((d) => {
+        const { saleId, itemId, qty, refundAmount, reason, processedBy } = d;
+        
+        // 1. Verify Medicine exists
+        const med = db.prepare('SELECT id, stock, name FROM medicines WHERE id = ?').get(itemId);
+        if (!med) throw new Error("Medicine record not found in inventory.");
+
+        // 2. Increase Stock
+        db.prepare('UPDATE medicines SET stock = stock + ? WHERE id = ?').run(qty, itemId);
+
+        // 3. Record Return
+        db.prepare(`
+            INSERT INTO medicine_returns (sale_id, medicine_id, qty, total_refund, reason, processed_by)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `).run(saleId, itemId, qty, refundAmount, reason, processedBy);
+
+        return { success: true };
+    });
+
+    try {
+        return trx(data);
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function getReturns() {
+    try {
+        const rows = db.prepare(`
+            SELECT r.*, m.name as medicine_name, s.date as sale_date, s.customer_name
+            FROM medicine_returns r
+            JOIN medicines m ON r.medicine_id = m.id
+            JOIN sales s ON r.sale_id = s.id
+            ORDER BY r.created_at DESC
+        `).all();
+        return { success: true, data: rows };
     } catch (error) {
         return { success: false, error: error.message };
     }

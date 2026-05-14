@@ -379,6 +379,16 @@ ipcMain.handle('db:getSales', wrapHandler(async () => db.getSales()));
 ipcMain.handle('db:recordSaleTransaction', wrapHandler(async (event, t, saleData, cartItems) => {
     return db.recordSaleTransaction(saleData, cartItems);
 }));
+
+ipcMain.handle('db:recordReturnTransaction', wrapHandler(async (event, t, data) => {
+    const res = db.recordReturnTransaction(data);
+    if (res.success) {
+        db.insertAuditLog(currentSessionUserId, null, 'MEDICINE_RETURNED', 'INVENTORY', `Return processed for Sale #${data.saleId}. Qty: ${data.qty}`);
+    }
+    return res;
+}));
+
+ipcMain.handle('db:getReturns', wrapHandler(async () => db.getReturns()));
 ipcMain.handle('db:addSale', wrapHandler(async (event, t, data) => {
     // Strict Schema Validation
     if (typeof data.total !== 'number' || data.total <= 0) throw new Error('Invalid sale total: must be greater than 0');

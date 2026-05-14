@@ -103,6 +103,9 @@ if (window.api) {
         addSale: async (data) => await callApi('sales-add', { saleObj: data, cartItems: data.items }),
         recordSaleTransaction: async (saleData, cartItems) => await callApi('sales-add', { saleObj: saleData, cartItems }),
         
+        recordReturnTransaction: async (data) => await callApi('returns-manage', { action: 'record', ...data }),
+        getReturns: async () => await callApi('returns-manage', { action: 'get' }, 'GET'),
+
         getCredits: async () => await callApi('credits-manage', {}, 'GET'),
         addCredit: async (data) => await callApi('sales-add', { saleObj: { ...data, payment_mode: 'Credit' }, cartItems: data.items }),
         addCreditPayment: async (data) => await callApi('credits-manage', { action: 'addPayment', ...data }),

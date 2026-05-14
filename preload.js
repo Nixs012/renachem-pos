@@ -318,6 +318,20 @@ const db = {
             return { success: false, error: error.message };
         }
     },
+    recordReturnTransaction: async (data) => {
+        try {
+            return await ipcRenderer.invoke('db:recordReturnTransaction', sessionToken, data);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+    getReturns: async () => {
+        try {
+            return await ipcRenderer.invoke('db:getReturns', sessionToken);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
     resetModuleData: async (module) => {
         try {
             return await ipcRenderer.invoke('db:resetModuleData', sessionToken, module);
