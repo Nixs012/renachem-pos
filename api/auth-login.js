@@ -13,7 +13,7 @@ module.exports = async (req, res) => {
             return res.status(400).json({ success: false, error: 'Username and password required' });
         }
 
-        // 1. Get user by username
+        // 1. Get user from the 'public.users' table
         const { data: user, error: fetchError } = await supabase
             .from('users')
             .select('*')
@@ -21,31 +21,52 @@ module.exports = async (req, res) => {
             .single();
 
         if (fetchError || !user) {
-            console.log('Login failed: User not found', username);
             return res.status(401).json({ success: false, error: 'Invalid credentials' });
         }
 
         // 2. Verify Password using bcrypt
         const isValid = await bcrypt.compare(password, user.password_hash);
         if (!isValid) {
-            console.log('Login failed: Password mismatch', username);
             return res.status(401).json({ success: false, error: 'Invalid credentials' });
         }
 
-        // 3. Generate a session token (using Supabase Auth for the web mode)
-        // We use the Service Role to bypass some Auth restrictions for this custom flow
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-            email: `${username}@renachem.local`,
+        // 3. Authenticate with Supabase Auth (GoTrue)
+        const userEmail = `${username}@renachem.local`;
+        let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email: userEmail,
             password: password
         });
 
-        // If Supabase Auth fails (e.g. user not in GoTrue), we can still return success 
-        // with the user data, but some RLS might be restricted.
-        // For a simple POS, we'll return the user info.
-        
+        // 4. AUTO-ACTIVATION: If user is not in Supabase Auth yet, create them now
+        if (authError && (authError.status === 400 || authError.message.includes('Invalid login credentials'))) {
+            console.log('User not in Auth system. Attempting auto-activation...');
+            
+            const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+                email: userEmail,
+                password: password,
+                email_confirm: true,
+                user_metadata: { username, role: user.role }
+            });
+
+            if (!createError) {
+                // Try logging in again after creation
+                const retry = await supabase.auth.signInWithPassword({
+                    email: userEmail,
+                    password: password
+                });
+                authData = retry.data;
+            } else {
+                console.error('Auto-activation failed:', createError.message);
+            }
+        }
+
+        if (!authData || !authData.session) {
+            return res.status(401).json({ success: false, error: 'Cloud session failed to initialize. Please contact admin.' });
+        }
+
         return res.status(200).json({
             success: true,
-            token: (authData && authData.session) ? authData.session.access_token : 'local-session-active',
+            token: authData.session.access_token,
             user: {
                 id: user.id,
                 username: user.username,
