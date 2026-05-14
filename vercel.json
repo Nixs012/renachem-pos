@@ -14,8 +14,8 @@
       "destination": "/renderer/index.html"
     },
     {
-      "source": "/(.*)",
-      "destination": "/renderer/$1"
+      "source": "/:path*",
+      "destination": "/renderer/:path*"
     }
   ],
   "cleanUrls": true
