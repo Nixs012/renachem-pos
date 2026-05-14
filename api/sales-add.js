@@ -1,108 +1,41 @@
 const { supabase } = require('./utils/supabase');
-const { verifySession, unauthorizedResponse, logAction } = require('./utils/auth');
+const { verifySession, unauthorizedResponse } = require('./utils/auth');
 
-exports.handler = async (event) => {
-    // 1. Verify Authentication
-    const user = await verifySession(event);
-    if (!user) return unauthorizedResponse();
+module.exports = async (req, res) => {
+    const user = await verifySession(req);
+    if (!user) return unauthorizedResponse(res);
 
-    if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, body: 'Method Not Allowed' };
-    }
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+
+    const { date, date_time, items_json, total, payment_mode, customer_name, client_id, client_type } = req.body;
 
     try {
-        const { saleObj, cartItems } = JSON.parse(event.body);
+        const { data: sale, error: saleErr } = await supabase.from('sales').insert([{
+            date,
+            date_time,
+            items_json,
+            total,
+            payment_mode,
+            customer_name,
+            client_id,
+            client_type
+        }]).select().single();
 
-        // 1. Start Stock Deduction
-        for (const item of cartItems) {
-            const { data: med, error: medError } = await supabase
-                .from('medicines')
-                .select('stock, name')
-                .eq('id', item.id)
-                .single();
+        if (saleErr) throw saleErr;
 
-            if (medError || !med) throw new Error(`Medicine "${item.name}" not found.`);
-            if (med.stock < item.qty) throw new Error(`Insufficient stock for "${med.name}". Available: ${med.stock}`);
-
-            const { error: updateError } = await supabase
-                .from('medicines')
-                .update({ stock: med.stock - item.qty })
-                .eq('id', item.id);
-
-            if (updateError) throw updateError;
+        if (payment_mode === 'Credit' && client_id) {
+            await supabase.from('patient_credits').insert([{
+                patient_id: client_id,
+                total_amount: total,
+                balance: total,
+                sale_id: sale.id
+            }]);
         }
 
-        // 2. Insert Sale
-        const { data: saleData, error: saleError } = await supabase
-            .from('sales')
-            .insert([{
-                date: saleObj.date,
-                date_time: saleObj.date_time,
-                items_json: saleObj.items_json,
-                total: saleObj.total,
-                payment_mode: saleObj.payment_mode,
-                customer_name: saleObj.customer_name,
-                mpesa_code: saleObj.mpesa_code // Manual M-Pesa entry
-            }])
-            .select();
+        return res.status(200).json({ success: true, sale_id: sale.id });
 
-        if (saleError) throw saleError;
-        const saleId = saleData[0].id;
-
-        // 3. Record Credit if applicable
-        if (saleObj.payment_mode === 'Credit') {
-            const { error: creditError } = await supabase
-                .from('credits')
-                .insert([{
-                    sale_id: saleId,
-                    customer_name: saleObj.customer_name,
-                    total_amount: saleObj.total,
-                    balance: saleObj.total
-                }]);
-            if (creditError) throw creditError;
-        }
-
-        // 4. Clinical Record Sync
-        if (saleObj.client_id && saleObj.client_type) {
-            try {
-                const table = saleObj.client_type === 'Patient' ? 'patients' : 'customers';
-                const { data: client } = await supabase
-                    .from(table)
-                    .select('prescriptions, history')
-                    .eq('id', saleObj.client_id)
-                    .single();
-
-                if (client) {
-                    const datePrefix = `\n[${saleObj.date}] `;
-                    const medSummary = cartItems.map(i => `${i.name || 'Unknown Item'} (${i.qty || 0})`).join(', ');
-                    const newPresc = (client.prescriptions ? client.prescriptions + '\n' : '') + datePrefix + medSummary;
-                    const newHistory = (client.history ? client.history + '\n' : '') + datePrefix + `Purchased: ${medSummary}`;
-
-                    await supabase
-                        .from(table)
-                        .update({ prescriptions: newPresc, history: newHistory })
-                        .eq('id', saleObj.client_id);
-                }
-            } catch (clinicalError) {
-                console.error("Clinical Sync Failed:", clinicalError);
-            }
-        }
-
-        // Log the Sale Action
-        await logAction(user, 'SALE_COMPLETED', 'SALES', `Sale Total: ${saleObj.total}, Mode: ${saleObj.payment_mode}`);
-
-        return {
-            statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ success: true, saleId: saleId })
-        };
-
-    } catch (error) {
-        console.error('Sales Add Error:', error);
-        return {
-            statusCode: 500,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ success: false, error: error.message })
-        };
+    } catch (e) {
+        console.error('Sale Add Error:', e);
+        return res.status(500).json({ success: false, error: e.message });
     }
 };

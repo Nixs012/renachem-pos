@@ -1,44 +1,13 @@
 const { supabase } = require('./utils/supabase');
+const { verifySession, unauthorizedResponse } = require('./utils/auth');
 
-exports.handler = async (event) => {
-    if (event.httpMethod !== 'GET') {
-        return { statusCode: 405, body: 'Method Not Allowed' };
-    }
+module.exports = async (req, res) => {
+    const user = await verifySession(req);
+    if (!user) return unauthorizedResponse(res);
 
-    try {
-        const { date, startDate, endDate, limit } = event.queryStringParameters || {};
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Method Not Allowed' });
 
-        let query = supabase
-            .from('sales')
-            .select('*')
-            .order('date_time', { ascending: false });
-
-        if (date) {
-            query = query.eq('date', date);
-        } else if (startDate && endDate) {
-            query = query.gte('date', startDate).lte('date', endDate);
-        }
-
-        if (limit) {
-            query = query.limit(parseInt(limit));
-        }
-
-        const { data: sales, error } = await query;
-
-        if (error) throw error;
-
-        return {
-            statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ success: true, data: sales })
-        };
-
-    } catch (error) {
-        console.error('Sales Get Error:', error);
-        return {
-            statusCode: 500,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ success: false, error: 'Failed to fetch sales history' })
-        };
-    }
+    const { data, error } = await supabase.from('sales').select('*').order('created_at', { ascending: false });
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    return res.status(200).json({ success: true, data });
 };

@@ -1,54 +1,41 @@
 const { supabase } = require('./utils/supabase');
+const { verifySession, unauthorizedResponse } = require('./utils/auth');
 
-exports.handler = async (event) => {
-    try {
-        if (event.httpMethod === 'GET') {
-            const { creditId } = event.queryStringParameters || {};
-            
-            if (creditId) {
-                const { data, error } = await supabase.from('credit_payments').select('*').eq('credit_id', creditId).order('payment_date', { ascending: false });
-                if (error) throw error;
-                return { statusCode: 200, body: JSON.stringify({ success: true, data }) };
-            }
+module.exports = async (req, res) => {
+    const user = await verifySession(req);
+    if (!user) return unauthorizedResponse(res);
 
-            const { data, error } = await supabase.from('credits').select('*').order('created_at', { ascending: false });
-            if (error) throw error;
-            return { statusCode: 200, body: JSON.stringify({ success: true, data }) };
-        }
-
-        if (event.httpMethod === 'POST') {
-            const { action, ...data } = JSON.parse(event.body);
-
-            if (action === 'addPayment') {
-                const { credit_id, amount, payment_mode, received_by } = data;
-
-                // 1. Record Payment
-                const { error: payError } = await supabase.from('credit_payments').insert([{ credit_id, amount, payment_mode, received_by }]);
-                if (payError) throw payError;
-
-                // 2. Update Credit Balance
-                const { data: credit } = await supabase.from('credits').select('amount_paid, total_amount').eq('id', credit_id).single();
-                const newPaid = (credit.amount_paid || 0) + parseFloat(amount);
-                const newBalance = credit.total_amount - newPaid;
-                const newStatus = newBalance <= 0 ? 'Paid' : 'Partial';
-
-                const { error: updateError } = await supabase.from('credits').update({
-                    amount_paid: newPaid,
-                    balance: newBalance,
-                    status: newStatus,
-                    last_payment_date: new Date().toISOString()
-                }).eq('id', credit_id);
-
-                if (updateError) throw updateError;
-
-                return { statusCode: 200, body: JSON.stringify({ success: true, message: 'Payment recorded' }) };
-            }
-        }
-
-        return { statusCode: 405, body: 'Method Not Allowed' };
-
-    } catch (error) {
-        console.error('Credits Error:', error);
-        return { statusCode: 500, body: JSON.stringify({ success: false, error: error.message }) };
+    if (req.method === 'GET') {
+        const { data, error } = await supabase.from('patient_credits').select('*').order('created_at', { ascending: false });
+        if (error) return res.status(500).json({ success: false, error: error.message });
+        return res.status(200).json({ success: true, data });
     }
+
+    if (req.method === 'POST') {
+        const { creditId, amount, paymentMode, receivedBy } = req.body;
+        
+        // 1. Get current credit
+        const { data: credit, error: fetchErr } = await supabase.from('patient_credits').select('balance').eq('id', creditId).single();
+        if (fetchErr) return res.status(500).json({ success: false, error: fetchErr.message });
+
+        const newBalance = credit.balance - amount;
+
+        // 2. Update balance
+        const { error: updErr } = await supabase.from('patient_credits').update({ balance: newBalance }).eq('id', creditId);
+        if (updErr) return res.status(500).json({ success: false, error: updErr.message });
+
+        // 3. Log payment
+        const { error: logErr } = await supabase.from('credit_payments').insert([{
+            credit_id: creditId,
+            amount,
+            payment_mode: paymentMode,
+            received_by: receivedBy
+        }]);
+
+        if (logErr) return res.status(500).json({ success: false, error: logErr.message });
+
+        return res.status(200).json({ success: true });
+    }
+
+    return res.status(405).json({ error: 'Method Not Allowed' });
 };
