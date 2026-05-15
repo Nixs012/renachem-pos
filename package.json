@@ -6,8 +6,8 @@
   "scripts": {
     "start": "electron .",
     "dist:win": "electron-builder --win",
-    "build": "mkdir -p public && cp -r renderer/. public/",
-    "vercel-build": "mkdir -p public && cp -r renderer/. public/",
+    "build": "node scripts/vercel-build.js",
+    "vercel-build": "node scripts/vercel-build.js",
     "dev": "nodemon --watch main.js --watch server.js --watch database.js --exec electron .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
