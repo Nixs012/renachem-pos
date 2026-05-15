@@ -1,61 +1,34 @@
 const { supabase } = require('./utils/supabase');
+const { verifySession, unauthorizedResponse } = require('./utils/auth');
 
-exports.handler = async (event) => {
-    let table = 'customers'; // Default
-    
-    // Check query params (GET) or body (POST)
-    if (event.queryStringParameters && event.queryStringParameters.table) {
-        table = event.queryStringParameters.table;
-    } else if (event.body) {
-        try {
-            const body = JSON.parse(event.body);
-            if (body.table) table = body.table;
-        } catch(e) {}
+module.exports = async (req, res) => {
+    const user = await verifySession(req);
+    if (!user) return unauthorizedResponse(res);
+
+    const { table } = req.query;
+    if (!table) return res.status(400).json({ error: 'Table name required' });
+
+    if (req.method === 'GET') {
+        const { data, error } = await supabase.from(table).select('*').order('name', { ascending: true });
+        if (error) return res.status(500).json({ success: false, error: error.message });
+        return res.status(200).json({ success: true, data });
     }
-    
-    try {
-        if (event.httpMethod === 'GET') {
-            const { search } = event.queryStringParameters || {};
-            let query = supabase.from(table).select('*').order('name', { ascending: true });
-            
-            if (search) {
-                query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`);
-            }
-            
-            const { data, error } = await query;
-            if (error) throw error;
-            return { statusCode: 200, body: JSON.stringify({ success: true, data }) };
+
+    if (req.method === 'POST') {
+        const { id, name, age, gender, phone, diagnosis, prescriptions, history } = req.body;
+        
+        const payload = { id, name, diagnosis, prescriptions, history };
+        if (table === 'patients') {
+            payload.age = age;
+            payload.gender = gender;
+        } else {
+            payload.phone = phone;
         }
 
-        if (event.httpMethod === 'POST') {
-            const body = JSON.parse(event.body);
-            const { action, id, table: bodyTable, ...clientData } = body;
-
-            if (action === 'add') {
-                const prefix = table === 'patients' ? 'P-' : 'C-';
-                const id = prefix + Date.now();
-                const { error } = await supabase.from(table).insert([{ id, ...clientData }]);
-                if (error) throw error;
-                return { statusCode: 200, body: JSON.stringify({ success: true, message: 'Added successfully' }) };
-            }
-
-            if (action === 'update') {
-                const { data, error } = await supabase.from(table).update(clientData).eq('id', id);
-                if (error) throw error;
-                return { statusCode: 200, body: JSON.stringify({ success: true, message: 'Updated successfully' }) };
-            }
-
-            if (action === 'delete') {
-                const { data, error } = await supabase.from(table).delete().eq('id', id);
-                if (error) throw error;
-                return { statusCode: 200, body: JSON.stringify({ success: true, message: 'Deleted successfully' }) };
-            }
-        }
-
-        return { statusCode: 405, body: 'Method Not Allowed' };
-
-    } catch (error) {
-        console.error(`${table} Error:`, error);
-        return { statusCode: 500, body: JSON.stringify({ success: false, error: error.message }) };
+        const { data: result, error } = await supabase.from(table).upsert([payload]).select();
+        if (error) return res.status(500).json({ success: false, error: error.message });
+        return res.status(200).json({ success: true, data: result });
     }
+
+    return res.status(405).json({ error: 'Method Not Allowed' });
 };
