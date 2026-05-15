@@ -1,14 +1,21 @@
 {
   "version": 2,
   "rewrites": [
-    {
-      "source": "/.netlify/functions/:path*",
-      "destination": "/api/:path*"
-    },
-    {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
-    }
+    { "source": "/.netlify/functions/auth-login", "destination": "/api/auth-login" },
+    { "source": "/.netlify/functions/products-get", "destination": "/api/products" },
+    { "source": "/.netlify/functions/products-add", "destination": "/api/products?action=add" },
+    { "source": "/.netlify/functions/products-update", "destination": "/api/products?action=update" },
+    { "source": "/.netlify/functions/products-delete", "destination": "/api/products?action=delete" },
+    { "source": "/.netlify/functions/sales-get", "destination": "/api/sales" },
+    { "source": "/.netlify/functions/sales-add", "destination": "/api/sales" },
+    { "source": "/.netlify/functions/suppliers-manage", "destination": "/api/management?module=suppliers" },
+    { "source": "/.netlify/functions/clients-manage", "destination": "/api/management?module=clients" },
+    { "source": "/.netlify/functions/purchases-manage", "destination": "/api/management?module=purchases" },
+    { "source": "/.netlify/functions/settings-manage", "destination": "/api/management?module=settings" },
+    { "source": "/.netlify/functions/audit-log", "destination": "/api/management?module=audit" },
+    { "source": "/.netlify/functions/returns-manage", "destination": "/api/returns-manage" },
+    { "source": "/.netlify/functions/credits-manage", "destination": "/api/credits-manage" },
+    { "source": "/api/:path*", "destination": "/api/:path*" }
   ],
   "cleanUrls": true
 }
