@@ -12,16 +12,18 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === 'POST') {
-        const { saleId, medicineId, medicineName, qty, refund, reason, processedBy, saleDate } = req.body;
+        const { saleId, medicineId, itemId, medicineName, qty, refund, refundAmount, reason, processedBy, saleDate } = req.body;
+        const totalRefund = refund || refundAmount || 0;
+        const finalMedId = medicineId || itemId;
 
         try {
             // 1. Record the return
             const { error: returnErr } = await supabase.from('medicine_returns').insert([{
                 sale_id: saleId,
-                medicine_id: medicineId,
-                medicine_name: medicineName,
+                medicine_id: finalMedId,
+                medicine_name: medicineName || 'Unknown Medicine',
                 qty,
-                total_refund: refund,
+                total_refund: totalRefund,
                 reason,
                 processed_by: processedBy,
                 sale_date: saleDate
