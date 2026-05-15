@@ -2869,49 +2869,77 @@ async function renderReturnsHistory(container) {
     let returns = [];
     try {
         const res = await window.db.getReturns();
-        returns = (res && res.data) ? res.data : [];
+        returns = (res && res.data) ? res.data : (Array.isArray(res) ? res : []);
+        window.allReturns = returns; // Cache for search
     } catch (e) {
         console.error("Error fetching returns:", e);
-        showToast('Failed to load returns history', 'error');
     }
 
     container.innerHTML = `
-        <div class="stat-card" style="padding:0; overflow:hidden; border-radius:16px;">
-            <div style="padding:20px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                <h4 style="margin:0;"><i class="fas fa-undo-alt"></i> Medicine Returns History</h4>
-                <div style="font-size:0.85rem; color:#64748b;">Total Returns Logged: ${returns.length}</div>
+        <div class="card fade-in" style="border-radius:16px; overflow:hidden; border:none; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
+            <div class="card-header d-flex justify-between align-center" style="padding:20px; background: white; border-bottom: 1px solid #f1f5f9;">
+                <h3 style="margin:0; font-size:1.1rem; font-weight:700;"><i class="fas fa-undo"></i> Medicine Returns History</h3>
+                <div class="search-box" style="position:relative; width: 320px;">
+                    <i class="fas fa-search" style="position:absolute; left:15px; top:12px; color:#94a3b8;"></i>
+                    <input type="text" id="return-search" placeholder="Search Receipt # or Medicine..." 
+                        style="padding:10px 15px 10px 45px; border:1px solid #e2e8f0; border-radius:12px; width:100%; outline:none; font-size:0.9rem;"
+                        onkeyup="filterReturnsList()">
+                </div>
             </div>
-            <div class="table-responsive">
-                <table class="data-table">
-                    <thead style="background:var(--royal-blue); color:white;">
-                        <tr>
-                            <th style="color:white; padding-left:20px;">Return Date</th>
-                            <th style="color:white;">Medicine</th>
-                            <th style="color:white;">Qty</th>
-                            <th style="color:white;">Refunded</th>
-                            <th style="color:white;">Sale Date</th>
-                            <th style="color:white;">Processed By</th>
-                            <th style="color:white; padding-right:20px;">Reason</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${returns.length > 0 ? returns.map(r => `
+            <div class="card-body" style="padding:0;">
+                <div class="table-responsive">
+                    <table class="data-table" style="width:100%; border-collapse:collapse;">
+                        <thead style="background:#f8fafc; text-align:left;">
                             <tr>
-                                <td style="padding-left:20px; font-size:0.8rem;">${new Date(r.created_at).toLocaleString()}</td>
-                                <td style="font-weight:700;">${r.medicine_name}</td>
-                                <td style="color:var(--emerald); font-weight:700;">+ ${r.qty}</td>
-                                <td style="font-weight:700;">KES ${Number(r.total_refund).toFixed(2)}</td>
-                                <td style="font-size:0.8rem; color:#64748b;">${r.sale_date}</td>
-                                <td style="font-weight:600;">${r.processed_by}</td>
-                                <td style="padding-right:20px; font-style:italic; font-size:0.85rem; color:#475569;">${r.reason}</td>
+                                <th style="padding:15px 20px; font-size:0.85rem; color:#64748b; font-weight:600;">Return Date</th>
+                                <th style="padding:15px 20px; font-size:0.85rem; color:#64748b; font-weight:600;">Receipt #</th>
+                                <th style="padding:15px 20px; font-size:0.85rem; color:#64748b; font-weight:600;">Medicine</th>
+                                <th style="padding:15px 20px; font-size:0.85rem; color:#64748b; font-weight:600;">Qty</th>
+                                <th style="padding:15px 20px; font-size:0.85rem; color:#64748b; font-weight:600;">Refunded</th>
+                                <th style="padding:15px 20px; font-size:0.85rem; color:#64748b; font-weight:600;">Processed By</th>
+                                <th style="padding:15px 20px; font-size:0.85rem; color:#64748b; font-weight:600;">Reason</th>
                             </tr>
-                        `).join('') : '<tr><td colspan="7" style="text-align:center; padding:50px;">No returns have been processed yet.</td></tr>'}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody id="returns-tbody">
+                            ${renderReturnsTableRows(returns)}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     `;
 }
+
+function renderReturnsTableRows(data) {
+    if (!data || data.length === 0) {
+        return '<tr><td colspan="7" class="text-center" style="padding:40px; color:#94a3b8;">No returns found.</td></tr>';
+    }
+
+    return data.map(r => `
+        <tr style="border-bottom: 1px solid #f8fafc;">
+            <td style="padding:15px 20px; font-size:0.9rem; color:#475569;">${new Date(r.created_at || Date.now()).toLocaleDateString()} <span style="font-size:0.75rem; color:#94a3b8;">${new Date(r.created_at || Date.now()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></td>
+            <td style="padding:15px 20px; font-weight:700; color:var(--royal-blue);">#${r.sale_id}</td>
+            <td style="padding:15px 20px; font-weight:600;">${r.medicine_name}</td>
+            <td style="padding:15px 20px;"><span style="background:#fef2f2; color:#ef4444; padding:2px 8px; border-radius:6px; font-weight:700;">+ ${r.qty}</span></td>
+            <td style="padding:15px 20px; font-weight:700; color:#059669;">KES ${parseFloat(r.total_refund).toLocaleString()}</td>
+            <td style="padding:15px 20px;"><span style="background:#f1f5f9; color:#475569; padding:4px 10px; border-radius:20px; font-size:0.8rem; font-weight:600;">${r.processed_by || 'System'}</span></td>
+            <td style="padding:15px 20px; font-size:0.85rem; color:#64748b; font-style:italic;">"${r.reason || 'N/A'}"</td>
+        </tr>
+    `).join('');
+}
+
+window.filterReturnsList = function() {
+    const query = document.getElementById('return-search').value.toLowerCase();
+    const tbody = document.getElementById('returns-tbody');
+    if (!window.allReturns) return;
+
+    const filtered = window.allReturns.filter(r => 
+        (r.sale_id && r.sale_id.toString().includes(query)) || 
+        (r.medicine_name && r.medicine_name.toLowerCase().includes(query)) ||
+        (r.processed_by && r.processed_by.toLowerCase().includes(query))
+    );
+    tbody.innerHTML = renderReturnsTableRows(filtered);
+};
 
 function renderExpiryReport(container, medicines) {
     const today = new Date();
