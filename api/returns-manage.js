@@ -31,11 +31,14 @@ module.exports = async (req, res) => {
             if (returnErr) throw returnErr;
 
             // 2. Increment stock back
-            const { data: med, error: fetchErr } = await supabase.from('medicines').select('stock').eq('id', medicineId).single();
+            const { data: meds, error: fetchErr } = await supabase.from('medicines').select('stock').eq('id', finalMedId);
             if (fetchErr) throw fetchErr;
 
-            const { error: stockErr } = await supabase.from('medicines').update({ stock: med.stock + qty }).eq('id', medicineId);
-            if (stockErr) throw stockErr;
+            if (meds && meds.length > 0) {
+                const currentStock = meds[0].stock;
+                const { error: stockErr } = await supabase.from('medicines').update({ stock: currentStock + parseInt(qty) }).eq('id', finalMedId);
+                if (stockErr) throw stockErr;
+            }
 
             // 3. Log Audit
             await supabase.from('audit_log').insert([{
