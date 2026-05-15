@@ -2570,7 +2570,7 @@ async function renderReports(subPage = 'overview') {
     }
 }
 
-function renderFinancialOverview(container, sales) {
+async function renderFinancialOverview(container, sales) {
     // Group sales by day for the last 7 days
     const last7Days = [...Array(7)].map((_, i) => {
         const d = new Date();
