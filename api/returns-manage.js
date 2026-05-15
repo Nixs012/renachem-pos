@@ -6,6 +6,12 @@ module.exports = async (req, res) => {
     if (!user) return unauthorizedResponse(res);
 
     if (req.method === 'GET') {
+        const { action } = req.query;
+        if (action === 'clear') {
+            const { error } = await supabase.from('medicine_returns').delete().neq('id', 0); // Delete all
+            if (error) return res.status(500).json({ success: false, error: error.message });
+            return res.status(200).json({ success: true });
+        }
         const { data, error } = await supabase.from('medicine_returns').select('*').order('created_at', { ascending: false });
         if (error) return res.status(500).json({ success: false, error: error.message });
         return res.status(200).json({ success: true, data });

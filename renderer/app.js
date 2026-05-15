@@ -2582,7 +2582,11 @@ function renderFinancialOverview(container, sales) {
         return sales.filter(s => s.date === day).reduce((sum, s) => sum + (Number(s.total) || 0), 0);
     });
 
-    const totalRev = sales.reduce((s, t) => s + (Number(t.total) || 0), 0);
+    const returnsRes = await window.db.getReturns();
+    const returnsData = (returnsRes && returnsRes.data) ? returnsRes.data : [];
+    const totalRefunds = returnsData.reduce((s, r) => s + (Number(r.total_refund) || 0), 0);
+
+    const totalRev = sales.reduce((s, t) => s + (Number(t.total) || 0), 0) - totalRefunds;
     const avgSale = sales.length > 0 ? (totalRev / sales.length) : 0;
 
     let cashCount = 0, mpesaCount = 0, creditCount = 0;
@@ -2848,11 +2852,13 @@ async function showReturnModal(sale) {
 
         const res = await window.db.recordReturnTransaction({
             saleId: sale.id,
-            itemId: item.id,
+            medicineId: item.id,
+            medicineName: item.name, // Added name
             qty: qty,
             refundAmount: qty * item.price,
             reason: reason,
-            processedBy: currentUser.username
+            processedBy: currentUser.username,
+            saleDate: sale.date // Added sale date
         });
 
         if (res.success) {
@@ -2878,7 +2884,10 @@ async function renderReturnsHistory(container) {
     container.innerHTML = `
         <div class="card fade-in" style="border-radius:16px; overflow:hidden; border:none; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
             <div class="card-header d-flex justify-between align-center" style="padding:20px; background: white; border-bottom: 1px solid #f1f5f9;">
-                <h3 style="margin:0; font-size:1.1rem; font-weight:700;"><i class="fas fa-undo"></i> Medicine Returns History</h3>
+                <div style="display:flex; align-items:center; gap:16px;">
+                    <h3 style="margin:0; font-size:1.1rem; font-weight:700;"><i class="fas fa-undo"></i> Medicine Returns History</h3>
+                    ${currentUser.role === 'Admin' ? `<button class="btn-primary" style="background:#fee2e2; color:#b91c1c; padding:6px 16px; font-size:0.8rem; border:none;" onclick="clearReturnHistory()">Clear History</button>` : ''}
+                </div>
                 <div class="search-box" style="position:relative; width: 320px;">
                     <i class="fas fa-search" style="position:absolute; left:15px; top:12px; color:#94a3b8;"></i>
                     <input type="text" id="return-search" placeholder="Search Receipt # or Medicine..." 
@@ -2926,6 +2935,18 @@ function renderReturnsTableRows(data) {
             <td style="padding:15px 20px; font-size:0.85rem; color:#64748b; font-style:italic;">"${r.reason || 'N/A'}"</td>
         </tr>
     `).join('');
+}
+
+window.clearReturnHistory = async function() {
+    if (await showConfirm("Are you sure you want to PERMANENTLY clear all return history records? This cannot be undone.")) {
+        const res = await window.db.clearReturns();
+        if (res.success) {
+            showToast('Return history cleared successfully.', 'success');
+            renderReports('returns');
+        } else {
+            showToast(res.error, 'error');
+        }
+    }
 }
 
 window.filterReturnsList = function() {
