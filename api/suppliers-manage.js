@@ -1,41 +1,22 @@
 const { supabase } = require('./utils/supabase');
+const { verifySession, unauthorizedResponse } = require('./utils/auth');
 
-exports.handler = async (event) => {
-    try {
-        if (event.httpMethod === 'GET') {
-            const { data, error } = await supabase.from('suppliers').select('*').order('name', { ascending: true });
-            if (error) throw error;
-            return { statusCode: 200, body: JSON.stringify({ success: true, data }) };
-        }
+module.exports = async (req, res) => {
+    const user = await verifySession(req);
+    if (!user) return unauthorizedResponse(res);
 
-        if (event.httpMethod === 'POST') {
-            const body = JSON.parse(event.body);
-            const { action, id, ...supplierData } = body;
-
-            if (action === 'add') {
-                const id = 'S-' + Date.now();
-                const { data, error } = await supabase.from('suppliers').insert([{ id, ...supplierData }]);
-                if (error) throw error;
-                return { statusCode: 200, body: JSON.stringify({ success: true }) };
-            }
-
-            if (action === 'update') {
-                const { data, error } = await supabase.from('suppliers').update(supplierData).eq('id', id);
-                if (error) throw error;
-                return { statusCode: 200, body: JSON.stringify({ success: true }) };
-            }
-
-            if (action === 'delete') {
-                const { data, error } = await supabase.from('suppliers').delete().eq('id', id);
-                if (error) throw error;
-                return { statusCode: 200, body: JSON.stringify({ success: true }) };
-            }
-        }
-
-        return { statusCode: 405, body: 'Method Not Allowed' };
-
-    } catch (error) {
-        console.error('Suppliers Error:', error);
-        return { statusCode: 500, body: JSON.stringify({ success: false, error: error.message }) };
+    if (req.method === 'GET') {
+        const { data, error } = await supabase.from('suppliers').select('*').order('name', { ascending: true });
+        if (error) return res.status(500).json({ success: false, error: error.message });
+        return res.status(200).json({ success: true, data });
     }
+
+    if (req.method === 'POST') {
+        const { id, name, contact, items } = req.body;
+        const { data: result, error } = await supabase.from('suppliers').upsert([{ id, name, contact, items }]).select();
+        if (error) return res.status(500).json({ success: false, error: error.message });
+        return res.status(200).json({ success: true, data: result });
+    }
+
+    return res.status(405).json({ error: 'Method Not Allowed' });
 };

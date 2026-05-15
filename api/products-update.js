@@ -1,40 +1,21 @@
 const { supabase } = require('./utils/supabase');
+const { verifySession, unauthorizedResponse } = require('./utils/auth');
 
-exports.handler = async (event) => {
-    if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, body: 'Method Not Allowed' };
-    }
+module.exports = async (req, res) => {
+    const user = await verifySession(req);
+    if (!user) return unauthorizedResponse(res);
+
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
     try {
-        const { id, ...updates } = JSON.parse(event.body);
-
-        if (!id) {
-            return {
-                statusCode: 400,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ success: false, error: 'Product ID is required for update' })
-            };
-        }
-
-        const { data, error } = await supabase
-            .from('medicines')
-            .update(updates)
-            .eq('id', id);
+        const { id, name, supplier, batch, expiry, stock, reorder_level, price, cost_price, barcode } = req.body;
+        const { data, error } = await supabase.from('medicines').update({
+            name, supplier, batch, expiry, stock, reorder_level, price, cost_price, barcode
+        }).eq('id', id).select();
 
         if (error) throw error;
-
-        return {
-            statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ success: true, message: 'Product updated successfully' })
-        };
-
-    } catch (error) {
-        console.error('Products Update Error:', error);
-        return {
-            statusCode: 500,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ success: false, error: 'Failed to update product' })
-        };
+        return res.status(200).json({ success: true, data });
+    } catch (e) {
+        return res.status(500).json({ success: false, error: e.message });
     }
 };
