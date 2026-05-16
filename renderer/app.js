@@ -2471,28 +2471,32 @@ async function showIntakeModal() {
     document.getElementById('intakeCancelBtn').onclick = () => modal.style.display = 'none';
 
     document.getElementById('intakeSaveBtn').onclick = async () => {
-        const data = {
-            med_id: idInput.value || null,
-            med_name: nameInput.value.trim(),
-            qty: parseInt(qtyInput.value) || 0,
+        const qty = parseInt(document.getElementById('intake_qty').value) || 0;
+        const buyPrice = parseFloat(document.getElementById('intake_buying_price').value) || 0;
+        const totalCost = qty * buyPrice;
+
+        const cloudData = {
+            med_id: document.getElementById('intake_med_id').value || null,
+            med_name: document.getElementById('intake_med_name').value.trim(),
+            qty: qty,
             supplier: document.getElementById('intake_sup').value,
-            buying_price: parseFloat(buyPriceInput.value) || 0,
-            selling_price: parseFloat(sellPriceInput.value) || 0,
+            unit_price: buyPrice,
+            total_cost: totalCost,
+            date: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD
             expiry: document.getElementById('intake_expiry').value,
             batch: document.getElementById('intake_batch').value.trim(),
-            barcode: barcodeInput.value.trim()
+            barcode: document.getElementById('intake_barcode').value.trim(),
+            selling_price: parseFloat(document.getElementById('intake_selling_price').value) || 0
         };
 
-        if (!data.med_name) return showToast('Medicine name is required', 'warning');
-        if (data.qty <= 0) return showToast('Intake Quantity must be greater than 0', 'warning');
-        if (data.buying_price < 0 || data.selling_price < 0) return showToast('Prices cannot be negative', 'warning');
+        if (!cloudData.med_name) return showToast('Medicine name is required', 'warning');
+        if (cloudData.qty <= 0) return showToast('Intake Quantity must be greater than 0', 'warning');
 
-        const res = await window.db.recordStockIntake(data);
+        const res = await window.db.recordStockIntake(cloudData);
         if (res.success) {
-            showToast(`Inventory updated! ${data.med_name} stock increased and price synced.`, 'success');
+            showToast(`Inventory updated successfully!`, 'success');
             modal.style.display = 'none';
-            renderPurchases();
-            // If we are looking at inventory, we'd want to refresh that too if user navigates back
+            renderReports('purchases');
         } else {
             showToast(res.error, 'error');
         }
