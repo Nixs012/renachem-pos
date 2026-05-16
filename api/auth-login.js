@@ -14,13 +14,20 @@ module.exports = async (req, res) => {
         }
 
         // 1. Get user from the 'public.users' table
-        const { data: user, error: fetchError } = await supabase
+        const { data: users, error: fetchError } = await supabase
             .from('users')
             .select('*')
-            .ilike('username', username)
-            .single();
+            .ilike('username', username);
+ 
+        if (fetchError) {
+            console.error('Database Fetch Error:', fetchError);
+            return res.status(500).json({ success: false, error: 'Database connection error: ' + fetchError.message });
+        }
 
-        if (fetchError || !user) {
+        const user = (users && users.length > 0) ? users[0] : null;
+
+        if (!user) {
+            console.log(`Login Attempt Failed: User "${username}" not found in database.`);
             return res.status(401).json({ success: false, error: 'User account not found' });
         }
 
