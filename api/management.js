@@ -6,7 +6,20 @@ module.exports = async (req, res) => {
     const user = await verifySession(req);
     if (!user) return unauthorizedResponse(res);
 
-    const { module, action, table } = req.query;
+    let { module, action, table } = req.query;
+    const body = req.body || {};
+    
+    // Robust detection: Check body if missing in query
+    if (!module) module = body.module;
+    if (!action) action = body.action;
+    if (!table) table = body.table;
+
+    // Automatic fallback based on known endpoints
+    if (!module) {
+        if (action === 'add' || action === 'update' || table === 'customers' || table === 'patients') module = 'clients';
+        if (table === 'suppliers') module = 'suppliers';
+    }
+
     const method = req.method.toUpperCase();
 
     try {
