@@ -87,12 +87,20 @@ module.exports = async (req, res) => {
             }
             if (method === 'POST') {
                 const { med_id, med_name, batch, qty, supplier, unit_price, total_cost, date } = req.body;
+                
+                // 1. Record the purchase receipt
                 const { error: purchaseErr } = await supabase.from('purchases').insert([{ med_name, batch, qty, date, supplier, unit_price, total_cost }]);
                 if (purchaseErr) throw purchaseErr;
-                const { data: med, error: fetchErr } = await supabase.from('medicines').select('stock').eq('id', med_id).single();
-                if (fetchErr) throw fetchErr;
-                const { error: stockErr } = await supabase.from('medicines').update({ stock: med.stock + parseInt(qty) }).eq('id', med_id);
-                if (stockErr) throw stockErr;
+                
+                // 2. Update stock if med_id is provided and exists
+                if (med_id) {
+                    const { data: meds, error: fetchErr } = await supabase.from('medicines').select('stock').eq('id', med_id);
+                    if (!fetchErr && meds && meds.length > 0) {
+                        const currentStock = meds[0].stock || 0;
+                        await supabase.from('medicines').update({ stock: currentStock + parseInt(qty) }).eq('id', med_id);
+                    }
+                }
+                
                 return res.status(200).json({ success: true });
             }
         }
