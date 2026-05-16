@@ -7,16 +7,17 @@ module.exports = async (req, res) => {
     if (!user) return unauthorizedResponse(res);
 
     const { module, action, table } = req.query;
+    const method = req.method.toUpperCase();
 
     try {
         // --- SUPPLIERS ---
         if (module === 'suppliers') {
-            if (req.method === 'GET') {
+            if (method === 'GET') {
                 const { data, error } = await supabase.from('suppliers').select('*').order('name', { ascending: true });
                 if (error) throw error;
                 return res.status(200).json({ success: true, data });
             }
-            if (req.method === 'POST') {
+            if (method === 'POST') {
                 const { id, name, contact, contact_person, phone, email, address, items } = req.body;
                 
                 // Construct a consolidated contact string if detailed fields are provided
@@ -36,16 +37,18 @@ module.exports = async (req, res) => {
 
         // --- CLIENTS (Patients & Customers) ---
         if (module === 'clients') {
-            if (req.method === 'GET') {
-                const { data, error } = await supabase.from(table).select('*').order('name', { ascending: true });
+            const finalTable = table || 'customers';
+            if (method === 'GET') {
+                const { data, error } = await supabase.from(finalTable).select('*').order('name', { ascending: true });
                 if (error) throw error;
                 return res.status(200).json({ success: true, data });
             }
-            if (req.method === 'POST') {
+            if (method === 'POST') {
                 const { id, name, age, gender, phone, diagnosis, prescriptions, history } = req.body;
-                const payload = { id, name, diagnosis, prescriptions, history };
-                if (table === 'patients') { payload.age = age; payload.gender = gender; } else { payload.phone = phone; }
-                const { data: result, error } = await supabase.from(table).upsert([payload]).select();
+                const finalId = id || `cli_${Date.now()}`;
+                const payload = { id: finalId, name, diagnosis, prescriptions, history };
+                if (finalTable === 'patients') { payload.age = age; payload.gender = gender; } else { payload.phone = phone; }
+                const { data: result, error } = await supabase.from(finalTable).upsert([payload]).select();
                 if (error) throw error;
                 return res.status(200).json({ success: true, data: result });
             }
@@ -53,12 +56,12 @@ module.exports = async (req, res) => {
 
         // --- PURCHASES ---
         if (module === 'purchases') {
-            if (req.method === 'GET') {
+            if (method === 'GET') {
                 const { data, error } = await supabase.from('purchases').select('*').order('id', { ascending: false });
                 if (error) throw error;
                 return res.status(200).json({ success: true, data });
             }
-            if (req.method === 'POST') {
+            if (method === 'POST') {
                 const { med_id, med_name, batch, qty, supplier, unit_price, total_cost, date } = req.body;
                 const { error: purchaseErr } = await supabase.from('purchases').insert([{ med_name, batch, qty, date, supplier, unit_price, total_cost }]);
                 if (purchaseErr) throw purchaseErr;
@@ -72,7 +75,7 @@ module.exports = async (req, res) => {
 
         // --- SETTINGS & USERS ---
         if (module === 'settings') {
-            if (req.method === 'GET') {
+            if (method === 'GET') {
                 if (action === 'getUsers') {
                     const { data, error } = await supabase.from('users').select('id, username, role, is_active, created_at');
                     if (error) throw error;
@@ -82,7 +85,7 @@ module.exports = async (req, res) => {
                 if (error) throw error;
                 return res.status(200).json({ success: true, data });
             }
-            if (req.method === 'POST') {
+            if (method === 'POST') {
                 if (action === 'createUser') {
                     const { username, password, role } = req.body;
                     const password_hash = await bcrypt.hash(password, 10);
@@ -95,7 +98,7 @@ module.exports = async (req, res) => {
 
         // --- AUDIT LOG ---
         if (module === 'audit') {
-            if (req.method === 'GET') {
+            if (method === 'GET') {
                 const { data, error } = await supabase.from('audit_log').select('*').order('timestamp', { ascending: false }).limit(200);
                 if (error) throw error;
                 return res.status(200).json({ success: true, data });
