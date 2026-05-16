@@ -57,10 +57,21 @@ module.exports = async (req, res) => {
                 return res.status(200).json({ success: true, data });
             }
             if (method === 'POST') {
-                const { id, name, age, gender, phone, diagnosis, prescriptions, history } = req.body;
+                const { id, name, age, gender, phone, email, diagnosis, prescriptions, history } = req.body;
                 const finalId = id || `cli_${Date.now()}`;
-                const payload = { id: finalId, name, diagnosis, prescriptions, history };
-                if (finalTable === 'patients') { payload.age = age; payload.gender = gender; } else { payload.phone = phone; }
+                
+                // Build specific payload based on table
+                let payload = { id: finalId, name, prescriptions, history };
+                
+                if (finalTable === 'patients') {
+                    payload.age = age;
+                    payload.gender = gender;
+                    payload.diagnosis = diagnosis; // Patients have diagnosis
+                } else {
+                    payload.phone = phone;
+                    payload.email = email; // Customers have phone/email
+                }
+                
                 const { data: result, error } = await supabase.from(finalTable).upsert([payload]).select();
                 if (error) throw error;
                 return res.status(200).json({ success: true, data: result });
