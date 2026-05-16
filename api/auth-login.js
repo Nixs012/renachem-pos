@@ -17,17 +17,17 @@ module.exports = async (req, res) => {
         const { data: user, error: fetchError } = await supabase
             .from('users')
             .select('*')
-            .eq('username', username)
+            .ilike('username', username)
             .single();
 
         if (fetchError || !user) {
-            return res.status(401).json({ success: false, error: 'Invalid credentials' });
+            return res.status(401).json({ success: false, error: 'User account not found' });
         }
 
         // 2. Verify Password using bcrypt
         const isValid = await bcrypt.compare(password, user.password_hash);
         if (!isValid) {
-            return res.status(401).json({ success: false, error: 'Invalid credentials' });
+            return res.status(401).json({ success: false, error: 'Incorrect password' });
         }
 
         // 3. Authenticate with Supabase Auth (GoTrue)
