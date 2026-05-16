@@ -1,16 +1,19 @@
 const { supabase } = require('./supabase');
 
 async function verifySession(req) {
-    // 1. Get token from Authorization header
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-        console.log('VerifySession: No auth header');
-        return null;
+    // 1. Get token from Authorization header or cookie
+    let authHeader = req.headers.authorization || req.headers['x-auth-token'];
+    let token = '';
+
+    if (authHeader) {
+        token = authHeader.replace('Bearer ', '');
+    } else if (req.headers.cookie) {
+        const cookies = Object.fromEntries(req.headers.cookie.split('; ').map(c => c.split('=')));
+        token = cookies['sb-access-token']; // Common Supabase cookie name
     }
 
-    const token = authHeader.replace('Bearer ', '');
     if (!token || token === 'undefined' || token === 'null') {
-        console.log('VerifySession: Invalid token string');
+        console.log('VerifySession: No valid token found');
         return null;
     }
 
