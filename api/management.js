@@ -86,20 +86,33 @@ module.exports = async (req, res) => {
                 return res.status(200).json({ success: true, data });
             }
             if (method === 'POST') {
-                const { med_id, med_name, batch, qty, supplier, unit_price, total_cost, date } = req.body;
+                const { med_id, med_name, batch, qty, supplier, unit_price, total_cost, date, selling_price, expiry, barcode } = req.body;
                 
                 // 1. Record the purchase receipt
                 const { error: purchaseErr } = await supabase.from('purchases').insert([{ med_name, batch, qty, date, supplier, unit_price, total_cost }]);
                 if (purchaseErr) throw purchaseErr;
                 
-                // 2. Update stock if med_id is provided and exists
-                if (med_id) {
-                    const { data: meds, error: fetchErr } = await supabase.from('medicines').select('stock').eq('id', med_id);
-                    if (!fetchErr && meds && meds.length > 0) {
-                        const currentStock = meds[0].stock || 0;
-                        await supabase.from('medicines').update({ stock: currentStock + parseInt(qty) }).eq('id', med_id);
-                    }
-                }
+                // 2. Sync with Inventory (Upsert Medicine)
+                // Use med_id if available, otherwise use med_name as ID or generate one
+                const finalMedId = med_id || `med_${Date.now()}`;
+                
+                // Get current stock to add to it
+                const { data: meds } = await supabase.from('medicines').select('stock').eq('id', finalMedId);
+                const currentStock = (meds && meds.length > 0) ? meds[0].stock : 0;
+
+                const { error: syncErr } = await supabase.from('medicines').upsert([{
+                    id: finalMedId,
+                    name: med_name,
+                    stock: currentStock + parseInt(qty),
+                    price: parseFloat(selling_price) || 0,
+                    cost_price: parseFloat(unit_price) || 0,
+                    batch: batch,
+                    expiry: expiry,
+                    supplier: supplier,
+                    barcode: barcode
+                }]);
+
+                if (syncErr) throw syncErr;
                 
                 return res.status(200).json({ success: true });
             }
