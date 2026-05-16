@@ -17,8 +17,18 @@ module.exports = async (req, res) => {
                 return res.status(200).json({ success: true, data });
             }
             if (req.method === 'POST') {
-                const { id, name, contact, items } = req.body;
-                const { data: result, error } = await supabase.from('suppliers').upsert([{ id, name, contact, items }]).select();
+                const { id, name, contact, contact_person, phone, email, address, items } = req.body;
+                
+                // Construct a consolidated contact string if detailed fields are provided
+                const finalContact = contact || `${contact_person || ''} | ${phone || ''} | ${email || ''} | ${address || ''}`.trim();
+                const finalId = id || `sup_${Date.now()}`;
+
+                const { data: result, error } = await supabase.from('suppliers').upsert([{ 
+                    id: finalId, 
+                    name, 
+                    contact: finalContact, 
+                    items 
+                }]).select();
                 if (error) throw error;
                 return res.status(200).json({ success: true, data: result });
             }
