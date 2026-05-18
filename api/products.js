@@ -18,8 +18,9 @@ module.exports = async (req, res) => {
             const { id, name, supplier, batch, expiry, stock, reorder_level, price, cost_price, barcode } = req.body;
             
             if (action === 'add') {
+                const finalId = id || ('med_' + Date.now().toString() + Math.random().toString(36).substr(2, 5));
                 const { data, error } = await supabase.from('medicines').insert([{
-                    id, name, supplier, batch, expiry, stock, reorder_level, price, cost_price, barcode
+                    id: finalId, name, supplier, batch, expiry, stock, reorder_level, price, cost_price, barcode
                 }]).select();
                 if (error) throw error;
 
