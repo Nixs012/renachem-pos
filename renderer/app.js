@@ -2496,7 +2496,7 @@ async function showIntakeModal() {
         if (res.success) {
             showToast(`Inventory updated successfully!`, 'success');
             modal.style.display = 'none';
-            renderReports('purchases');
+            renderPurchases();
         } else {
             showToast(res.error, 'error');
         }
