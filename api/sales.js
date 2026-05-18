@@ -14,7 +14,7 @@ module.exports = async (req, res) => {
     if (req.method === 'POST') {
         const { saleObj, cartItems } = req.body;
         const payload = saleObj || req.body;
-        const { date, date_time, items_json, total, payment_mode, customer_name, mpesa_code } = payload;
+        const { date, date_time, items_json, total, payment_mode, customer_name, mpesa_code, client_id, client_type } = payload;
         
         try {
             const { data: sale, error: saleErr } = await supabase.from('sales').insert([{
@@ -41,6 +41,24 @@ module.exports = async (req, res) => {
                 if (medData) {
                     const newStock = Math.max(0, (parseInt(medData.stock) || 0) - parseInt(item.qty));
                     await supabase.from('medicines').update({ stock: newStock }).eq('id', item.id);
+                }
+            }
+
+            // Update Patient or Customer Clinical Record / Active Prescriptions & History
+            if (client_id && client_type) {
+                const finalTable = client_type === 'Patient' ? 'patients' : 'customers';
+                const { data: client, error: clientFetchErr } = await supabase.from(finalTable).select('prescriptions, history').eq('id', client_id).single();
+                if (!clientFetchErr && client) {
+                    const newItems = itemsToProcess.map(item => `${item.name} (Qty: ${item.qty})`).join(', ');
+                    
+                    // Auto-update Active Prescriptions
+                    const updatedPresc = client.prescriptions ? `${client.prescriptions}\n${newItems}` : newItems;
+
+                    // Auto-update Clinical / Purchase History
+                    const historyEntry = `[${new Date().toLocaleDateString()}] POS Sale: ${newItems} | Total: KES ${total} | Paid via: ${payment_mode}`;
+                    const updatedHist = client.history ? `${client.history}\n${historyEntry}` : historyEntry;
+
+                    await supabase.from(finalTable).update({ prescriptions: updatedPresc, history: updatedHist }).eq('id', client_id);
                 }
             }
 
