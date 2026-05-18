@@ -734,17 +734,22 @@ async function renderDashboard() {
             </div>
         </div>
 
-        <div style="display:grid; grid-template-columns: 2fr 1fr; gap:24px; margin-top:24px;">
+        <div class="dashboard-grid">
             <div class="stat-card" style="padding:0; overflow:hidden;">
-                <div style="padding:20px 25px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
-                    <h4 style="margin:0;">Recent Transactions</h4>
-                    <button class="btn-primary" style="padding:4px 12px; font-size:0.7rem; background:#f1f5f9; color:var(--royal-blue);" onclick="currentPage='reports'; renderCurrentPage();">View All</button>
-                </div>
+                <h4 style="padding:20px; margin:0; border-bottom:1px solid #f1f5f9;">Recent Transactions</h4>
                 <table class="data-table">
-                    <thead><tr><th style="padding-left:25px;">Time</th><th>Customer</th><th>Total</th><th>Method</th><th style="text-align:right; padding-right:25px;">Action</th></tr></thead>
-                    <tbody>${sales.slice(0, 6).map(s => {
-                        const recentSalesData = JSON.stringify(s).replace(/"/g, '&quot;');
-                        let displayTime = s.date;
+                    <thead>
+                        <tr>
+                            <th style="padding-left:25px;">Time</th>
+                            <th>Customer</th>
+                            <th>Amount</th>
+                            <th>Mode</th>
+                            <th style="text-align:right; padding-right:25px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    ${sales.slice(-5).reverse().map(s => {
+                        let displayTime = '';
                         if (s.date_time) {
                             if (s.date_time.includes(', ')) {
                                 displayTime = s.date_time.split(', ')[1];

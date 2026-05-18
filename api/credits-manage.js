@@ -22,13 +22,18 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === 'POST') {
-        const { creditId, amount, paymentMode, receivedBy } = req.body;
+        const data = req.body || {};
+        const creditId = data.creditId || data.credit_id;
+        const amount = parseFloat(data.amount);
+        const paymentMode = data.paymentMode || data.payment_mode;
+        const receivedBy = data.receivedBy || data.received_by;
         
         // 1. Get current credit
-        const { data: credit, error: fetchErr } = await supabase.from('credits').select('balance, total_amount').eq('id', creditId).single();
+        const { data: credit, error: fetchErr } = await supabase.from('credits').select('amount_paid, total_amount').eq('id', creditId).single();
         if (fetchErr) return res.status(500).json({ success: false, error: fetchErr.message });
 
-        const newBalance = Math.max(0, credit.balance - amount);
+        const newPaid = (credit.amount_paid || 0) + amount;
+        const newBalance = credit.total_amount - newPaid;
         let status = 'Pending';
         if (newBalance <= 0) {
             status = 'Paid';
@@ -36,8 +41,14 @@ module.exports = async (req, res) => {
             status = 'Partial';
         }
 
-        // 2. Update balance and status
-        const { error: updErr } = await supabase.from('credits').update({ balance: newBalance, status }).eq('id', creditId);
+        // 2. Update balance, status, amount_paid, and last_payment_date
+        const { error: updErr } = await supabase.from('credits').update({
+            amount_paid: newPaid,
+            balance: newBalance,
+            status,
+            last_payment_date: new Date().toISOString()
+        }).eq('id', creditId);
+        
         if (updErr) return res.status(500).json({ success: false, error: updErr.message });
 
         // 3. Log payment

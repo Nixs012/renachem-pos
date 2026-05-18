@@ -32,22 +32,41 @@ async function verifySession(req) {
 
     try {
         // 2. Validate with Supabase
-        const { data: { user }, error } = await supabase.auth.getUser(token);
+        const { data: { user: authUser }, error } = await supabase.auth.getUser(token);
         
         if (error) {
             console.error('VerifySession: Supabase error:', error.message);
             return null;
         }
 
-        if (!user) {
+        if (!authUser) {
             console.log('VerifySession: No user found for token');
             return null;
         }
 
-        // Cache for 10 minutes to prevent rate limits
-        tokenCache.set(token, { user, exp: now + 600000 });
+        // Get username from user metadata
+        const username = authUser.user_metadata?.username;
+        if (!username) {
+            console.log('VerifySession: No username in auth user metadata');
+            return null;
+        }
 
-        return user;
+        // Fetch the database user with correct integer ID and role
+        const { data: dbUser, error: dbError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('username', username)
+            .single();
+
+        if (dbError || !dbUser) {
+            console.error('VerifySession: Failed to fetch database user for username:', username, dbError?.message);
+            return null;
+        }
+
+        // Cache for 10 minutes to prevent rate limits
+        tokenCache.set(token, { user: dbUser, exp: now + 600000 });
+
+        return dbUser;
     } catch (e) {
         console.error('VerifySession: Exception:', e.message);
         return null;

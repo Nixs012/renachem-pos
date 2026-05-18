@@ -19,13 +19,34 @@ exports.handler = async (event) => {
         }
 
         // 2. Find the user
-        const { data: user, error: findError } = await supabase
+        const { data: users, error: findError } = await supabase
             .from('users')
-            .select('id')
-            .eq('username', username)
-            .single();
+            .select('*')
+            .ilike('username', username.trim());
 
-        if (findError || !user) {
+        if (findError) throw findError;
+
+        let user = (users && users.length > 0) ? users[0] : null;
+
+        // SELF-HEALING AUTO-PROVISIONER: Seed admin if missing during recovery
+        if (!user && username.trim().toLowerCase() === 'admin') {
+            console.log('Auto-creating missing admin during password recovery...');
+            const defaultHash = bcrypt.hashSync(newPassword, 10);
+            const { data: seededUsers, error: seedError } = await supabase.from('users').insert([{
+                username: 'admin',
+                password_hash: defaultHash,
+                role: 'Admin',
+                is_active: 1
+            }]).select();
+            
+            if (!seedError && seededUsers && seededUsers.length > 0) {
+                user = seededUsers[0];
+            } else {
+                console.error('Failed to seed missing admin user during recovery:', seedError);
+            }
+        }
+
+        if (!user) {
             return { 
                 statusCode: 404, 
                 body: JSON.stringify({ success: false, error: 'User not found.' }) 

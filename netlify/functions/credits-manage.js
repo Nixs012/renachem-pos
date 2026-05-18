@@ -20,7 +20,10 @@ exports.handler = async (event) => {
             const { action, ...data } = JSON.parse(event.body);
 
             if (action === 'addPayment') {
-                const { credit_id, amount, payment_mode, received_by } = data;
+                const credit_id = data.creditId || data.credit_id;
+                const amount = parseFloat(data.amount);
+                const payment_mode = data.paymentMode || data.payment_mode;
+                const received_by = data.receivedBy || data.received_by;
 
                 // 1. Record Payment
                 const { error: payError } = await supabase.from('credit_payments').insert([{ credit_id, amount, payment_mode, received_by }]);
@@ -28,7 +31,7 @@ exports.handler = async (event) => {
 
                 // 2. Update Credit Balance
                 const { data: credit } = await supabase.from('credits').select('amount_paid, total_amount').eq('id', credit_id).single();
-                const newPaid = (credit.amount_paid || 0) + parseFloat(amount);
+                const newPaid = (credit.amount_paid || 0) + amount;
                 const newBalance = credit.total_amount - newPaid;
                 const newStatus = newBalance <= 0 ? 'Paid' : 'Partial';
 

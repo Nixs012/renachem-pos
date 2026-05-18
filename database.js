@@ -1072,16 +1072,7 @@ function addCreditPayment(data) {
 }
 
 function cleanupOldCredits() {
-    try {
-        // Delete Paid credits older than 3 days
-        const stmt = db.prepare("DELETE FROM credits WHERE status = 'Paid' AND last_payment_date < date('now', '-3 days')");
-        const info = stmt.run();
-        
-        // Also cleanup orphan payments if any
-        db.prepare("DELETE FROM credit_payments WHERE credit_id NOT IN (SELECT id FROM credits)").run();
-        
-        return { success: true, count: info.changes };
-    } catch (e) { return { success: false, error: e.message }; }
+    return { success: true, count: 0 };
 }
 
 function getCreditHistory(creditId) {

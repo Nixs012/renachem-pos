@@ -6,25 +6,25 @@ module.exports = async (req, res) => {
     const user = await verifySession(req);
     if (!user) return unauthorizedResponse(res);
 
-    let { module, action, table } = req.query;
+    let { module: queryModule, action, table } = req.query;
     const body = req.body || {};
     
     // Robust detection: Check body if missing in query
-    if (!module) module = body.module;
-    if (!action) action = body.action;
-    if (!table) table = body.table;
+    let activeModule = queryModule || body.module;
+    let activeAction = action || body.action;
+    let activeTable = table || body.table;
 
     // Automatic fallback based on known endpoints
-    if (!module) {
-        if (action === 'add' || action === 'update' || table === 'customers' || table === 'patients') module = 'clients';
-        if (table === 'suppliers') module = 'suppliers';
+    if (!activeModule) {
+        if (activeAction === 'add' || activeAction === 'update' || activeTable === 'customers' || activeTable === 'patients') activeModule = 'clients';
+        if (activeTable === 'suppliers') activeModule = 'suppliers';
     }
 
     const method = req.method.toUpperCase();
 
     try {
         // --- SUPPLIERS ---
-        if (module === 'suppliers') {
+        if (activeModule === 'suppliers') {
             if (method === 'GET') {
                 const { data, error } = await supabase.from('suppliers').select('*').order('name', { ascending: true });
                 if (error) throw error;
@@ -33,6 +33,13 @@ module.exports = async (req, res) => {
             if (method === 'POST') {
                 const { id, name, contact, contact_person, phone, email, address, items } = req.body;
                 
+                if (activeAction === 'delete') {
+                    if (!id) return res.status(400).json({ success: false, error: 'Supplier ID is required for deletion' });
+                    const { error } = await supabase.from('suppliers').delete().eq('id', id);
+                    if (error) throw error;
+                    return res.status(200).json({ success: true, message: 'Deleted successfully' });
+                }
+
                 // Construct a consolidated contact string if detailed fields are provided
                 const finalContact = contact || `${contact_person || ''} | ${phone || ''} | ${email || ''} | ${address || ''}`.trim();
                 const finalId = id || `sup_${Date.now()}`;
@@ -53,16 +60,27 @@ module.exports = async (req, res) => {
         }
 
         // --- CLIENTS (Patients & Customers) ---
-        if (module === 'clients') {
-            const finalTable = table || 'customers';
+        if (activeModule === 'clients') {
+            const finalTable = activeTable || 'customers';
             if (method === 'GET') {
                 const { data, error } = await supabase.from(finalTable).select('*').order('name', { ascending: true });
                 if (error) throw error;
                 return res.status(200).json({ success: true, data });
             }
             if (method === 'POST') {
-                const { id, name, age, gender, phone, email, diagnosis, prescriptions, history } = req.body;
-                const finalId = id || `cli_${Date.now()}`;
+                const { action: postAction, id, name, age, gender, phone, email, diagnosis, prescriptions, history } = req.body;
+                
+                const finalAction = postAction || activeAction;
+
+                if (finalAction === 'delete') {
+                    if (!id) return res.status(400).json({ success: false, error: 'ID is required for deletion' });
+                    const { error } = await supabase.from(finalTable).delete().eq('id', id);
+                    if (error) throw error;
+                    return res.status(200).json({ success: true, message: 'Deleted successfully' });
+                }
+
+                // Construction for add or update/upsert
+                const finalId = id || (finalTable === 'patients' ? 'P-' : 'C-') + Date.now();
                 
                 // Build specific payload based on table
                 let payload = { id: finalId, name, prescriptions, history };
@@ -83,7 +101,7 @@ module.exports = async (req, res) => {
         }
 
         // --- PURCHASES ---
-        if (module === 'purchases') {
+        if (activeModule === 'purchases') {
             if (method === 'GET') {
                 const { data, error } = await supabase.from('purchases').select('*').order('id', { ascending: false });
                 if (error) throw error;
@@ -97,7 +115,6 @@ module.exports = async (req, res) => {
                 if (purchaseErr) throw purchaseErr;
                 
                 // 2. Sync with Inventory (Upsert Medicine)
-                // Use med_id if available, otherwise use med_name as ID or generate one
                 const finalMedId = med_id || `med_${Date.now()}`;
                 
                 // Get current stock to add to it
@@ -123,9 +140,9 @@ module.exports = async (req, res) => {
         }
 
         // --- SETTINGS & USERS ---
-        if (module === 'settings') {
+        if (activeModule === 'settings') {
             if (method === 'GET') {
-                if (action === 'getUsers') {
+                if (activeAction === 'getUsers') {
                     const { data, error } = await supabase.from('users').select('id, username, role, is_active, created_at');
                     if (error) throw error;
                     return res.status(200).json({ success: true, data });
@@ -135,45 +152,45 @@ module.exports = async (req, res) => {
                 return res.status(200).json({ success: true, data });
             }
             if (method === 'POST') {
-                if (action === 'createUser') {
+                if (activeAction === 'createUser') {
                     const { username, password, role } = req.body;
                     const password_hash = await bcrypt.hash(password, 10);
                     const { error } = await supabase.from('users').insert([{ username, password_hash, role, is_active: 1 }]);
                     if (error) throw error;
                     return res.status(200).json({ success: true });
                 }
-                if (action === 'updateUserRole') {
+                if (activeAction === 'updateUserRole') {
                     const { id, role } = req.body;
                     const { error } = await supabase.from('users').update({ role }).eq('id', id);
                     if (error) throw error;
                     return res.status(200).json({ success: true });
                 }
-                if (action === 'resetUserPassword') {
+                if (activeAction === 'resetUserPassword') {
                     const { id, password } = req.body;
                     const password_hash = await bcrypt.hash(password, 10);
                     const { error } = await supabase.from('users').update({ password_hash }).eq('id', id);
                     if (error) throw error;
                     return res.status(200).json({ success: true });
                 }
-                if (action === 'deactivateUser') {
+                if (activeAction === 'deactivateUser') {
                     const { id } = req.body;
                     const { error } = await supabase.from('users').update({ is_active: 0 }).eq('id', id);
                     if (error) throw error;
                     return res.status(200).json({ success: true });
                 }
-                if (action === 'reactivateUser') {
+                if (activeAction === 'reactivateUser') {
                     const { id } = req.body;
                     const { error } = await supabase.from('users').update({ is_active: 1 }).eq('id', id);
                     if (error) throw error;
                     return res.status(200).json({ success: true });
                 }
-                if (action === 'deleteUser') {
+                if (activeAction === 'deleteUser') {
                     const { id } = req.body;
                     const { error } = await supabase.from('users').delete().eq('id', id);
                     if (error) throw error;
                     return res.status(200).json({ success: true });
                 }
-                if (action === 'updateSetting') {
+                if (activeAction === 'updateSetting') {
                     const { key, value } = req.body;
                     const { error } = await supabase.from('settings').upsert([{ key, value }]);
                     if (error) throw error;
@@ -183,7 +200,7 @@ module.exports = async (req, res) => {
         }
 
         // --- AUDIT LOG ---
-        if (module === 'audit') {
+        if (activeModule === 'audit') {
             if (method === 'GET') {
                 const { data, error } = await supabase.from('audit_log').select('*').order('timestamp', { ascending: false }).limit(200);
                 if (error) throw error;

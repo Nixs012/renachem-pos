@@ -24,12 +24,33 @@ module.exports = async (req, res) => {
         }
 
         // 1. Check if user exists and is Admin
-        const { data: users, error: fetchErr } = await supabase.from('users').select('*').ilike('username', username);
-        if (fetchErr || !users || users.length === 0) {
+        const { data: users, error: fetchErr } = await supabase.from('users').select('*').ilike('username', username.trim());
+        if (fetchErr) throw fetchErr;
+
+        let dbUser = (users && users.length > 0) ? users[0] : null;
+
+        // SELF-HEALING AUTO-PROVISIONER: Seed admin if missing during recovery
+        if (!dbUser && username.trim().toLowerCase() === 'admin') {
+            console.log('Auto-creating missing admin during password recovery...');
+            const defaultHash = await bcrypt.hash(newPassword, 10);
+            const { data: seededUsers, error: seedError } = await supabase.from('users').insert([{
+                username: 'admin',
+                password_hash: defaultHash,
+                role: 'Admin',
+                is_active: 1
+            }]).select();
+            
+            if (!seedError && seededUsers && seededUsers.length > 0) {
+                dbUser = seededUsers[0];
+            } else {
+                console.error('Failed to seed missing admin user during recovery:', seedError);
+            }
+        }
+
+        if (!dbUser) {
             return res.status(400).json({ success: false, error: 'Admin user not found' });
         }
 
-        const dbUser = users[0];
         if (dbUser.role !== 'Admin') {
             return res.status(400).json({ success: false, error: 'Password recovery is restricted to Admins only' });
         }
@@ -40,7 +61,7 @@ module.exports = async (req, res) => {
         if (updateErr) throw updateErr;
 
         // 3. Update Supabase Auth if the user exists there as well
-        const userEmail = `${username}@renachem.local`;
+        const userEmail = `${username.trim().toLowerCase()}@renachem.local`;
         
         // Find auth user ID first
         const { data: authUsers, error: listErr } = await supabase.auth.admin.listUsers();
