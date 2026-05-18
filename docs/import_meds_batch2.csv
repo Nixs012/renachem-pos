@@ -1,4 +1,4 @@
-Name,Supplier,Batch,Expiry,Stock,ReorderLevel,Price,Barcode
-Cetirizine 10mg,Medisel Kenya,MK-902,2027-05-20,120,25,6.50,611000123454
-Metformin 500mg,Dawa Limited,DL-110,2026-11-10,90,15,15.00,611000123455
-Ibuprofen 400mg,Shalina Healthcare,SH-400,2028-09-01,110,20,4.00,611000123456
+Name,Supplier,Batch,Expiry,Stock,ReorderLevel,Price,CostPrice,Barcode
+Cetirizine 10mg,Medisel Kenya,MK-902,2027-05-20,120,25,6.50,4.20,611000123454
+Metformin 500mg,Dawa Limited,DL-110,2026-11-10,90,15,15.00,11.00,611000123455
+Ibuprofen 400mg,Shalina Healthcare,SH-400,2028-09-01,110,20,4.00,2.80,611000123456

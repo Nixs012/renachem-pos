@@ -494,11 +494,28 @@ function addMedicine(data) {
 
 function updateMedicine(id, data) {
     try {
+        const oldMed = db.prepare('SELECT name, batch FROM medicines WHERE id = ?').get(id);
+
         db.prepare(`
             UPDATE medicines 
             SET name = ?, supplier = ?, batch = ?, expiry = ?, stock = ?, reorder_level = ?, price = ?, cost_price = ?, barcode = ?
             WHERE id = ?
         `).run(data.name, data.supplier || '', data.batch, data.expiry, data.stock, data.reorder_level, data.price, data.cost_price || 0, data.barcode, id);
+
+        if (oldMed) {
+            // Find and update matching purchase records
+            const oldBatchStr = oldMed.batch || 'N/A';
+            const purchasesToUpdate = db.prepare('SELECT id, qty FROM purchases WHERE med_name = ? AND batch = ?').all(oldMed.name, oldBatchStr);
+            for (let p of purchasesToUpdate) {
+                const newTotal = p.qty * (parseFloat(data.cost_price) || 0);
+                db.prepare(`
+                    UPDATE purchases 
+                    SET med_name = ?, batch = ?, supplier = ?, unit_price = ?, total_cost = ?
+                    WHERE id = ?
+                `).run(data.name, data.batch || 'N/A', data.supplier || 'Initial Stock', parseFloat(data.cost_price) || 0, newTotal, p.id);
+            }
+        }
+
         return { success: true };
     } catch (error) {
         return { success: false, error: error.message };

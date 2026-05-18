@@ -41,10 +41,30 @@ module.exports = async (req, res) => {
             }
             
             if (action === 'update') {
+                const { data: oldMed } = await supabase.from('medicines').select('name, batch').eq('id', id).single();
+
                 const { data, error } = await supabase.from('medicines').update({
                     name, supplier, batch, expiry, stock, reorder_level, price, cost_price, barcode
                 }).eq('id', id).select();
                 if (error) throw error;
+
+                if (oldMed) {
+                    const oldBatchStr = oldMed.batch || 'N/A';
+                    const { data: matchedPurchases } = await supabase.from('purchases').select('id, qty').eq('med_name', oldMed.name).eq('batch', oldBatchStr);
+                    if (matchedPurchases) {
+                        for (let p of matchedPurchases) {
+                            const newTotal = p.qty * (parseFloat(cost_price) || 0);
+                            await supabase.from('purchases').update({
+                                med_name: name,
+                                batch: batch || 'N/A',
+                                supplier: supplier || 'Initial Stock',
+                                unit_price: parseFloat(cost_price) || 0,
+                                total_cost: newTotal
+                            }).eq('id', p.id);
+                        }
+                    }
+                }
+
                 return res.status(200).json({ success: true, data });
             }
             

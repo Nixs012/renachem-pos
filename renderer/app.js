@@ -996,7 +996,7 @@ async function renderInventory(searchQuery = '', filterType = '') {
                 if (rows.length < 2) return showToast('CSV is empty or missing data', 'warning');
                 
                 const medsToImport = [];
-                // Assumed Order: Name, Supplier, Batch, Expiry, Stock, ReorderLevel, Price, Barcode
+                // Assumed Order: Name, Supplier, Batch, Expiry, Stock, ReorderLevel, Price, CostPrice, Barcode
                 for (let i = 1; i < rows.length; i++) { 
                     const cols = rows[i].split(',');
                     if (cols.length >= 1 && cols[0].trim() !== '') {
@@ -1008,7 +1008,8 @@ async function renderInventory(searchQuery = '', filterType = '') {
                             stock: parseInt(cols[4]) || 0,
                             reorder_level: parseInt(cols[5]) || 10,
                             price: parseFloat(cols[6]) || 0,
-                            barcode: cols[7]?.trim() || ''
+                            cost_price: parseFloat(cols[7]) || 0,
+                            barcode: cols[8]?.trim() || ''
                         });
                     }
                 }
