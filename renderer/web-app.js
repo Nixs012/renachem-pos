@@ -56,13 +56,13 @@ if (window.api) {
             localStorage.removeItem('renachem_token');
             return { success: true };
         },
-        createUser: async (data) => await callApi('settings-manage', { action: 'createUser', ...data }),
-        getUsers: async () => await callApi('settings-manage', { action: 'getUsers' }, 'GET'),
-        updateRole: async (id, role) => await callApi('settings-manage', { action: 'updateUserRole', id, role }),
-        resetPassword: async (id, password) => await callApi('settings-manage', { action: 'resetUserPassword', id, password }),
-        deactivateUser: async (id) => await callApi('settings-manage', { action: 'deactivateUser', id }),
-        reactivateUser: async (id) => await callApi('settings-manage', { action: 'reactivateUser', id }),
-        deleteUser: async (id) => await callApi('settings-manage', { action: 'deleteUser', id }),
+        createUser: async (data) => await callApi('settings-manage', { action: 'createUser', module: 'settings', ...data }),
+        getUsers: async () => await callApi('settings-manage', { action: 'getUsers', module: 'settings' }, 'GET'),
+        updateRole: async (id, role) => await callApi('settings-manage', { action: 'updateUserRole', module: 'settings', id, role }),
+        resetPassword: async (id, password) => await callApi('settings-manage', { action: 'resetUserPassword', module: 'settings', id, password }),
+        deactivateUser: async (id) => await callApi('settings-manage', { action: 'deactivateUser', module: 'settings', id }),
+        reactivateUser: async (id) => await callApi('settings-manage', { action: 'reactivateUser', module: 'settings', id }),
+        deleteUser: async (id) => await callApi('settings-manage', { action: 'deleteUser', module: 'settings', id }),
         verifyAdminPassword: async (password) => await callApi('auth-verify', { password, requireAdmin: true }),
         recoverAdminPassword: async (data) => await callApi('auth-recover', data)
     };
