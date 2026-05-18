@@ -1,23 +1,22 @@
 {
   "version": 2,
+  "cleanUrls": true,
   "rewrites": [
-    { "source": "/.netlify/functions/auth-login", "destination": "/api/auth-login" },
-    { "source": "/.netlify/functions/auth-verify", "destination": "/api/auth-verify" },
-    { "source": "/.netlify/functions/auth-recover", "destination": "/api/auth-recover" },
-    { "source": "/.netlify/functions/products-get", "destination": "/api/products" },
-    { "source": "/.netlify/functions/products-add", "destination": "/api/products?action=add" },
-    { "source": "/.netlify/functions/products-update", "destination": "/api/products?action=update" },
-    { "source": "/.netlify/functions/products-delete", "destination": "/api/products?action=delete" },
-    { "source": "/.netlify/functions/sales-get", "destination": "/api/sales" },
-    { "source": "/.netlify/functions/sales-add", "destination": "/api/sales" },
-    { "source": "/.netlify/functions/suppliers-manage", "destination": "/api/management" },
-    { "source": "/.netlify/functions/clients-manage", "destination": "/api/management" },
-    { "source": "/.netlify/functions/purchases-manage", "destination": "/api/management" },
-    { "source": "/.netlify/functions/settings-manage", "destination": "/api/management" },
-    { "source": "/.netlify/functions/audit-log", "destination": "/api/management" },
-    { "source": "/.netlify/functions/returns-manage", "destination": "/api/returns-manage" },
-    { "source": "/.netlify/functions/credits-manage", "destination": "/api/credits-manage" },
-    { "source": "/api/:path*", "destination": "/api/:path*" }
+    { "source": "/api/products-get", "destination": "/api/products" },
+    { "source": "/api/products-add", "destination": "/api/products?action=add" },
+    { "source": "/api/products-update", "destination": "/api/products?action=update" },
+    { "source": "/api/products-delete", "destination": "/api/products?action=delete" },
+    { "source": "/api/sales-get", "destination": "/api/sales" },
+    { "source": "/api/sales-add", "destination": "/api/sales" },
+    { "source": "/api/suppliers-manage", "destination": "/api/management" },
+    { "source": "/api/clients-manage", "destination": "/api/management" },
+    { "source": "/api/purchases-manage", "destination": "/api/management" },
+    { "source": "/api/settings-manage", "destination": "/api/management" },
+    { "source": "/api/audit-log", "destination": "/api/management" }
   ],
-  "cleanUrls": true
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 10
+    }
+  }
 }

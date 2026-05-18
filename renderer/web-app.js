@@ -3,7 +3,7 @@ if (window.api) {
 } else {
     console.log("RENACHEM: Web Mode Active. Initializing Cloud Bridge...");
 
-    const API_BASE = '/.netlify/functions';
+    const API_BASE = '/api';
 
     const callApi = async (functionName, body = {}, method = 'POST') => {
         try {
@@ -56,7 +56,7 @@ if (window.api) {
             localStorage.removeItem('renachem_token');
             return { success: true };
         },
-        createUser: async (data) => await callApi('settings-manage', { action: 'createUser', module: 'settings', ...data }),
+        createUser: async (data) => await callApi('auth-create-user', data),
         getUsers: async () => await callApi('settings-manage', { action: 'getUsers', module: 'settings' }, 'GET'),
         updateRole: async (id, role) => await callApi('settings-manage', { action: 'updateUserRole', module: 'settings', id, role }),
         resetPassword: async (id, password) => await callApi('settings-manage', { action: 'resetUserPassword', module: 'settings', id, password }),

@@ -2,6 +2,11 @@ const { supabase } = require('./utils/supabase');
 const bcrypt = require('bcryptjs');
 
 module.exports = async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') { res.status(200).end(); return; }
+
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
@@ -14,11 +19,14 @@ module.exports = async (req, res) => {
         }
 
         // 1. Get user from the 'public.users' table
+        console.log('Login query for username:', username)
         const { data: users, error: fetchError } = await supabase
             .from('users')
             .select('*')
             .ilike('username', username.trim());
  
+        console.log('Supabase result:', users, fetchError)
+
         if (fetchError) {
             console.error('Database Fetch Error:', fetchError);
             return res.status(500).json({ success: false, error: 'Database connection error: ' + fetchError.message });
@@ -49,11 +57,18 @@ module.exports = async (req, res) => {
 
         if (!user) {
             console.log(`Login Attempt Failed: User "${username}" not found in database.`);
-            return res.status(401).json({ success: false, error: 'User account not found' });
+            return res.status(401).json({ success: false, error: 'No account found with this username' });
+        }
+
+        // Check active status
+        if (user.is_active !== 1) {
+            console.log(`Login Attempt Failed: Account "${username}" is deactivated.`);
+            return res.status(403).json({ success: false, error: 'This account has been deactivated' });
         }
 
         // 2. Verify Password using bcrypt
         let isValid = await bcrypt.compare(password, user.password_hash);
+        console.log('Password match result:', isValid)
 
         // DISCREPANCY SELF-HEALING: Support both "Admin@1234" and "admin" as default passwords
         if (!isValid && username.trim().toLowerCase() === 'admin') {
