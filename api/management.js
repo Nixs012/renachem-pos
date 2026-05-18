@@ -142,6 +142,43 @@ module.exports = async (req, res) => {
                     if (error) throw error;
                     return res.status(200).json({ success: true });
                 }
+                if (action === 'updateUserRole') {
+                    const { id, role } = req.body;
+                    const { error } = await supabase.from('users').update({ role }).eq('id', id);
+                    if (error) throw error;
+                    return res.status(200).json({ success: true });
+                }
+                if (action === 'resetUserPassword') {
+                    const { id, password } = req.body;
+                    const password_hash = await bcrypt.hash(password, 10);
+                    const { error } = await supabase.from('users').update({ password_hash }).eq('id', id);
+                    if (error) throw error;
+                    return res.status(200).json({ success: true });
+                }
+                if (action === 'deactivateUser') {
+                    const { id } = req.body;
+                    const { error } = await supabase.from('users').update({ is_active: 0 }).eq('id', id);
+                    if (error) throw error;
+                    return res.status(200).json({ success: true });
+                }
+                if (action === 'reactivateUser') {
+                    const { id } = req.body;
+                    const { error } = await supabase.from('users').update({ is_active: 1 }).eq('id', id);
+                    if (error) throw error;
+                    return res.status(200).json({ success: true });
+                }
+                if (action === 'deleteUser') {
+                    const { id } = req.body;
+                    const { error } = await supabase.from('users').delete().eq('id', id);
+                    if (error) throw error;
+                    return res.status(200).json({ success: true });
+                }
+                if (action === 'updateSetting') {
+                    const { key, value } = req.body;
+                    const { error } = await supabase.from('settings').upsert([{ key, value }]);
+                    if (error) throw error;
+                    return res.status(200).json({ success: true });
+                }
             }
         }
 
@@ -151,6 +188,14 @@ module.exports = async (req, res) => {
                 const { data, error } = await supabase.from('audit_log').select('*').order('timestamp', { ascending: false }).limit(200);
                 if (error) throw error;
                 return res.status(200).json({ success: true, data });
+            }
+            if (method === 'POST') {
+                const { user_id, username, action: auditAction, details } = req.body;
+                const { error } = await supabase.from('audit_log').insert([{
+                    user_id, username, action: auditAction, details
+                }]);
+                if (error) throw error;
+                return res.status(200).json({ success: true });
             }
         }
 

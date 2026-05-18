@@ -6,9 +6,16 @@ module.exports = async (req, res) => {
     if (!user) return unauthorizedResponse(res);
 
     if (req.method === 'GET') {
-        const { data, error } = await supabase.from('credits').select('*').order('created_at', { ascending: false });
-        if (error) return res.status(500).json({ success: false, error: error.message });
-        return res.status(200).json({ success: true, data });
+        const { creditId } = req.query;
+        if (creditId) {
+            const { data, error } = await supabase.from('credit_payments').select('*').eq('credit_id', creditId).order('payment_date', { ascending: false });
+            if (error) return res.status(500).json({ success: false, error: error.message });
+            return res.status(200).json({ success: true, data });
+        } else {
+            const { data, error } = await supabase.from('credits').select('*').order('created_at', { ascending: false });
+            if (error) return res.status(500).json({ success: false, error: error.message });
+            return res.status(200).json({ success: true, data });
+        }
     }
 
     if (req.method === 'POST') {
