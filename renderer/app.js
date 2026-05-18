@@ -742,11 +742,22 @@ async function renderDashboard() {
                 </div>
                 <table class="data-table">
                     <thead><tr><th style="padding-left:25px;">Time</th><th>Customer</th><th>Total</th><th>Method</th><th style="text-align:right; padding-right:25px;">Action</th></tr></thead>
-                    <tbody>${sales.slice(-6).reverse().map(s => {
+                    <tbody>${sales.slice(0, 6).map(s => {
                         const recentSalesData = JSON.stringify(s).replace(/"/g, '&quot;');
+                        let displayTime = s.date;
+                        if (s.date_time) {
+                            if (s.date_time.includes(', ')) {
+                                displayTime = s.date_time.split(', ')[1];
+                            } else if (s.date_time.includes(' ')) {
+                                const parts = s.date_time.split(' ');
+                                displayTime = parts[parts.length - 1];
+                            } else {
+                                displayTime = s.date_time;
+                            }
+                        }
                         return `
                         <tr>
-                            <td style="font-size:0.8rem; padding-left:25px;">${s.date_time ? s.date_time.split(', ')[1] : s.date}</td>
+                            <td style="font-size:0.8rem; padding-left:25px;">${displayTime}</td>
                             <td style="font-weight:600;">${s.customer_name}</td>
                             <td style="font-weight:700; color:var(--royal-blue);">KES ${Number(s.total).toFixed(2)}</td>
                             <td><span class="role-pill" style="background:#f1f5f9; color:#475569;">${s.payment_mode}</span></td>
