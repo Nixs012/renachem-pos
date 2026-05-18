@@ -57,7 +57,17 @@ module.exports = async (req, res) => {
 
         if (!user) {
             console.log(`Login Attempt Failed: User "${username}" not found in database.`);
-            return res.status(401).json({ success: false, error: 'No account found with this username' });
+            return res.status(401).json({ 
+                success: false, 
+                error: 'No account found with this username',
+                debug: {
+                    receivedUsername: username,
+                    trimmedUsername: username ? username.trim() : null,
+                    typeOfUsername: typeof username,
+                    supabaseUsersLength: users ? users.length : 0,
+                    supabaseError: fetchError ? fetchError.message : null
+                }
+            });
         }
 
         // Check active status
