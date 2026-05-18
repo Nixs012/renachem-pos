@@ -14,11 +14,11 @@ module.exports = async (req, res) => {
     if (req.method === 'POST') {
         const { saleObj, cartItems } = req.body;
         const payload = saleObj || req.body;
-        const { date, date_time, items_json, total, payment_mode, customer_name } = payload;
+        const { date, date_time, items_json, total, payment_mode, customer_name, mpesa_code } = payload;
         
         try {
             const { data: sale, error: saleErr } = await supabase.from('sales').insert([{
-                date, date_time, items_json, total, payment_mode, customer_name
+                date, date_time, items_json, total, payment_mode, customer_name, mpesa_code
             }]).select().single();
 
             if (saleErr) throw saleErr;
