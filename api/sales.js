@@ -12,7 +12,10 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === 'POST') {
-        const { date, date_time, items_json, total, payment_mode, customer_name } = req.body;
+        const { saleObj, cartItems } = req.body;
+        const payload = saleObj || req.body;
+        const { date, date_time, items_json, total, payment_mode, customer_name } = payload;
+        
         try {
             const { data: sale, error: saleErr } = await supabase.from('sales').insert([{
                 date, date_time, items_json, total, payment_mode, customer_name
@@ -28,6 +31,17 @@ module.exports = async (req, res) => {
                     sale_id: sale.id,
                     status: 'Pending'
                 }]);
+            }
+
+            // Deduct from inventory
+            const itemsToProcess = cartItems || (items_json ? JSON.parse(items_json) : []);
+            for (let item of itemsToProcess) {
+                if (!item.id || !item.qty) continue;
+                const { data: medData } = await supabase.from('medicines').select('stock').eq('id', item.id).single();
+                if (medData) {
+                    const newStock = Math.max(0, (parseInt(medData.stock) || 0) - parseInt(item.qty));
+                    await supabase.from('medicines').update({ stock: newStock }).eq('id', item.id);
+                }
             }
 
             return res.status(200).json({ success: true, sale_id: sale.id });

@@ -113,15 +113,15 @@ if (window.api) {
         getCreditHistory: async (creditId) => await callApi('credits-manage', { creditId }, 'GET'),
         cleanupOldCredits: async () => ({ success: true }), // Placeholder
         
-        getAuditLog: async (filters) => await callApi('audit-log', filters, 'GET'),
-        insertAuditLog: async (logEntry) => await callApi('audit-log', logEntry),
+        getAuditLog: async (filters) => await callApi('audit-log', { ...filters, module: 'audit' }, 'GET'),
+        insertAuditLog: async (logEntry) => await callApi('audit-log', { ...logEntry, module: 'audit' }),
         
-        getSettings: async () => await callApi('settings-manage', { action: 'getSettings' }, 'GET'),
+        getSettings: async () => await callApi('settings-manage', { action: 'getSettings', module: 'settings' }, 'GET'),
         getSetting: async (key) => {
-            const res = await callApi('settings-manage', { key }, 'GET');
+            const res = await callApi('settings-manage', { key, module: 'settings' }, 'GET');
             return res.value;
         },
-        updateSetting: async (key, value) => await callApi('settings-manage', { action: 'updateSetting', key, value }),
+        updateSetting: async (key, value) => await callApi('settings-manage', { action: 'updateSetting', key, value, module: 'settings' }),
         
         resetModuleData: async (module) => ({ success: false, error: 'Database reset is restricted on the web version.' })
     };

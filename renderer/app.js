@@ -4031,7 +4031,7 @@ async function renderCreditTracking() {
                 <tbody id="creditTableBody">
                     ${credits.map(c => `
                         <tr>
-                            <td style="padding-left:20px;">${new Date(c.created_at + ' UTC').toLocaleDateString()}</td>
+                            <td style="padding-left:20px;">${new Date(c.created_at || Date.now()).toLocaleDateString()}</td>
                             <td style="font-weight:600;">${c.customer_name}</td>
                             <td>KES ${Number(c.total_amount).toFixed(2)}</td>
                             <td style="font-weight:700; color:${c.balance > 0 ? 'var(--danger)' : 'var(--emerald)'}">KES ${Number(c.balance).toFixed(2)}</td>
