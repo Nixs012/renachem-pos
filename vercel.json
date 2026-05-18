@@ -2,6 +2,8 @@
   "version": 2,
   "rewrites": [
     { "source": "/.netlify/functions/auth-login", "destination": "/api/auth-login" },
+    { "source": "/.netlify/functions/auth-verify", "destination": "/api/auth-verify" },
+    { "source": "/.netlify/functions/auth-recover", "destination": "/api/auth-recover" },
     { "source": "/.netlify/functions/products-get", "destination": "/api/products" },
     { "source": "/.netlify/functions/products-add", "destination": "/api/products?action=add" },
     { "source": "/.netlify/functions/products-update", "destination": "/api/products?action=update" },
