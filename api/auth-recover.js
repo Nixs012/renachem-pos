@@ -65,19 +65,6 @@ module.exports = async (req, res) => {
         const { error: updateErr } = await supabase.from('users').update({ password_hash: hash, is_active: 1 }).eq('id', dbUser.id);
         if (updateErr) throw updateErr;
 
-        // 3. Update Supabase Auth if the user exists there as well
-        const userEmail = `${username.trim().toLowerCase()}@renachem.local`;
-        
-        // Find auth user ID first
-        const { data: authUsers, error: listErr } = await supabase.auth.admin.listUsers();
-        if (!listErr && authUsers && authUsers.users) {
-            const authUser = authUsers.users.find(u => u.email === userEmail);
-            if (authUser) {
-                // Update their auth password
-                await supabase.auth.admin.updateUserById(authUser.id, { password: newPassword });
-            }
-        }
-
         return res.status(200).json({ success: true });
 
     } catch (e) {

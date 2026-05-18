@@ -1,6 +1,24 @@
 const { supabase } = require('./supabase');
+const crypto = require('crypto');
 
 const tokenCache = new Map();
+
+function verifyToken(token, secret) {
+    try {
+        const parts = token.split('.');
+        if (parts.length !== 3) return null;
+        const [header, body, signature] = parts;
+        const expectedSignature = crypto.createHmac('sha256', secret)
+            .update(`${header}.${body}`)
+            .digest('base64url');
+        if (signature !== expectedSignature) return null;
+        const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+        if (payload.exp && payload.exp < Date.now()) return null;
+        return payload;
+    } catch (e) {
+        return null;
+    }
+}
 
 async function verifySession(req) {
     // 1. Get token from Authorization header or cookie
@@ -31,23 +49,18 @@ async function verifySession(req) {
     }
 
     try {
-        // 2. Validate with Supabase
-        const { data: { user: authUser }, error } = await supabase.auth.getUser(token);
+        // 2. Validate with Custom JWT signature using APP_SECRET
+        const secret = process.env.APP_SECRET || 'renachem_fallback_secret_key_12345';
+        const payload = verifyToken(token, secret);
         
-        if (error) {
-            console.error('VerifySession: Supabase error:', error.message);
+        if (!payload) {
+            console.log('VerifySession: Invalid or expired custom token');
             return null;
         }
 
-        if (!authUser) {
-            console.log('VerifySession: No user found for token');
-            return null;
-        }
-
-        // Get username from user metadata
-        const username = authUser.user_metadata?.username;
+        const username = payload.username;
         if (!username) {
-            console.log('VerifySession: No username in auth user metadata');
+            console.log('VerifySession: No username in token payload');
             return null;
         }
 
