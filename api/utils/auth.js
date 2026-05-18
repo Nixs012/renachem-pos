@@ -1,5 +1,7 @@
 const { supabase } = require('./supabase');
 
+const tokenCache = new Map();
+
 async function verifySession(req) {
     // 1. Get token from Authorization header or cookie
     let authHeader = req.headers.authorization || req.headers['x-auth-token'];
@@ -17,6 +19,17 @@ async function verifySession(req) {
         return null;
     }
 
+    // Check memory cache first
+    const now = Date.now();
+    if (tokenCache.has(token)) {
+        const cached = tokenCache.get(token);
+        if (cached.exp > now) {
+            return cached.user;
+        } else {
+            tokenCache.delete(token);
+        }
+    }
+
     try {
         // 2. Validate with Supabase
         const { data: { user }, error } = await supabase.auth.getUser(token);
@@ -30,6 +43,9 @@ async function verifySession(req) {
             console.log('VerifySession: No user found for token');
             return null;
         }
+
+        // Cache for 10 minutes to prevent rate limits
+        tokenCache.set(token, { user, exp: now + 600000 });
 
         return user;
     } catch (e) {

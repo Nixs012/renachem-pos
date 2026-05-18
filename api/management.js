@@ -41,6 +41,10 @@ module.exports = async (req, res) => {
                     id: finalId, 
                     name, 
                     contact: finalContact, 
+                    contact_person,
+                    phone,
+                    email,
+                    address,
                     items 
                 }]).select();
                 if (error) throw error;
