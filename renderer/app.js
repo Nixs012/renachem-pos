@@ -3971,7 +3971,7 @@ async function syncCreditData() {
     const creditsRes = await window.db.getCredits();
     
     if (salesRes.success && creditsRes.success) {
-        const creditSales = salesRes.data.filter(s => s.payment_mode === 'Credit');
+        const creditSales = salesRes.data.filter(s => (s.payment_mode || '').trim().toLowerCase() === 'credit');
         const existingSaleIds = new Set(creditsRes.data.map(c => c.sale_id));
 
         for (let sale of creditSales) {
@@ -4023,9 +4023,14 @@ async function renderCreditTracking() {
         </div>
 
         <div class="stat-card">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:16px;">
                 <h4 style="margin:0;">Debt Tracking Records</h4>
-                <div style="display:flex; gap:12px;">
+                <div style="display:flex; gap:12px; align-items:center;">
+                    <select id="creditStatusFilter" class="premium-input" style="width:220px; padding:8px 16px; cursor:pointer;">
+                        <option value="active">Active Debts (Pending/Partial)</option>
+                        <option value="all">All Records (Include Paid)</option>
+                        <option value="Paid">Paid History</option>
+                    </select>
                     <input type="text" id="creditSearch" placeholder="Search customer..." class="premium-input" style="width:250px; padding:8px 16px;">
                 </div>
             </div>
@@ -4042,7 +4047,7 @@ async function renderCreditTracking() {
                 </thead>
                 <tbody id="creditTableBody">
                     ${credits.map(c => `
-                        <tr>
+                        <tr data-status="${c.status}">
                             <td style="padding-left:20px;">${new Date(c.created_at || Date.now()).toLocaleDateString()}</td>
                             <td style="font-weight:600;">${c.customer_name}</td>
                             <td>KES ${Number(c.total_amount).toFixed(2)}</td>
@@ -4065,15 +4070,38 @@ async function renderCreditTracking() {
         </div>
     `;
 
+    const filterSelect = document.getElementById('creditStatusFilter');
     const searchInput = document.getElementById('creditSearch');
-    if (searchInput) {
-        searchInput.oninput = (e) => {
-            const query = e.target.value.toLowerCase();
-            document.querySelectorAll('#creditTableBody tr').forEach(row => {
-                row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
-            });
-        };
-    }
+
+    const applyFilters = () => {
+        const query = searchInput ? searchInput.value.toLowerCase() : '';
+        const statusFilter = filterSelect ? filterSelect.value : 'active';
+
+        document.querySelectorAll('#creditTableBody tr').forEach(row => {
+            const status = row.getAttribute('data-status');
+            if (!status) return; // Skip empty row
+            const matchesSearch = row.innerText.toLowerCase().includes(query);
+
+            let matchesStatus = true;
+            if (statusFilter === 'active') {
+                matchesStatus = (status !== 'Paid');
+            } else if (statusFilter === 'Paid') {
+                matchesStatus = (status === 'Paid');
+            }
+
+            if (matchesSearch && matchesStatus) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    };
+
+    if (filterSelect) filterSelect.onchange = applyFilters;
+    if (searchInput) searchInput.oninput = applyFilters;
+
+    // Initial run to only show Active Debts
+    applyFilters();
 }
 
 async function showPaymentModal(creditId, balance, name) {
