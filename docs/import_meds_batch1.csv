@@ -1,0 +1,4 @@
+Name,Supplier,Batch,Expiry,Stock,ReorderLevel,Price,Barcode
+Paracetamol 500mg,Beta Healthcare,BH-8827,2027-12-31,150,20,5.00,611000123451
+Amoxicillin 250mg,Cosmetics & Pharma,CP-1029,2026-08-30,80,15,12.50,611000123452
+Panadol Extra,GlaxoSmithKline,GSK-301,2028-02-15,200,30,8.00,611000123453

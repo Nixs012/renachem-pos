@@ -22,6 +22,20 @@ module.exports = async (req, res) => {
                     id, name, supplier, batch, expiry, stock, reorder_level, price, cost_price, barcode
                 }]).select();
                 if (error) throw error;
+
+                // Auto-create purchase record in purchases if stock > 0
+                if (stock && parseInt(stock) > 0) {
+                    await supabase.from('purchases').insert([{
+                        med_name: name,
+                        batch: batch || 'N/A',
+                        qty: parseInt(stock),
+                        date: new Date().toISOString().slice(0, 10),
+                        supplier: supplier || 'Initial Stock',
+                        unit_price: parseFloat(cost_price) || 0,
+                        total_cost: (parseFloat(cost_price) || 0) * parseInt(stock)
+                    }]);
+                }
+
                 return res.status(200).json({ success: true, data });
             }
             

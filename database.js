@@ -469,6 +469,23 @@ function addMedicine(data) {
             INSERT INTO medicines (id, name, supplier, batch, expiry, stock, reorder_level, price, cost_price, barcode)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(id, data.name, data.supplier || '', data.batch, data.expiry, data.stock || 0, data.reorder_level || 10, data.price || 0, data.cost_price || 0, data.barcode);
+        
+        // Auto-log initial stock in purchases if > 0
+        if (data.stock && parseInt(data.stock) > 0) {
+            db.prepare(`
+                INSERT INTO purchases (med_name, batch, qty, date, supplier, unit_price, total_cost)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `).run(
+                data.name, 
+                data.batch || 'N/A', 
+                parseInt(data.stock), 
+                new Date().toISOString().slice(0, 10), 
+                data.supplier || 'Initial Stock', 
+                parseFloat(data.cost_price) || 0, 
+                (parseFloat(data.cost_price) || 0) * parseInt(data.stock)
+            );
+        }
+
         return { success: true, id };
     } catch (error) {
         return { success: false, error: error.message };
@@ -494,11 +511,28 @@ function bulkAddMedicines(medicinesArray) {
             INSERT INTO medicines (id, name, supplier, batch, expiry, stock, reorder_level, price, cost_price, barcode)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
+        const insertPurchase = db.prepare(`
+            INSERT INTO purchases (med_name, batch, qty, date, supplier, unit_price, total_cost)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `);
         const insertMany = db.transaction((meds) => {
             let count = 0;
             for (const data of meds) {
                 const id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
                 insert.run(id, data.name, data.supplier || '', data.batch || '', data.expiry || '', data.stock || 0, data.reorder_level || 10, data.price || 0, data.cost_price || 0, data.barcode || '');
+                
+                // Auto-log purchase record if stock > 0
+                if (data.stock && parseInt(data.stock) > 0) {
+                    insertPurchase.run(
+                        data.name, 
+                        data.batch || 'N/A', 
+                        parseInt(data.stock), 
+                        new Date().toISOString().slice(0, 10), 
+                        data.supplier || 'Initial Stock', 
+                        parseFloat(data.cost_price) || 0, 
+                        (parseFloat(data.cost_price) || 0) * parseInt(data.stock)
+                    );
+                }
                 count++;
             }
             return count;
