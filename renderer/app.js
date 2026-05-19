@@ -447,6 +447,7 @@ async function finalizeSale(paymentMethod) {
         
         if (res.success) {
             showToast(`Sale completed! KES ${total.toFixed(2)} via ${paymentMethod}`);
+            saleObj.id = res.sale_id || res.id;
             
             // Wait for user to select print format
             await promptPrintReceipt(saleObj, [...cart]);
@@ -558,6 +559,10 @@ async function printReceipt(saleObj, cartItems, format = 'thermal') {
             <div class="flex-row">
                 <span>${pharmacyName}</span>
                 <span>${pharmacyAddress}</span>
+            </div>
+            <div class="flex-row">
+                <span>Receipt No:</span>
+                <span class="bold">#${saleObj ? saleObj.id : 'N/A'}</span>
             </div>
             <div class="flex-row">
                 <span>Date:</span>
