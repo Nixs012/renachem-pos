@@ -736,7 +736,10 @@ async function renderDashboard() {
 
         <div class="dashboard-grid">
             <div class="stat-card" style="padding:0; overflow:hidden;">
-                <h4 style="padding:20px; margin:0; border-bottom:1px solid #f1f5f9;">Recent Transactions</h4>
+                <div style="padding:20px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                    <h4 style="margin:0;">Recent Transactions</h4>
+                    <a href="#" onclick="jumpToReport('sales'); return false;" style="font-size:0.85rem; color:var(--royal-blue); text-decoration:none; font-weight:600;"><i class="fas fa-list"></i> View All</a>
+                </div>
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -748,7 +751,14 @@ async function renderDashboard() {
                         </tr>
                     </thead>
                     <tbody>
-                    ${sales.slice(-5).reverse().map(s => {
+                    ${[...sales].sort((a, b) => {
+                        const idA = Number(a.id) || 0;
+                        const idB = Number(b.id) || 0;
+                        if (idA !== idB) return idB - idA;
+                        const dateA = new Date(a.date_time || a.date || 0);
+                        const dateB = new Date(b.date_time || b.date || 0);
+                        return dateB - dateA;
+                    }).slice(0, 5).map(s => {
                         let displayTime = '';
                         if (s.date_time) {
                             if (s.date_time.includes(', ')) {
@@ -767,8 +777,8 @@ async function renderDashboard() {
                             <td style="font-weight:700; color:var(--royal-blue);">KES ${Number(s.total).toFixed(2)}</td>
                             <td><span class="role-pill" style="background:#f1f5f9; color:#475569;">${s.payment_mode}</span></td>
                             <td style="text-align:right; padding-right:25px;">
-                                <button class="action-btn-refined btn-icon-view dash-reprint-btn" data-id="${s.id}" title="Reprint">
-                                    <i class="fas fa-print"></i>
+                                <button class="action-btn-refined btn-icon-view dash-reprint-btn" data-id="${s.id}" title="View & Print">
+                                    <i class="fas fa-eye"></i>
                                 </button>
                             </td>
                         </tr>`;
@@ -2577,7 +2587,7 @@ async function renderReports(subPage = 'overview') {
     if (subPage === 'overview') {
         renderFinancialOverview(content, sales);
     } else if (subPage === 'sales') {
-        renderDetailedSalesLog(content, sales);
+        renderDetailedSalesLog(content, sales, window.lastSalesSearch || '');
     } else if (subPage === 'inventory') {
         renderInventoryHealth(content, medicines);
     } else if (subPage === 'expiry') {
@@ -2712,61 +2722,109 @@ function renderInventoryHealth(container, medicines) {
     `;
 }
 
-function renderDetailedSalesLog(container, sales) {
-    const list = [...sales].reverse();
+function renderDetailedSalesLog(container, sales, searchQuery = '') {
+    if (window.lastSalesSearch !== searchQuery) {
+        paginationState.sales = 1;
+        window.lastSalesSearch = searchQuery;
+    }
+
+    let list = [...sales].sort((a, b) => {
+        const idA = Number(a.id) || 0;
+        const idB = Number(b.id) || 0;
+        if (idA !== idB) return idB - idA;
+        const dateA = new Date(a.date_time || a.date || 0);
+        const dateB = new Date(b.date_time || b.date || 0);
+        return dateB - dateA;
+    });
+
+    if (searchQuery) {
+        const q = searchQuery.toLowerCase().trim();
+        list = list.filter(s => {
+            if (String(s.id).toLowerCase().includes(q)) return true;
+            if ((s.customer_name || '').toLowerCase().includes(q)) return true;
+            if ((s.date_time || s.date || '').toLowerCase().includes(q)) return true;
+            if ((s.payment_mode || '').toLowerCase().includes(q)) return true;
+            try {
+                const items = JSON.parse(s.items_json || '[]');
+                if (Array.isArray(items)) {
+                    return items.some(item => (item.name || '').toLowerCase().includes(q));
+                }
+            } catch (e) {}
+            return false;
+        });
+    }
+
     const totalItems = list.length;
     const startIdx = (paginationState.sales - 1) * paginationState.limit;
     const paginatedSales = list.slice(startIdx, startIdx + paginationState.limit);
 
-    container.innerHTML = `
-        <div class="stat-card" style="padding:0; overflow:hidden; border-radius:16px;">
-            <div style="padding:20px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
-                <h4 style="margin:0;"><i class="fas fa-list-ul"></i> Detailed Transaction Repository</h4>
-                <div style="font-size:0.85rem; color:#64748b;">Showing ${totalItems} total transactions</div>
+    const hasSearch = document.getElementById('salesLogSearch');
+    if (!hasSearch) {
+        container.innerHTML = `
+            <div class="stat-card" style="margin-bottom: 24px; padding: 15px 25px; border-radius:16px;">
+                <div style="display:flex; gap:16px; align-items:center;">
+                    <i class="fas fa-search" style="color:#64748b;"></i>
+                    <input type="text" id="salesLogSearch" placeholder="Search receipt no., customer, date, or medicine name..." 
+                           value="${searchQuery}"
+                           style="flex:1; border:none; background:transparent; font-size:1.05rem; outline:none; font-weight:500;">
+                </div>
             </div>
-            <div style="max-height:600px; overflow-y:auto;">
-                <table class="data-table">
-                    <thead style="position:sticky; top:0; background:var(--royal-blue); color:white; z-index:10;">
-                        <tr>
-                            <th style="color:white; padding-left:20px;">Receipt ID</th>
-                            <th style="color:white;">Date & Time</th>
-                            <th style="color:white;">Client / Customer</th>
-                            <th style="color:white;">Total (KES)</th>
-                            <th style="color:white;">Mode</th>
-                            <th style="text-align:right; color:white; padding-right:20px;">Print</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${paginatedSales.length > 0 ? paginatedSales.map(s => {
-                            const isWalkin = !s.customer_name || s.customer_name === 'General Customer' || s.customer_name === 'Walk-in';
-                            return `
-                                <tr>
-                                    <td style="padding-left:20px; font-weight:700; color:#64748b;">#${s.id}</td>
-                                    <td>${s.date_time || s.date}</td>
-                                    <td style="font-weight:600; color:${isWalkin ? '#64748b' : 'var(--royal-blue)'}; ${isWalkin ? '' : 'cursor:pointer; text-decoration:underline;'}" ${isWalkin ? '' : `onclick="findProfileByNameAndOpen('${s.customer_name.replace(/'/g, "\\'")}')"`}>
-                                        <i class="fas fa-${isWalkin ? 'user-clock' : 'user-check'}"></i> ${s.customer_name || 'Walk-in Customer'}
-                                    </td>
-                                    <td style="font-weight:700;">${Number(s.total).toLocaleString()}</td>
-                                    <td><span class="role-pill" style="font-size:0.7rem;">${s.payment_mode}</span></td>
-                                    <td style="text-align:right; padding-right:20px;">
-                                        <div style="display:flex; justify-content:flex-end; gap:8px;">
-                                            <button class="action-btn-refined return-sale-btn" data-id="${s.id}" title="Process Return" style="background:rgba(239, 68, 68, 0.1); color:#ef4444;">
-                                                <i class="fas fa-undo"></i>
-                                            </button>
-                                            <button class="action-btn-refined btn-icon-view reprint-general-btn" data-id="${s.id}" title="Reprint Transaction">
-                                                <i class="fas fa-print"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            `;
-                        }).join('') : '<tr><td colspan="6" style="text-align:center; padding:50px;">No sales records found.</td></tr>'}
-                    </tbody>
-                </table>
+            <div id="salesTableContainer"></div>
+        `;
+    }
+
+    const tableContainer = document.getElementById('salesTableContainer');
+    if (tableContainer) {
+        tableContainer.innerHTML = `
+            <div class="stat-card" style="padding:0; overflow:hidden; border-radius:16px;">
+                <div style="padding:20px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                    <h4 style="margin:0;"><i class="fas fa-list-ul"></i> Detailed Transaction Repository</h4>
+                    <div style="font-size:0.85rem; color:#64748b;">Showing ${totalItems} of ${sales.length} transactions</div>
+                </div>
+                <div style="max-height:600px; overflow-y:auto;">
+                    <table class="data-table">
+                        <thead style="position:sticky; top:0; background:var(--royal-blue); color:white; z-index:10;">
+                            <tr>
+                                <th style="color:white; padding-left:20px;">Receipt ID</th>
+                                <th style="color:white;">Date & Time</th>
+                                <th style="color:white;">Client / Customer</th>
+                                <th style="color:white;">Total (KES)</th>
+                                <th style="color:white;">Mode</th>
+                                <th style="text-align:right; color:white; padding-right:20px;">Print</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${paginatedSales.length > 0 ? paginatedSales.map(s => {
+                                const isWalkin = !s.customer_name || s.customer_name === 'General Customer' || s.customer_name === 'Walk-in';
+                                return `
+                                    <tr>
+                                        <td style="padding-left:20px; font-weight:700; color:#64748b;">#${s.id}</td>
+                                        <td>${s.date_time || s.date}</td>
+                                        <td style="font-weight:600; color:${isWalkin ? '#64748b' : 'var(--royal-blue)'}; ${isWalkin ? '' : 'cursor:pointer; text-decoration:underline;'}" ${isWalkin ? '' : `onclick="findProfileByNameAndOpen('${s.customer_name.replace(/'/g, "\\'")}')"`}>
+                                            <i class="fas fa-${isWalkin ? 'user-clock' : 'user-check'}"></i> ${s.customer_name || 'Walk-in Customer'}
+                                        </td>
+                                        <td style="font-weight:700;">${Number(s.total).toLocaleString()}</td>
+                                        <td><span class="role-pill" style="font-size:0.7rem;">${s.payment_mode}</span></td>
+                                        <td style="text-align:right; padding-right:20px;">
+                                            <div style="display:flex; justify-content:flex-end; gap:8px;">
+                                                <button class="action-btn-refined return-sale-btn" data-id="${s.id}" title="Process Return" style="background:rgba(239, 68, 68, 0.1); color:#ef4444;">
+                                                    <i class="fas fa-undo"></i>
+                                                </button>
+                                                <button class="action-btn-refined btn-icon-view reprint-general-btn" data-id="${s.id}" title="Reprint Transaction">
+                                                    <i class="fas fa-print"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('') : '<tr><td colspan="6" style="text-align:center; padding:50px;">No sales records found.</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+                ${renderPaginationControls('sales', totalItems)}
             </div>
-            ${renderPaginationControls('sales', totalItems)}
-        </div>
-    `;
+        `;
+    }
 
     document.querySelectorAll('.reprint-general-btn').forEach(btn => {
         btn.onclick = async () => {
@@ -2787,6 +2845,13 @@ function renderDetailedSalesLog(container, sales) {
             }
         };
     });
+
+    const searchInput = document.getElementById('salesLogSearch');
+    if (searchInput) {
+        searchInput.oninput = (e) => {
+            renderDetailedSalesLog(container, sales, e.target.value);
+        };
+    }
 }
 
 async function showReturnModal(sale) {
