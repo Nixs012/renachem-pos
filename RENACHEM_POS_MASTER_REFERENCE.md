@@ -637,7 +637,7 @@ Fix:    Add to every route handler before any other code:
 | 8 | Supplier management | ✅ Done | |
 | 9 | Purchase tracking | ✅ Done | |
 | 10 | Reports | ✅ Done | |
-| 11 | Invoice generation + storage | 🔄 In Progress | Steps 1-2 Done, Steps 3-4 Pending |
+| 11 | Invoice generation + storage | 🔄 In Progress | Steps 1-3 Done, Step 4 Pending |
 | 12 | Split payment (Cash + M-Pesa) | 🔄 In Progress | Step 5 |
 | 13 | Medicine sales graph | 🔄 In Progress | Step 6 |
 | 14 | Invoices page (view/reprint) | 🔄 In Progress | Step 7 |
@@ -654,7 +654,7 @@ Fix:    Add to every route handler before any other code:
 ```
 STEP 1  → Invoice DB setup (Supabase SQL) [✅ Done]
 STEP 2  → /api/generate-invoice-number.js [✅ Done]
-STEP 3  → generateReceiptHTML() + showReceiptModal() in app.js
+STEP 3  → generateReceiptHTML() + showReceiptModal() in app.js [✅ Done]
 STEP 4  → Update finalizeSale() + /api/save-sale.js + /api/update-medicine-stock.js
 STEP 5  → Split payment panel HTML + CSS + JavaScript in POS
 STEP 6  → /api/get-medicine-sales-stats.js + graph in Reports page
