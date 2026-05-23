@@ -404,65 +404,121 @@ async function initAppAfterLogin(role, username) {
 
 // --- Core POS Logic & M-Pesa Integration ---
 
-async function finalizeSale(paymentMethod) {
-    if (cart.length === 0) {
-        showToast('Cart is empty. Add items before completing sale.', 'warning');
-        return;
+async function finalizeSale() {
+  
+  // 1. Validate cart is not empty
+  if (cart.length === 0) {
+    showToast('Cart is empty. Add items before completing sale.', 'error')
+    return
+  }
+
+  // 2. Get payment method
+  const paymentMethodEl = document.getElementById('paymentMethod');
+  // Fallback to 'cash' if element doesn't exist yet (Step 5 is next)
+  const paymentMethod = paymentMethodEl ? paymentMethodEl.value : 'cash';
+
+  // 3. Calculate total
+  const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0)
+
+  // 4. Handle split payment validation
+  let cashAmount = 0
+  let mpesaAmount = 0
+
+  if (paymentMethod === 'split') {
+    cashAmount = parseFloat(document.getElementById('cashAmountInput').value) || 0
+    mpesaAmount = parseFloat(document.getElementById('mpesaAmountDisplay').value) || 0
+    
+    if (cashAmount <= 0) {
+      showToast('Please enter the cash amount', 'error')
+      return
     }
-
-    const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
-    const customerName = document.getElementById('posCustomerSelect').value;
-    let mpesaCode = '';
-
-    if (paymentMethod === 'Credit' && customerName === 'Walk-in') {
-        showToast('Credit sales must be assigned to a registered customer.', 'error');
-        return;
+    if (Math.abs((cashAmount + mpesaAmount) - total) > 0.01) {
+      showToast('Cash and M-Pesa amounts must add up to the total', 'error')
+      return
     }
-
-    const clientSelect = document.getElementById('posCustomerSelect');
-    let clientId = null;
-    let clientType = null;
-
-    if (clientSelect && clientSelect.selectedIndex !== -1) {
-        const selectedOption = clientSelect.options[clientSelect.selectedIndex];
-        clientId = selectedOption ? selectedOption.getAttribute('data-id') : null;
-        clientType = selectedOption ? selectedOption.getAttribute('data-type') : null;
+    const confirmed = document.getElementById('mpesaConfirmedCheck').checked
+    if (!confirmed) {
+      showToast('Please confirm the customer has paid the M-Pesa portion', 'warning')
+      return
     }
+  } else if (paymentMethod === 'cash') {
+    cashAmount = total
+    mpesaAmount = 0
+  } else if (paymentMethod === 'mpesa') {
+    cashAmount = 0
+    mpesaAmount = total
+  }
 
-    try {
-        const saleObj = {
-            date: new Date().toISOString().slice(0, 10),
-            date_time: new Date().toLocaleString(),
-            items_json: JSON.stringify(cart),
-            total,
-            payment_mode: paymentMethod,
-            customer_name: customerName,
-            mpesa_code: mpesaCode || '',
-            client_id: clientId,
-            client_type: clientType
-        };
+  // 5. Generate invoice number
+  showToast('Processing sale...', 'success')
+  const invoiceNumber = await generateInvoiceNumber()
 
-        // ATOMIC TRANSACTION: Check stock, deduct inventory, and save sale in one step
-        const res = await window.db.recordSaleTransaction(saleObj, [...cart]);
-        
-        if (res.success) {
-            showToast(`Sale completed! KES ${total.toFixed(2)} via ${paymentMethod}`);
-            saleObj.id = res.sale_id || res.id;
-            
-            // Wait for user to select print format
-            await promptPrintReceipt(saleObj, [...cart]);
-            
-            cart = [];
-            await renderPOS();
-        } else {
-            // Robust error feedback (e.g. "Insufficient stock for [Med Name]")
-            showToast(res.error, 'error');
-            console.error("Sale transaction failed:", res.error);
-        }
-    } catch (error) {
-        showToast('System crash during sale. Please contact admin.', 'error');
-        console.error(error);
-    }
+  // 6. Build the sale object
+  const now = new Date()
+  const saleData = {
+    invoiceNumber,
+    date: now.toISOString().slice(0, 10),
+    time: now.toTimeString().slice(0, 8),
+    cashierName: currentUser.username,
+    customerName: 'Walk-in',
+    items: cart.map(item => ({
+      name: item.name,
+      qty: item.qty,
+      price: item.price,
+      subtotal: item.price * item.qty
+    })),
+    subtotal: total,
+    total,
+    paymentMode: paymentMethod === 'split' ? 'Split' 
+               : paymentMethod === 'mpesa' ? 'M-Pesa' 
+               : 'Cash',
+    cashAmount,
+    mpesaAmount,
+    mpesaCode: ''
+  }
+
+  // 7. Generate receipt HTML
+  const receiptHTML = generateReceiptHTML(saleData)
+
+  // 8. Save to Supabase via API
+  const saveResult = await callApi('save-sale', {
+    invoice_number: invoiceNumber,
+    date: saleData.date,
+    date_time: `${saleData.date} ${saleData.time}`,
+    items_json: JSON.stringify(saleData.items),
+    subtotal: total,
+    total,
+    payment_mode: saleData.paymentMode,
+    cash_amount: cashAmount,
+    mpesa_amount: mpesaAmount,
+    mpesa_code: '',
+    cashier_name: currentUser.username,
+    customer_name: 'Walk-in',
+    receipt_html: receiptHTML
+  })
+
+  if (!saveResult.success) {
+    showToast('Sale failed to save: ' + saveResult.message, 'error')
+    return
+  }
+
+  // 9. Deduct stock for each medicine
+  for (const item of cart) {
+    await callApi('update-medicine-stock', {
+      id: item.id,
+      quantityDeducted: item.qty
+    })
+  }
+
+  // 10. Show receipt modal
+  showReceiptModal(saleData)
+
+  // 11. Clear cart
+  cart = []
+  renderCart()
+  const pmEl = document.getElementById('paymentMethod');
+  if (pmEl) pmEl.value = 'cash';
+  if (typeof hideSplitPaymentPanel === 'function') hideSplitPaymentPanel();
 }
 
 async function promptPrintReceipt(saleObj, cartItems) {

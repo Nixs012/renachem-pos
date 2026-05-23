@@ -1,5 +1,18 @@
 if (window.api) {
     console.log("RENACHEM: Desktop Mode Active. Cloud Bridge Idle.");
+    // Shim for callApi in desktop mode to map to IPC handlers
+    window.callApi = async (functionName, body = {}) => {
+        if (functionName === 'save-sale') {
+            const res = await window.db.recordSaleTransaction(body, JSON.parse(body.items_json));
+            return { success: res.success, message: res.error };
+        }
+        if (functionName === 'update-medicine-stock') {
+            // In Desktop mode, recordSaleTransaction handles this atomically.
+            // We just return success to satisfy the loop.
+            return { success: true };
+        }
+        return { success: false, message: `Route ${functionName} not mapped in Desktop Mode.` };
+    };
 } else {
     console.log("RENACHEM: Web Mode Active. Initializing Cloud Bridge...");
 
@@ -42,6 +55,7 @@ if (window.api) {
             return { success: false, error: error.message };
         }
     };
+    window.callApi = callApi;
 
     // --- EMULATED AUTH MODULE ---
     window.auth = {
