@@ -2851,6 +2851,36 @@ function renderDetailedSalesLog(container, sales, searchQuery = '') {
     const hasSearch = document.getElementById('salesLogSearch');
     if (!hasSearch) {
         container.innerHTML = `
+            <!-- Medicine Sales Graph Card -->
+            <div class="stat-card" style="margin-bottom: 24px; padding: 24px; border-radius: 16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:16px;">
+                    <h3 style="margin:0; font-size:1.15rem; font-weight:700;"><i class="fas fa-chart-bar" style="color:var(--primary);"></i> Medicine Sales Graph</h3>
+                    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                        <div class="input-group" style="margin:0; display:flex; flex-direction:column; gap:4px;">
+                            <label style="font-size:0.75rem; font-weight:700; color:#64748b; margin:0;">View By</label>
+                            <select id="graphViewBy" class="premium-input" style="padding:6px 12px; height:34px; width:150px; font-size:0.85rem; border-radius:8px;">
+                                <option value="quantity">Quantity Sold</option>
+                                <option value="revenue">Revenue (KES)</option>
+                            </select>
+                        </div>
+                        <div class="input-group" style="margin:0; display:flex; flex-direction:column; gap:4px;">
+                            <label style="font-size:0.75rem; font-weight:700; color:#64748b; margin:0;">From</label>
+                            <input type="date" id="graphDateFrom" class="premium-input" style="padding:6px 12px; height:34px; font-size:0.85rem; border-radius:8px;">
+                        </div>
+                        <div class="input-group" style="margin:0; display:flex; flex-direction:column; gap:4px;">
+                            <label style="font-size:0.75rem; font-weight:700; color:#64748b; margin:0;">To</label>
+                            <input type="date" id="graphDateTo" class="premium-input" style="padding:6px 12px; height:34px; font-size:0.85rem; border-radius:8px;">
+                        </div>
+                        <button id="btnLoadGraph" class="btn-primary" style="padding:8px 16px; margin-top:16px; font-size:0.85rem; border-radius:30px; height:34px; line-height:18px;">Load Graph</button>
+                    </div>
+                </div>
+                <div id="graphSummary" style="font-size:0.85rem; color:#64748b; margin-bottom:12px; font-weight:600;">Loading graph...</div>
+                <div style="position:relative; height:300px; width:100%;">
+                    <canvas id="medicineSalesChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Search Input -->
             <div class="stat-card" style="margin-bottom: 24px; padding: 15px 25px; border-radius:16px;">
                 <div style="display:flex; gap:16px; align-items:center;">
                     <i class="fas fa-search" style="color:#64748b;"></i>
@@ -2861,6 +2891,19 @@ function renderDetailedSalesLog(container, sales, searchQuery = '') {
             </div>
             <div id="salesTableContainer"></div>
         `;
+
+        // Set default dates: first day of current month to today
+        const now = new Date();
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        document.getElementById('graphDateFrom').value = firstDay.toLocaleDateString('en-CA');
+        document.getElementById('graphDateTo').value = now.toLocaleDateString('en-CA');
+
+        // Bind control events
+        document.getElementById('btnLoadGraph').onclick = loadMedicineSalesGraph;
+        document.getElementById('graphViewBy').onchange = loadMedicineSalesGraph;
+
+        // Auto-load graph
+        loadMedicineSalesGraph();
     }
 
     const tableContainer = document.getElementById('salesTableContainer');
@@ -2943,6 +2986,118 @@ function renderDetailedSalesLog(container, sales, searchQuery = '') {
         };
     }
 }
+
+async function loadMedicineSalesGraph() {
+    const btn = document.getElementById('btnLoadGraph');
+    const graphViewByEl = document.getElementById('graphViewBy');
+    const graphDateFromEl = document.getElementById('graphDateFrom');
+    const graphDateToEl = document.getElementById('graphDateTo');
+
+    if (!graphViewByEl || !graphDateFromEl || !graphDateToEl) return;
+
+    if (btn) {
+        btn.textContent = 'Loading...';
+        btn.disabled = true;
+    }
+
+    try {
+        const dateFrom = graphDateFromEl.value;
+        const dateTo = graphDateToEl.value;
+        const viewBy = graphViewByEl.value;
+
+        const result = await callApi('get-medicine-sales-stats', { dateFrom, dateTo });
+        if (!result.success) {
+            throw new Error(result.message || 'Failed to fetch sales stats');
+        }
+
+        if (!result.stats || result.stats.length === 0) {
+            document.getElementById('graphSummary').textContent = 'No sales data found for the selected period.';
+            if (window.medicineSalesChartInstance) {
+                window.medicineSalesChartInstance.destroy();
+                window.medicineSalesChartInstance = null;
+            }
+            return;
+        }
+
+        const ctx = document.getElementById('medicineSalesChart').getContext('2d');
+        const labels = result.stats.map(s => s.name);
+        const dataValues = result.stats.map(s => viewBy === 'revenue' ? s.totalRevenue : s.totalQty);
+        const datasetLabel = viewBy === 'revenue' ? 'Revenue (KES)' : 'Quantity Sold';
+        const datasetColor = viewBy === 'revenue' ? '#0ea5e9' : '#10b981';
+
+        if (window.medicineSalesChartInstance) {
+            window.medicineSalesChartInstance.destroy();
+        }
+
+        window.medicineSalesChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: datasetLabel,
+                    data: dataValues,
+                    backgroundColor: datasetColor,
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => viewBy === 'revenue'
+                                ? `KES ${ctx.raw.toFixed(2)}`
+                                : `${ctx.raw} units sold`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (val) => viewBy === 'revenue' ? 'KES ' + val : val
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            font: { size: 11 }
+                        }
+                    }
+                },
+                onClick: (event, elements) => {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const medicineName = labels[index];
+                        showMedicineDetailModal(medicineName, result.stats[index]);
+                    }
+                }
+            }
+        });
+
+        // Update summary
+        const topSeller = result.stats[0];
+        document.getElementById('graphSummary').textContent =
+            `Top seller: ${topSeller.name} (${topSeller.totalQty} units) | ` +
+            `Tracking ${result.stats.length} medicines | ` +
+            `${dateFrom} to ${dateTo}`;
+
+    } catch (error) {
+        showToast('Failed to load graph: ' + error.message, 'error');
+    } finally {
+        if (btn) {
+            btn.textContent = 'Load Graph';
+            btn.disabled = false;
+        }
+    }
+}
+
+function showMedicineDetailModal(name, stats) {
+    showToast(`${name}: ${stats.totalQty} units sold | KES ${stats.totalRevenue.toFixed(2)} revenue`, 'success');
+}
+
 
 async function showReturnModal(sale) {
     if (!['Admin', 'Pharmacist', 'Cashier'].includes(currentUser.role)) {

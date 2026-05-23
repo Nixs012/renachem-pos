@@ -11,6 +11,36 @@ if (window.api) {
             // We just return success to satisfy the loop.
             return { success: true };
         }
+        if (functionName === 'get-medicine-sales-stats') {
+            try {
+                const salesRes = await window.db.getSales();
+                if (!salesRes.success) throw new Error(salesRes.error || 'Failed to fetch sales');
+                const sales = salesRes.data || [];
+                const { dateFrom, dateTo } = body;
+                const medicineStats = {};
+                for (const sale of sales) {
+                    if (dateFrom && sale.date < dateFrom) continue;
+                    if (dateTo && sale.date > dateTo) continue;
+                    let items = [];
+                    try { items = JSON.parse(sale.items_json); } catch { continue; }
+                    for (const item of items) {
+                        const name = item.name || item;
+                        if (!medicineStats[name]) {
+                            medicineStats[name] = { name, totalQty: 0, totalRevenue: 0, saleCount: 0 };
+                        }
+                        medicineStats[name].totalQty += (item.qty || 1);
+                        medicineStats[name].totalRevenue += (item.subtotal || item.price || 0);
+                        medicineStats[name].saleCount += 1;
+                    }
+                }
+                const sorted = Object.values(medicineStats)
+                    .sort((a, b) => b.totalQty - a.totalQty)
+                    .slice(0, 15);
+                return { success: true, stats: sorted };
+            } catch (error) {
+                return { success: false, message: error.message };
+            }
+        }
         return { success: false, message: `Route ${functionName} not mapped in Desktop Mode.` };
     };
 } else {
