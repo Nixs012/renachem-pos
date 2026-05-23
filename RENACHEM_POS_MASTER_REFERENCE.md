@@ -638,7 +638,7 @@ Fix:    Add to every route handler before any other code:
 | 9 | Purchase tracking | ✅ Done | |
 | 10 | Reports | ✅ Done | |
 | 11 | Invoice generation + storage | ✅ Done | Steps 1-4 Complete |
-| 12 | Split payment (Cash + M-Pesa) | 🔄 In Progress | Step 5 |
+| 12 | Split payment (Cash + M-Pesa) | ✅ Done | Step 5 |
 | 13 | Medicine sales graph | 🔄 In Progress | Step 6 |
 | 14 | Invoices page (view/reprint) | 🔄 In Progress | Step 7 |
 | 15 | System update notification | 🔄 In Progress | Step 8 |

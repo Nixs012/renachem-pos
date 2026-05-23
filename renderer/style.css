@@ -1268,3 +1268,119 @@ body {
     padding: 20px;
     text-align: center;
 }
+
+/* --- SPLIT PAYMENT PANEL --- */
+.split-payment-panel {
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border: 2px solid #0ea5e9;
+  border-radius: 16px;
+  padding: 20px;
+  margin-top: 16px;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.split-header {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #0284c7;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.split-total-display {
+  background: #0ea5e9;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.split-input-group {
+  margin-bottom: 12px;
+}
+
+.split-input-group label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 4px;
+}
+
+.split-input-group input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 1rem;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.split-input-group input:focus {
+  outline: none;
+  border-color: #0ea5e9;
+}
+
+.split-balance {
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 14px;
+  text-align: center;
+  background: #f1f5f9;
+  color: #64748b;
+  transition: all 0.3s;
+}
+
+.split-balance.valid {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.split-balance.invalid {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.split-confirm-check {
+  background: #fefce8;
+  border: 1px solid #fbbf24;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.split-confirm-check label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.split-confirm-check input[type="checkbox"] {
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.split-check-hint {
+  font-size: 0.78rem;
+  color: #92400e;
+  margin-top: 6px;
+  margin-left: 24px;
+  font-style: italic;
+}

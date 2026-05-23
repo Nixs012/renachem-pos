@@ -1397,13 +1397,42 @@ async function renderPOS() {
                 </div>
 
                 <h4 style="font-size:0.9rem; margin-bottom:8px; color:#64748b;">Payment Method</h4>
-                <div style="display:flex; gap:10px; margin-bottom: 15px;">
-                    <button class="pos-method-mode pos-method-cash" data-method="Cash" style="flex:1; padding:12px; background:var(--emerald); color:white; border-radius:16px; border:none; cursor:pointer; font-weight:600; transition:all 0.2s ease; border:3px solid #10b981;"><i class="fas fa-money-bill-wave" style="pointer-events:none;"></i> Cash</button>
-                    <button class="pos-method-mode pos-method-mpesa" data-method="M-Pesa" style="flex:1; padding:12px; background:var(--royal-blue); color:white; border-radius:16px; border:none; cursor:pointer; font-weight:600; transition:all 0.2s ease; opacity:0.5; border:3px solid transparent;"><i class="fas fa-mobile-alt" style="pointer-events:none;"></i> M-Pesa</button>
-                    <button class="pos-method-mode pos-method-credit" data-method="Credit" style="flex:1; padding:12px; background:var(--warning); color:white; border-radius:16px; border:none; cursor:pointer; font-weight:600; transition:all 0.2s ease; opacity:0.5; border:3px solid transparent;"><i class="fas fa-file-invoice-dollar" style="pointer-events:none;"></i> Credit</button>
+                <select id="paymentMethod" style="width:100%; padding:12px; border-radius:16px; margin-bottom:15px; border:1px solid #ddd; font-weight:600; color:var(--royal-blue); font-size:1.05rem; cursor:pointer;">
+                    <option value="cash">Cash</option>
+                    <option value="mpesa">M-Pesa</option>
+                    <option value="credit">Credit</option>
+                    <option value="split">Split Payment (Cash + M-Pesa)</option>
+                </select>
+
+                <div id="splitPaymentPanel" style="display:none;" class="split-payment-panel">
+                  <div class="split-header">
+                    <i class="fas fa-divide"></i> Split Payment
+                  </div>
+                  <div class="split-total-display">
+                    Total Due: <span id="splitTotalDisplay">KES 0.00</span>
+                  </div>
+                  <div class="split-input-group">
+                    <label>Cash Amount (KES)</label>
+                    <input type="number" id="cashAmountInput" placeholder="Enter cash amount" min="0" step="0.01">
+                  </div>
+                  <div class="split-input-group">
+                    <label>M-Pesa Amount (KES)</label>
+                    <input type="number" id="mpesaAmountDisplay" placeholder="Auto-calculated" readonly style="background:#f5f5f5;cursor:not-allowed;">
+                  </div>
+                  <div id="splitBalanceIndicator" class="split-balance">
+                    Enter cash amount to calculate M-Pesa portion
+                  </div>
+                  <div class="split-confirm-check">
+                    <label>
+                      <input type="checkbox" id="mpesaConfirmedCheck">
+                      Customer has completed M-Pesa payment of 
+                      <strong><span id="mpesaConfirmAmount">KES 0.00</span></strong>
+                    </label>
+                    <div class="split-check-hint">
+                      Ask customer to show M-Pesa confirmation SMS before ticking
+                    </div>
+                  </div>
                 </div>
-                <!-- Hidden input to store active method -->
-                <input type="hidden" id="posActiveMethod" value="Cash">
                 <button id="posPayNowSubmit" class="btn-primary" style="width:100%; padding:16px; font-size:1.1rem; border-radius:30px;"><i class="fas fa-check-circle" style="pointer-events:none;"></i> PAY NOW</button>
             </div>
         </div>
@@ -3988,19 +4017,73 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const payNowBtn = e.target.closest('#posPayNowSubmit');
         if (payNowBtn) {
-            const methodInput = document.getElementById('posActiveMethod');
-            if (methodInput) {
-                payNowBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-                payNowBtn.disabled = true;
-                finalizeSale(methodInput.value).finally(() => {
-                    payNowBtn.innerHTML = '<i class="fas fa-check-circle" style="pointer-events:none;"></i> PAY NOW';
-                    payNowBtn.disabled = false;
-                });
-            }
+            payNowBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            payNowBtn.disabled = true;
+            finalizeSale().finally(() => {
+                payNowBtn.innerHTML = '<i class="fas fa-check-circle" style="pointer-events:none;"></i> PAY NOW';
+                payNowBtn.disabled = false;
+            });
             return;
         }
     });
 });
+
+// --- SPLIT PAYMENT LOGIC ---
+
+document.body.addEventListener('change', function(e) {
+  if (e.target.id === 'paymentMethod') {
+    const panel = document.getElementById('splitPaymentPanel')
+    if (e.target.value === 'split') {
+      panel.style.display = 'block'
+      updateSplitTotal()
+    } else {
+      panel.style.display = 'none'
+      document.getElementById('mpesaConfirmedCheck').checked = false
+    }
+  }
+})
+
+document.body.addEventListener('input', function(e) {
+  if (e.target.id === 'cashAmountInput') {
+    const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0)
+    const cash = parseFloat(e.target.value) || 0
+    const mpesa = Math.max(0, total - cash)
+    
+    document.getElementById('mpesaAmountDisplay').value = mpesa.toFixed(2)
+    document.getElementById('mpesaConfirmAmount').textContent = 'KES ' + mpesa.toFixed(2)
+    
+    const indicator = document.getElementById('splitBalanceIndicator')
+    const sum = cash + mpesa
+    
+    if (cash <= 0) {
+      indicator.textContent = 'Enter cash amount to calculate M-Pesa portion'
+      indicator.className = 'split-balance'
+    } else if (cash > total) {
+      indicator.textContent = 'Cash amount exceeds total — please reduce'
+      indicator.className = 'split-balance invalid'
+    } else if (Math.abs(sum - total) < 0.01) {
+      indicator.textContent = `Cash: KES ${cash.toFixed(2)} + M-Pesa: KES ${mpesa.toFixed(2)} = KES ${total.toFixed(2)}`
+      indicator.className = 'split-balance valid'
+    }
+  }
+})
+
+window.updateSplitTotal = function() {
+  const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0)
+  document.getElementById('splitTotalDisplay').textContent = 'KES ' + total.toFixed(2)
+  document.getElementById('cashAmountInput').value = ''
+  document.getElementById('mpesaAmountDisplay').value = ''
+  document.getElementById('mpesaConfirmAmount').textContent = 'KES ' + total.toFixed(2)
+}
+
+window.hideSplitPaymentPanel = function() {
+  document.getElementById('splitPaymentPanel').style.display = 'none'
+  document.getElementById('cashAmountInput').value = ''
+  document.getElementById('mpesaAmountDisplay').value = ''
+  document.getElementById('mpesaConfirmedCheck').checked = false
+  document.getElementById('splitBalanceIndicator').className = 'split-balance'
+  document.getElementById('splitBalanceIndicator').textContent = 'Enter cash amount to calculate M-Pesa portion'
+}
 
 function jumpToReport(subPage) {
     if (!hasAccess('reports')) return showToast('Access denied to reports', 'warning');
