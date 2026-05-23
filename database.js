@@ -1015,10 +1015,39 @@ function getSetting(key) {
     }
 }
 
+function getSettings() {
+    try {
+        const rows = db.prepare('SELECT key, value FROM settings').all();
+        return { success: true, data: rows };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
 function setSetting(key, value) {
     try {
         db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
         return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function generateInvoiceNumber() {
+    try {
+        const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const settingKey = 'invoice_counter_' + today;
+        
+        const settingVal = getSetting(settingKey);
+        let counter = 1;
+        if (settingVal) {
+            counter = parseInt(settingVal) + 1;
+        }
+        
+        setSetting(settingKey, String(counter));
+        
+        const invoiceNumber = `INV-${today}-${String(counter).padStart(4, '0')}`;
+        return { success: true, invoiceNumber };
     } catch (error) {
         return { success: false, error: error.message };
     }
@@ -1182,7 +1211,9 @@ module.exports = {
     getLastAuditHash,
     verifyAuditChain,
     getSetting,
+    getSettings,
     setSetting,
+    generateInvoiceNumber,
     recordSaleTransaction,
     verifyAdminPassword,
     resetModuleData

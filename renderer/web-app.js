@@ -123,8 +123,44 @@ if (window.api) {
         },
         updateSetting: async (key, value) => await callApi('settings-manage', { action: 'updateSetting', key, value, module: 'settings' }),
         
-        resetModuleData: async (module) => ({ success: false, error: 'Database reset is restricted on the web version.' })
+        resetModuleData: async (module) => ({ success: false, error: 'Database reset is restricted on the web version.' }),
+
+        generateInvoiceNumber: async () => await generateInvoiceNumber()
     };
 
     window.api = { isWeb: true };
 }
+
+// Standalone function available in both Desktop and Web modes
+async function generateInvoiceNumber() {
+    if (window.api && !window.api.isWeb) {
+        // Desktop Mode (SQLite)
+        try {
+            const res = await window.db.generateInvoiceNumber();
+            if (res && res.success) {
+                return res.invoiceNumber;
+            }
+            throw new Error(res ? res.error : 'Unknown local error');
+        } catch (error) {
+            console.error('Local invoice generation failed, using fallback:', error);
+            const now = new Date();
+            const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+            const timeStr = now.getTime().toString().slice(-4);
+            return `INV-${dateStr}-${timeStr}`;
+        }
+    } else {
+        // Web Mode (calls /api/generate-invoice-number)
+        try {
+            const result = await callApi('generate-invoice-number', {});
+            return result.invoiceNumber;
+        } catch (error) {
+            // Fallback if API fails
+            console.error('API invoice generation failed, using fallback:', error);
+            const now = new Date();
+            const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+            const timeStr = now.getTime().toString().slice(-4);
+            return `INV-${dateStr}-${timeStr}`;
+        }
+    }
+}
+window.generateInvoiceNumber = generateInvoiceNumber;

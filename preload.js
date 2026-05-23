@@ -255,6 +255,13 @@ const db = {
             return { success: false, error: error.message };
         }
     },
+    generateInvoiceNumber: async () => {
+        try {
+            return await ipcRenderer.invoke('db:generateInvoiceNumber', sessionToken);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
     getSales: async () => {
         try {
             return await ipcRenderer.invoke('db:getSales', sessionToken);

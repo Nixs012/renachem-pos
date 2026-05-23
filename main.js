@@ -407,6 +407,8 @@ ipcMain.handle('db:updateSetting', wrapHandler(async (event, t, { key, value }) 
     return res;
 }));
 
+ipcMain.handle('db:generateInvoiceNumber', wrapHandler(async () => db.generateInvoiceNumber()));
+
 ipcMain.handle('db:getCredits', wrapHandler(async () => db.getCredits(), { adminOrPharmacistOnly: true }));
 ipcMain.handle('db:addCredit', wrapHandler(async (event, t, data) => db.addCredit(data)));
 ipcMain.handle('db:addCreditPayment', wrapHandler(async (event, t, data) => {
