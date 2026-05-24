@@ -41,6 +41,35 @@ if (window.api) {
                 return { success: false, message: error.message };
             }
         }
+        if (functionName === 'get-invoices') {
+            try {
+                const salesRes = await window.db.getSales();
+                if (!salesRes.success) throw new Error(salesRes.error || 'Failed to fetch sales');
+                const sales = salesRes.data || [];
+                const { dateFrom, dateTo, search } = body;
+                let filtered = sales;
+                if (dateFrom) filtered = filtered.filter(s => s.date >= dateFrom);
+                if (dateTo) filtered = filtered.filter(s => s.date <= dateTo);
+                if (search) {
+                    const q = search.toLowerCase().trim();
+                    filtered = filtered.filter(s => 
+                        (s.invoice_number || '').toLowerCase().includes(q) ||
+                        (s.customer_name || '').toLowerCase().includes(q) ||
+                        (s.cashier_name || '').toLowerCase().includes(q) ||
+                        (s.payment_mode || '').toLowerCase().includes(q)
+                    );
+                }
+                // Sort by date_time or created_at descending
+                filtered.sort((a, b) => {
+                    const dateA = new Date(a.date_time || a.date || 0);
+                    const dateB = new Date(b.date_time || b.date || 0);
+                    return dateB - dateA;
+                });
+                return { success: true, data: filtered };
+            } catch (error) {
+                return { success: false, message: error.message };
+            }
+        }
         return { success: false, message: `Route ${functionName} not mapped in Desktop Mode.` };
     };
 } else {

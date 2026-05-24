@@ -3907,6 +3907,7 @@ async function renderCurrentPage() {
     else if (currentPage === 'suppliers') await wrapRender(renderSuppliers, 'Suppliers');
     else if (currentPage === 'purchases') await wrapRender(renderPurchases, 'Purchases');
     else if (currentPage === 'reports') await wrapRender(renderReports, 'Reports');
+    else if (currentPage === 'invoices') await wrapRender(renderInvoices, 'Invoices');
     else if (currentPage === 'users') await wrapRender(renderUsers, 'User Management');
     else if (currentPage === 'settings') await wrapRender(renderSettings, 'Settings');
 }
@@ -5068,3 +5069,272 @@ function resetIdleTimer() {
         }, 1000 * 60 * 5); // 5 minutes
     }
 }
+
+async function renderInvoices() {
+    if (!hasAccess('invoices')) {
+        return document.getElementById('pageContainer').innerHTML = '<div class="stat-card">Access Denied</div>';
+    }
+
+    const container = document.getElementById('pageContainer');
+    
+    container.innerHTML = `
+        <div class="view-header">
+            <h2><i class="fas fa-file-invoice"></i> Invoices & Receipts</h2>
+            <p>Audit invoices, search transactions, and reprint receipts</p>
+        </div>
+
+        <div class="stat-card" style="margin-bottom: 24px; padding: 20px; border-radius:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+                <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; flex:1;">
+                    <div class="input-group" style="margin:0; min-width:240px; flex:1; display:flex; flex-direction:column; gap:4px;">
+                        <label style="font-size:0.75rem; font-weight:700; color:#64748b; margin:0;">Search</label>
+                        <input type="text" id="invoiceSearch" class="premium-input" placeholder="Search by Invoice No., Customer, Cashier..." style="width:100%; height:38px; border-radius:10px; padding:8px 14px;">
+                    </div>
+                    <div class="input-group" style="margin:0; width:160px; display:flex; flex-direction:column; gap:4px;">
+                        <label style="font-size:0.75rem; font-weight:700; color:#64748b; margin:0;">From</label>
+                        <input type="date" id="invoiceDateFrom" class="premium-input" style="width:100%; height:38px; border-radius:10px; padding:8px 14px;">
+                    </div>
+                    <div class="input-group" style="margin:0; width:160px; display:flex; flex-direction:column; gap:4px;">
+                        <label style="font-size:0.75rem; font-weight:700; color:#64748b; margin:0;">To</label>
+                        <input type="date" id="invoiceDateTo" class="premium-input" style="width:100%; height:38px; border-radius:10px; padding:8px 14px;">
+                    </div>
+                    <button id="btnFilterInvoices" class="btn-primary" style="padding:10px 20px; font-weight:600; height:38px; margin-top:20px; border-radius:30px;">Filter</button>
+                </div>
+                <button id="btnExportInvoices" class="btn-primary" style="background:var(--success); border-color:#059669; padding:10px 20px; font-weight:600; height:38px; margin-top:20px; border-radius:30px;"><i class="fas fa-file-excel"></i> Export CSV</button>
+            </div>
+        </div>
+
+        <div class="stat-card" style="padding:0; overflow:hidden; border-radius:16px;">
+            <div style="padding:20px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                <h4 style="margin:0;"><i class="fas fa-list-ul"></i> Transaction History</h4>
+                <div style="font-size:0.85rem; color:#64748b;" id="invoicesCountDisplay">Loading...</div>
+            </div>
+            <div id="invoicesTableContainer" style="max-height:600px; overflow-y:auto;">
+                <table class="data-table">
+                    <thead style="position:sticky; top:0; background:var(--royal-blue); color:white; z-index:10;">
+                        <tr>
+                            <th style="color:white; padding-left:24px;">Invoice No</th>
+                            <th style="color:white;">Date & Time</th>
+                            <th style="color:white;">Customer</th>
+                            <th style="color:white;">Cashier</th>
+                            <th style="color:white;">Payment Mode</th>
+                            <th style="color:white;">Total (KES)</th>
+                            <th style="text-align:right; color:white; padding-right:24px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoicesTableBody">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    // Set default dates: first day of current month to today
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    document.getElementById('invoiceDateFrom').value = firstDay.toLocaleDateString('en-CA');
+    document.getElementById('invoiceDateTo').value = now.toLocaleDateString('en-CA');
+
+    let activeInvoicesList = [];
+
+    async function loadInvoicesList() {
+        const tbody = document.getElementById('invoicesTableBody');
+        const countDisplay = document.getElementById('invoicesCountDisplay');
+        
+        const dateFromEl = document.getElementById('invoiceDateFrom');
+        const dateToEl = document.getElementById('invoiceDateTo');
+        const searchEl = document.getElementById('invoiceSearch');
+        
+        if (!dateFromEl || !dateToEl || !searchEl) return;
+
+        const dateFrom = dateFromEl.value;
+        const dateTo = dateToEl.value;
+        const search = searchEl.value;
+
+        tbody.innerHTML = `
+            <tr><td colspan="7" style="text-align:center;padding:40px;color:#94a3b8;">
+                <i class="fas fa-spinner fa-spin" style="font-size:2rem;margin-bottom:8px;display:block;color:var(--primary);"></i>
+                Loading invoices...
+            </td></tr>
+        `;
+
+        try {
+            const result = await callApi('get-invoices', { dateFrom, dateTo, search });
+            if (!result.success) throw new Error(result.message || 'Failed to fetch invoices');
+
+            activeInvoicesList = result.data || [];
+            countDisplay.textContent = `Showing ${activeInvoicesList.length} transactions`;
+
+            if (activeInvoicesList.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="7" style="text-align:center;padding:40px;color:#94a3b8;">
+                        <i class="fas fa-inbox" style="font-size:2rem;margin-bottom:8px;display:block;"></i>
+                        No invoices found
+                    </td></tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = activeInvoicesList.map((s, idx) => {
+                let badgeStyle = 'background:var(--primary);';
+                const mode = (s.payment_mode || 'Cash').toUpperCase();
+                if (mode === 'SPLIT') badgeStyle = 'background:var(--split-purple);';
+                else if (mode === 'M-PESA') badgeStyle = 'background:var(--success);';
+
+                return `
+                    <tr>
+                        <td style="padding-left:24px; font-weight:700; color:#64748b;">${s.invoice_number || 'N/A'}</td>
+                        <td>${s.date_time || s.date}</td>
+                        <td style="font-weight:600;"><i class="fas fa-user"></i> ${s.customer_name || 'Walk-in'}</td>
+                        <td>${s.cashier_name || 'System'}</td>
+                        <td><span class="role-pill" style="${badgeStyle} color:white; font-size:0.7rem; font-weight:800; border-radius:12px;">${mode}</span></td>
+                        <td style="font-weight:700;">${Number(s.total).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td style="text-align:right; padding-right:24px;">
+                            <div style="display:flex; justify-content:flex-end; gap:8px;">
+                                <button class="action-btn-refined btn-icon-view view-inv-btn" data-idx="${idx}" title="View Receipt">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="action-btn-refined reprint-inv-btn" data-idx="${idx}" title="Print Receipt" style="background:rgba(14, 165, 233, 0.1); color:var(--primary);">
+                                    <i class="fas fa-print"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Bind actions
+            document.querySelectorAll('.view-inv-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const idx = btn.getAttribute('data-idx');
+                    const sale = activeInvoicesList[idx];
+                    if (sale) previewInvoiceReceipt(sale);
+                };
+            });
+
+            document.querySelectorAll('.reprint-inv-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const idx = btn.getAttribute('data-idx');
+                    const sale = activeInvoicesList[idx];
+                    if (sale) {
+                        try {
+                            const saleData = buildSaleDataObject(sale);
+                            const html = window.generateReceiptHTML(saleData);
+                            const printWindow = window.open('', '_blank');
+                            printWindow.document.write('<html><body>' + html + '</body></html>');
+                            printWindow.document.close();
+                            printWindow.print();
+                            printWindow.close();
+                            showToast('Receipt sent to printer', 'success');
+                        } catch (e) {
+                            showToast('Failed to print: ' + e.message, 'error');
+                        }
+                    }
+                };
+            });
+
+        } catch (error) {
+            tbody.innerHTML = `
+                <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--error);font-weight:600;">
+                    <i class="fas fa-exclamation-triangle" style="font-size:2rem;margin-bottom:8px;display:block;"></i>
+                    Failed to load invoices: ${error.message}
+                </td></tr>
+            `;
+            showToast('Failed to load invoices list', 'error');
+        }
+    }
+
+    // Bind controls
+    document.getElementById('btnFilterInvoices').onclick = loadInvoicesList;
+    document.getElementById('invoiceSearch').oninput = (e) => {
+        loadInvoicesList();
+    };
+    document.getElementById('btnExportInvoices').onclick = () => {
+        exportInvoicesToCSV(activeInvoicesList);
+    };
+
+    // Auto load list
+    await loadInvoicesList();
+}
+
+function buildSaleDataObject(sale) {
+    let items = [];
+    try {
+        items = JSON.parse(sale.items_json || '[]');
+    } catch (e) {
+        items = [];
+    }
+
+    const time = sale.date_time ? sale.date_time.slice(-8) : '00:00:00';
+    return {
+        invoiceNumber: sale.invoice_number || 'N/A',
+        date: sale.date || '',
+        time: time,
+        cashierName: sale.cashier_name || 'System',
+        customerName: sale.customer_name || 'Walk-in',
+        items: items,
+        subtotal: Number(sale.subtotal) || 0,
+        total: Number(sale.total) || 0,
+        paymentMode: sale.payment_mode || 'Cash',
+        cashAmount: Number(sale.cash_amount) || 0,
+        mpesaAmount: Number(sale.mpesa_amount) || 0,
+        mpesaCode: sale.mpesa_code || ''
+    };
+}
+
+function previewInvoiceReceipt(sale) {
+    try {
+        const saleData = buildSaleDataObject(sale);
+        window.showReceiptModal(saleData);
+
+        // Override the close listener to stay on invoices page
+        const closeBtn = document.getElementById('closeReceiptBtn');
+        if (closeBtn) {
+            closeBtn.onclick = () => {
+                document.getElementById('genericModal').style.display = 'none';
+            };
+        }
+    } catch (e) {
+        showToast('Error opening receipt: ' + e.message, 'error');
+    }
+}
+
+function exportInvoicesToCSV(invoices) {
+    try {
+        if (invoices.length === 0) {
+            return showToast('No invoices available to export', 'warning');
+        }
+
+        let csvContent = "Invoice No,Date,Time,Customer,Cashier,Payment Mode,Cash Amount,M-Pesa Amount,Total\n";
+        invoices.forEach(s => {
+            const time = s.date_time ? s.date_time.slice(-8) : '00:00:00';
+            const row = [
+                s.invoice_number || 'N/A',
+                s.date || '',
+                time,
+                `"${(s.customer_name || 'Walk-in').replace(/"/g, '""')}"`,
+                `"${(s.cashier_name || 'System').replace(/"/g, '""')}"`,
+                s.payment_mode || 'Cash',
+                s.cash_amount || 0,
+                s.mpesa_amount || 0,
+                s.total || 0
+            ].join(",");
+            csvContent += row + "\n";
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `Renachem_Invoices_${new Date().toLocaleDateString('en-CA')}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast('Invoices exported successfully!', 'success');
+    } catch (e) {
+        showToast('Failed to export CSV: ' + e.message, 'error');
+    }
+}
+
