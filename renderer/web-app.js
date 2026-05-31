@@ -106,7 +106,7 @@ if (window.api) {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `Server returned ${response.status}`);
+                throw new Error(errorData.error || errorData.message || `Server returned ${response.status}`);
             }
             return await response.json();
         } catch (error) {
