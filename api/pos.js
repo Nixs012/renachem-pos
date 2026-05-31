@@ -1,4 +1,4 @@
-const { supabase } = require('./utils/supabase');
+const { supabase } = require('./_utils/supabase');
 
 module.exports = async (req, res) => {
     // CORS headers
@@ -10,6 +10,15 @@ module.exports = async (req, res) => {
     const action = req.query.action || req.body.action;
 
     try {
+        if (action === 'get-app-version') {
+            return res.status(200).json({
+                success: true,
+                version: process.env.APP_VERSION || '1.0.0',
+                releaseNotes: process.env.RELEASE_NOTES || 'System running latest version',
+                updatedAt: process.env.LAST_UPDATED || new Date().toISOString()
+            });
+        }
+
         if (action === 'generate-invoice-number') {
             const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
             const settingKey = 'invoice_counter_' + today;

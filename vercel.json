@@ -14,6 +14,7 @@
     { "source": "/api/settings-manage", "destination": "/api/management" },
     { "source": "/api/audit-log", "destination": "/api/management" },
     { "source": "/api/generate-invoice-number", "destination": "/api/pos?action=generate-invoice-number" },
+    { "source": "/api/get-app-version", "destination": "/api/pos?action=get-app-version" },
     { "source": "/api/save-sale", "destination": "/api/pos?action=save-sale" },
     { "source": "/api/update-medicine-stock", "destination": "/api/pos?action=update-medicine-stock" },
     { "source": "/api/get-invoices", "destination": "/api/pos?action=get-invoices" },

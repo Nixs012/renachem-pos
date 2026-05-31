@@ -1,4 +1,4 @@
-const { supabase } = require('./utils/supabase');
+const { supabase } = require('./_utils/supabase');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 

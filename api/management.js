@@ -1,5 +1,5 @@
-const { supabase } = require('./utils/supabase');
-const { verifySession, unauthorizedResponse } = require('./utils/auth');
+const { supabase } = require('./_utils/supabase');
+const { verifySession, unauthorizedResponse } = require('./_utils/auth');
 const bcrypt = require('bcryptjs');
 
 module.exports = async (req, res) => {
