@@ -625,7 +625,7 @@ async function finalizeSale() {
 
   // 11. Clear cart
   cart = []
-  renderCart()
+  updateCartUI()
   const pmEl = document.getElementById('paymentMethod');
   if (pmEl) pmEl.value = 'cash';
   if (typeof hideSplitPaymentPanel === 'function') hideSplitPaymentPanel();
