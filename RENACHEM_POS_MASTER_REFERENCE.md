@@ -640,8 +640,8 @@ Fix:    Add to every route handler before any other code:
 | 11 | Invoice generation + storage | ✅ Done | Steps 1-4 Complete |
 | 12 | Split payment (Cash + M-Pesa) | ✅ Done | Step 5 |
 | 13 | Medicine sales graph | ✅ Done | Step 6 |
-| 14 | Invoices page (view/reprint) | 🔄 In Progress | Step 7 |
-| 15 | System update notification | 🔄 In Progress | Step 8 |
+| 14 | Invoices page (view/reprint) | ✅ Done | Step 7 |
+| 15 | System update notification | ✅ Done | Step 8 |
 | 16 | Loss report | ⏳ Planned | Next phase |
 | 17 | Real M-Pesa STK Push | ⏳ Planned | Daraja live keys required |
 
@@ -653,13 +653,13 @@ Fix:    Add to every route handler before any other code:
 
 ```
 STEP 1  → Invoice DB setup (Supabase SQL) [✅ Done]
-STEP 2  → /api/generate-invoice-number.js [✅ Done]
+STEP 2  → /api/pos.js?action=generate-invoice-number [✅ Done]
 STEP 3  → generateReceiptHTML() + showReceiptModal() in app.js [✅ Done]
-STEP 4  → Update finalizeSale() + /api/save-sale.js + /api/update-medicine-stock.js [✅ Done]
+STEP 4  → Update finalizeSale() + pos.js?action=save-sale & update-medicine-stock [✅ Done]
 STEP 5  → Split payment panel HTML + CSS + JavaScript in POS [✅ Done]
-STEP 6  → /api/get-medicine-sales-stats.js + graph in Reports page [✅ Done]
-STEP 7  → /api/get-invoices.js + renderInvoices() + Invoices nav item
-STEP 8  → /api/get-app-version.js + checkForUpdates() + update banner
+STEP 6  → /api/pos.js?action=get-medicine-sales-stats + graph in Reports [✅ Done]
+STEP 7  → /api/pos.js?action=get-invoices + renderInvoices() + Invoices nav item [✅ Done]
+STEP 8  → /api/get-app-version.js + checkForUpdates() + update banner [✅ Done]
 STEP 9  → Full end-to-end test of all features (29 test cases)
 ```
 

@@ -16,6 +16,113 @@ let cart = [];
 let loginFailCount = 0;
 let idleTimer;
 
+const CLIENT_VERSION = '1.0.0';
+
+async function checkForUpdates() {
+  try {
+    const result = await callApi('get-app-version', {}, 'GET')
+    
+    // Update timestamp in UI
+    const timeEl = document.getElementById('lastUpdateCheckTime');
+    if (timeEl) {
+      const now = new Date();
+      timeEl.innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    if (!result.success) return
+
+    const serverVersion = result.version
+    
+    if (serverVersion !== CLIENT_VERSION) {
+      showUpdateBanner(serverVersion, result.releaseNotes)
+    }
+  } catch (error) {
+    // Silent fail — update check should never crash the app
+    console.log('Update check skipped:', error.message)
+  }
+}
+
+function showUpdateBanner(newVersion, notes) {
+  // Remove existing banner if any
+  const existing = document.getElementById('updateBanner')
+  if (existing) existing.remove()
+
+  const banner = document.createElement('div')
+  banner.id = 'updateBanner'
+  banner.innerHTML = `
+    <div style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(135deg, #1e40af, #3b82f6);
+      color: white;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10000;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+      font-family: inherit;
+    ">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <i class="fas fa-sync-alt" style="font-size:1.1rem;"></i>
+        <div>
+          <div style="font-weight:700;font-size:0.95rem;">
+            Update Available — Version ${newVersion}
+          </div>
+          <div style="font-size:0.82rem;opacity:0.85;margin-top:2px;">
+            ${notes}
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button onclick="applyUpdate()" style="
+          background:white;
+          color:#1e40af;
+          border:none;
+          padding:8px 18px;
+          border-radius:20px;
+          font-weight:700;
+          cursor:pointer;
+          font-size:0.88rem;
+        ">
+          <i class="fas fa-download"></i> Update Now
+        </button>
+        <button onclick="dismissUpdate()" style="
+          background:transparent;
+          color:white;
+          border:1px solid rgba(255,255,255,0.5);
+          padding:8px 14px;
+          border-radius:20px;
+          cursor:pointer;
+          font-size:0.88rem;
+        ">
+          Later
+        </button>
+      </div>
+    </div>
+  `
+  document.body.prepend(banner)
+  // Push page content down so banner does not overlap
+  document.body.style.paddingTop = '56px'
+}
+
+function applyUpdate() {
+  showToast('Updating system... please wait', 'success')
+  setTimeout(() => {
+    window.location.reload(true)
+  }, 1000)
+}
+
+function dismissUpdate() {
+  const banner = document.getElementById('updateBanner')
+  if (banner) {
+    banner.remove()
+    document.body.style.paddingTop = ''
+  }
+}
+
 // Pagination state
 let paginationState = {
     inventory: 1,
@@ -397,6 +504,10 @@ async function initAppAfterLogin(role, username) {
     
     await renderCurrentPage();
     refreshNotifications();
+
+    // Check for updates immediately and then every 30 minutes
+    checkForUpdates();
+    setInterval(checkForUpdates, 30 * 60 * 1000);
 }
 
 

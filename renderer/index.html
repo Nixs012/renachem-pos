@@ -134,6 +134,18 @@
                 <div id="profileDropdown" class="profile-dropdown-sidebar" style="display:none;">
                     <div class="dropdown-header">Account Management</div>
                     <div class="dropdown-item" id="changePasswordBtn"><i class="fas fa-lock"></i> Change Password</div>
+                    
+                    <div style="height:1px; background:var(--gray-200); margin:8px 0;"></div>
+                    
+                    <div class="dropdown-header" style="font-size:0.75rem; color:var(--gray-500); padding:4px 16px; text-transform:uppercase;">About & Updates</div>
+                    <div style="padding: 8px 16px; font-size: 0.8rem; color: var(--gray-500);">
+                        <div>Current version: <strong style="color:var(--gray-900);">1.0.0</strong></div>
+                        <div style="margin-top:2px;">Last checked: <span id="lastUpdateCheckTime">Just now</span></div>
+                    </div>
+                    <div class="dropdown-item" onclick="checkForUpdates()" style="color:var(--primary); font-weight:600;"><i class="fas fa-sync-alt"></i> Check for Updates Now</div>
+                    <div class="dropdown-item" style="color:var(--gray-500); cursor:default;"><i class="fas fa-headset"></i> Support: +254 700 000 000</div>
+                    
+                    <div style="height:1px; background:var(--gray-200); margin:8px 0;"></div>
                     <div class="dropdown-item" id="topBarLogoutBtn" style="color:var(--danger);"><i class="fas fa-sign-out-alt"></i> Logout</div>
                 </div>
             </div>
