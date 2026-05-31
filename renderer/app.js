@@ -597,7 +597,6 @@ async function finalizeSale() {
     date: saleData.date,
     date_time: `${saleData.date} ${saleData.time}`,
     items_json: JSON.stringify(saleData.items),
-    subtotal: total,
     total,
     payment_mode: saleData.paymentMode,
     cash_amount: cashAmount,
