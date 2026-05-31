@@ -12,7 +12,12 @@
     { "source": "/api/clients-manage", "destination": "/api/management" },
     { "source": "/api/purchases-manage", "destination": "/api/management" },
     { "source": "/api/settings-manage", "destination": "/api/management" },
-    { "source": "/api/audit-log", "destination": "/api/management" }
+    { "source": "/api/audit-log", "destination": "/api/management" },
+    { "source": "/api/generate-invoice-number", "destination": "/api/pos?action=generate-invoice-number" },
+    { "source": "/api/save-sale", "destination": "/api/pos?action=save-sale" },
+    { "source": "/api/update-medicine-stock", "destination": "/api/pos?action=update-medicine-stock" },
+    { "source": "/api/get-invoices", "destination": "/api/pos?action=get-invoices" },
+    { "source": "/api/get-medicine-sales-stats", "destination": "/api/pos?action=get-medicine-sales-stats" }
   ],
   "functions": {
     "api/**/*.js": {
