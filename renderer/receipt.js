@@ -1,4 +1,4 @@
-function generateReceiptHTML(saleData) {
+function generateReceiptHTML(saleData, config = {}) {
   let itemsHTML = '';
   if (saleData.items && saleData.items.length > 0) {
     saleData.items.forEach(item => {
@@ -55,14 +55,17 @@ function generateReceiptHTML(saleData) {
   </div>`;
   }
 
+  const pharmacyName = config.pharmacy_name || 'RENACHEM PHARMACY';
+  const pharmacyPhone = config.pharmacy_phone || '[pharmacy phone]';
+
   return `
 <div id="receiptContent" style="font-family:monospace;max-width:300px;margin:0 auto;padding:16px;font-size:13px;">
   
   <!-- Header -->
   <div style="text-align:center;border-bottom:1px dashed #000;padding-bottom:8px;margin-bottom:8px;">
-    <div style="font-size:18px;font-weight:bold;">RENACHEM PHARMACY</div>
+    <div style="font-size:18px;font-weight:bold;">${pharmacyName}</div>
     <div style="font-size:11px;color:#555;">Your Health, Our Priority</div>
-    <div style="font-size:11px;">Tel: [pharmacy phone]</div>
+    <div style="font-size:11px;">Tel: ${pharmacyPhone}</div>
   </div>
 
   <!-- Invoice details -->
@@ -86,8 +89,8 @@ function generateReceiptHTML(saleData) {
 
   <!-- Totals -->
   <div style="margin-bottom:8px;">
-    <div style="display:flex;justify-content:space-between;">
-      <span>SUBTOTAL:</span><span>KES ${saleData.subtotal}</span>
+    <div style="display:flex;justify-content:space-between;font-weight:bold;">
+      <span>TOTAL:</span><span>KES ${saleData.total}</span>
     </div>
   </div>
 
@@ -96,7 +99,7 @@ function generateReceiptHTML(saleData) {
 
   <!-- Footer -->
   <div style="text-align:center;border-top:1px dashed #000;padding-top:8px;font-size:11px;">
-    <div>Thank you for choosing Renachem Pharmacy</div>
+    <div>Thank you for choosing ${pharmacyName}</div>
     <div>Get well soon!</div>
     <div style="margin-top:4px;color:#888;">Powered by Renachem POS</div>
   </div>
@@ -104,8 +107,20 @@ function generateReceiptHTML(saleData) {
 </div>`;
 }
 
-function showReceiptModal(saleData) {
-  const receiptHTML = generateReceiptHTML(saleData);
+async function showReceiptModal(saleData) {
+  let config = {};
+  try {
+      if (window.db && window.db.getSettings) {
+          const settingsReq = await window.db.getSettings();
+          if (settingsReq && settingsReq.success) {
+              settingsReq.data.forEach(s => config[s.key] = s.value);
+          }
+      }
+  } catch (err) {
+      console.warn("Failed to load settings for receipt", err);
+  }
+
+  const receiptHTML = generateReceiptHTML(saleData, config);
   
   const modalInner = document.getElementById('modalInner');
   if (modalInner) {
@@ -124,11 +139,26 @@ function showReceiptModal(saleData) {
     document.getElementById('genericModal').style.display = 'flex';
     
     document.getElementById('printReceiptBtn').onclick = () => {
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write('<html><body>' + receiptHTML + '</body></html>');
-      printWindow.document.close();
-      printWindow.print();
-      printWindow.close();
+      let printFrame = document.getElementById('hiddenPrintFrame');
+      if (!printFrame) {
+        printFrame = document.createElement('iframe');
+        printFrame.id = 'hiddenPrintFrame';
+        printFrame.style.position = 'fixed';
+        printFrame.style.right = '0';
+        printFrame.style.bottom = '0';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = '0';
+        document.body.appendChild(printFrame);
+      }
+      
+      const doc = printFrame.contentWindow.document;
+      doc.open();
+      doc.write('<html><head><title>Print Receipt</title></head><body>' + receiptHTML + '</body></html>');
+      doc.close();
+      
+      printFrame.contentWindow.focus();
+      printFrame.contentWindow.print();
     };
     
     document.getElementById('closeReceiptBtn').onclick = () => {
