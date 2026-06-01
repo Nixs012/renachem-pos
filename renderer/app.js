@@ -595,6 +595,7 @@ async function finalizeSale() {
     total,
     paymentMode: paymentMethod === 'split' ? 'Split' 
                : paymentMethod === 'mpesa' ? 'M-Pesa' 
+               : paymentMethod === 'credit' ? 'Credit'
                : 'Cash',
     cashAmount,
     mpesaAmount,
