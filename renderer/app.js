@@ -616,9 +616,9 @@ async function finalizeSale() {
           const rxEntry = `[${saleData.date}] Dispensed:\n- ${itemsPurchasedStr}\n\n`;
           newPrescriptions = rxEntry + newPrescriptions;
           selectedClient.prescriptions = newPrescriptions; // Update local cache
-          await window.db.updatePatient(selectedClient.id, { history: newHistory, prescriptions: newPrescriptions });
+          await window.db.updatePatient(selectedClient.id, selectedClient);
       } else {
-          await window.db.updateCustomer(selectedClient.id, { history: newHistory });
+          await window.db.updateCustomer(selectedClient.id, selectedClient);
       }
   }
 
