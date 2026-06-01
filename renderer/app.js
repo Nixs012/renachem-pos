@@ -2613,26 +2613,26 @@ function renderPurchasesTable() {
 
     if (pageItems.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px; color:#64748b;">No purchases match the criteria.</td></tr>';
-        paginationInfo.innerText = \`Page 1 of 1 (0 records)\`;
+        paginationInfo.innerText = `Page 1 of 1 (0 records)`;
         return;
     }
 
     tbody.innerHTML = pageItems.map(p => {
         const unitP = Number(p.unit_price || 0).toFixed(2);
         const totalC = Number(p.total_cost || 0).toFixed(2);
-        return \`
+        return `
         <tr>
-            <td style="font-weight:700; border-bottom:1px solid #f1f5f9;">\${p.med_name}</td>
-            <td style="color:#64748b; border-bottom:1px solid #f1f5f9;">\${p.supplier || 'N/A'}</td>
-            <td style="color:var(--emerald); font-weight:700; border-bottom:1px solid #f1f5f9;">+ \${p.qty} Units</td>
-            <td style="border-bottom:1px solid #f1f5f9;">KES \${unitP}</td>
-            <td style="font-weight:700; color:var(--royal-blue); border-bottom:1px solid #f1f5f9;">KES \${totalC}</td>
-            <td style="color:#94a3b8; text-align:right; border-bottom:1px solid #f1f5f9;">\${p.date}</td>
+            <td style="font-weight:700; border-bottom:1px solid #f1f5f9;">${p.med_name}</td>
+            <td style="color:#64748b; border-bottom:1px solid #f1f5f9;">${p.supplier || 'N/A'}</td>
+            <td style="color:var(--emerald); font-weight:700; border-bottom:1px solid #f1f5f9;">+ ${p.qty} Units</td>
+            <td style="border-bottom:1px solid #f1f5f9;">KES ${unitP}</td>
+            <td style="font-weight:700; color:var(--royal-blue); border-bottom:1px solid #f1f5f9;">KES ${totalC}</td>
+            <td style="color:#94a3b8; text-align:right; border-bottom:1px solid #f1f5f9;">${p.date}</td>
         </tr>
-        \`;
+        `;
     }).join('');
 
-    paginationInfo.innerText = \`Page \${currentPagePurchases} of \${totalPages} (\${totalItems} records)\`;
+    paginationInfo.innerText = `Page ${currentPagePurchases} of ${totalPages} (${totalItems} records)`;
 }
 
 async function showIntakeModal() {
