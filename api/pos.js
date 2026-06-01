@@ -63,7 +63,7 @@ module.exports = async (req, res) => {
             let query = supabase.from('sales').select('*');
             if (dateFrom) query = query.gte('date', dateFrom);
             if (dateTo) query = query.lte('date', dateTo);
-            const { data: sales, error } = await query.order('created_at', { ascending: false }).limit(100);
+            const { data: sales, error } = await query.order('invoice_number', { ascending: false }).limit(100);
             if (error) throw error;
             let filteredSales = sales || [];
             if (search) {
