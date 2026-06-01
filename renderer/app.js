@@ -564,21 +564,34 @@ async function finalizeSale() {
   showToast('Processing sale...', 'success')
   const invoiceNumber = await generateInvoiceNumber()
 
-  // 6. Build the sale object
+  // Find customer/patient logic
+  const customerSelectEl = document.getElementById('posCustomerSelect');
+  let finalCustomerName = 'Walk-in';
+  let selectedClient = null;
+  
+  if (customerSelectEl && customerSelectEl.value !== 'Walk-in') {
+      finalCustomerName = customerSelectEl.value;
+      const selectedOption = customerSelectEl.options[customerSelectEl.selectedIndex];
+      const clientId = selectedOption.getAttribute('data-id');
+      const clientType = selectedOption.getAttribute('data-type');
+      if (window.currentPOSClients) {
+          selectedClient = window.currentPOSClients.find(c => c.id === clientId && c.type === clientType);
+      }
+  }
+
   const now = new Date()
   const saleData = {
     invoiceNumber,
     date: now.toISOString().slice(0, 10),
     time: now.toTimeString().slice(0, 8),
     cashierName: currentUser.username,
-    customerName: 'Walk-in',
+    customerName: finalCustomerName,
     items: cart.map(item => ({
       name: item.name,
       qty: item.qty,
       price: item.price,
       subtotal: item.price * item.qty
     })),
-    subtotal: total,
     total,
     paymentMode: paymentMethod === 'split' ? 'Split' 
                : paymentMethod === 'mpesa' ? 'M-Pesa' 
@@ -588,10 +601,31 @@ async function finalizeSale() {
     mpesaCode: ''
   }
 
-  // 7. Generate receipt HTML
+  // 7. Auto-update client profile if selected
+  if (selectedClient) {
+      const itemsPurchasedStr = cart.map(item => `${item.name} (${item.qty})`).join(', ');
+      
+      let newHistory = selectedClient.history || '';
+      let newPrescriptions = selectedClient.prescriptions || '';
+      
+      const historyEntry = `[${saleData.date}] Invoice: ${invoiceNumber} | Total: KES ${total}\nItems: ${itemsPurchasedStr}\n\n`;
+      newHistory = historyEntry + newHistory;
+      selectedClient.history = newHistory; // Update local cache
+      
+      if (selectedClient.type === 'Patient') {
+          const rxEntry = `[${saleData.date}] Dispensed:\n- ${itemsPurchasedStr}\n\n`;
+          newPrescriptions = rxEntry + newPrescriptions;
+          selectedClient.prescriptions = newPrescriptions; // Update local cache
+          await window.db.updatePatient(selectedClient.id, { history: newHistory, prescriptions: newPrescriptions });
+      } else {
+          await window.db.updateCustomer(selectedClient.id, { history: newHistory });
+      }
+  }
+
+  // 8. Generate receipt HTML
   const receiptHTML = generateReceiptHTML(saleData)
 
-  // 8. Save to Supabase via API
+  // 9. Save to Supabase via API
   const saveResult = await callApi('save-sale', {
     invoice_number: invoiceNumber,
     date: saleData.date,
@@ -603,16 +637,15 @@ async function finalizeSale() {
     mpesa_amount: mpesaAmount,
     mpesa_code: '',
     cashier_name: currentUser.username,
-    customer_name: 'Walk-in',
+    customer_name: finalCustomerName,
     receipt_html: receiptHTML
   })
 
   if (!saveResult.success) {
-    showToast('Sale failed to save: ' + saveResult.message, 'error')
-    return
+    throw new Error(saveResult.error || saveResult.message || 'Unknown backend failure')
   }
 
-  // 9. Deduct stock for each medicine
+  // 10. Deduct stock for each medicine
   for (const item of cart) {
     await callApi('update-medicine-stock', {
       id: item.id,
@@ -620,7 +653,7 @@ async function finalizeSale() {
     })
   }
 
-  // 10. Show receipt modal
+  // 11. Show receipt modal
   showReceiptModal(saleData)
 
   // 11. Clear cart
@@ -1474,6 +1507,7 @@ async function renderPOS() {
         ...customersList.map(c => ({ ...c, type: 'Customer', display: `${c.name} (${c.phone || 'No Phone'})` })),
         ...patientsList.map(p => ({ ...p, type: 'Patient', display: `[P] ${p.name} (Age: ${p.age || 'N/A'})` }))
     ];
+    window.currentPOSClients = combinedClients;
 
     document.getElementById('pageContainer').innerHTML = `
         <div class="pos-layout">
