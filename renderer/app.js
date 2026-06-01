@@ -2470,12 +2470,15 @@ async function showSupplierModal(id = null) {
     };
 }
 
+let currentPagePurchases = 1;
+let activePurchasesList = [];
+let purchaseSearchTerm = '';
+let purchaseDateFrom = '';
+let purchaseDateTo = '';
+
 async function renderPurchases() {
     if (!hasAccess('purchases')) return document.getElementById('pageContainer').innerHTML = '<div class="stat-card">Access Denied</div>';
     
-    const purRes = await window.db.getPurchases();
-    const purchases = purRes.data || [];
-
     document.getElementById('pageContainer').innerHTML = `
         <div class="view-header">
             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -2487,39 +2490,149 @@ async function renderPurchases() {
             </div>
         </div>
 
+        <div class="stat-card" style="margin-bottom:20px; padding:20px;">
+            <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+                <div class="search-container" style="flex:1; min-width:250px;">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="purchasesSearch" class="search-input" placeholder="Search by medicine or supplier/invoice..." autocomplete="off">
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <label style="font-size:0.85rem; color:#64748b; font-weight:600;">From:</label>
+                    <input type="date" id="purchasesDateFrom" class="premium-input" style="padding:10px 14px;">
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <label style="font-size:0.85rem; color:#64748b; font-weight:600;">To:</label>
+                    <input type="date" id="purchasesDateTo" class="premium-input" style="padding:10px 14px;">
+                </div>
+                <button id="purchasesFilterBtn" class="btn-secondary"><i class="fas fa-filter"></i> Apply</button>
+            </div>
+        </div>
+
         <div class="stat-card" style="padding:0; overflow:hidden;">
             <table class="data-table">
                 <thead>
                     <tr style="background:var(--royal-blue); color:white;">
                         <th style="color:white; padding:16px;">Medicine Name</th>
-                        <th style="color:white;">Supplier</th>
+                        <th style="color:white;">Supplier (Invoice)</th>
                         <th style="color:white;">Quantity</th>
                         <th style="color:white;">Unit Price</th>
                         <th style="color:white;">Total Cost</th>
                         <th style="text-align:right; color:white; padding-right:16px;">Intake Date</th>
                     </tr>
                 </thead>
-                <tbody>
-                    ${purchases.length > 0 ? purchases.slice(-15).reverse().map(p => {
-                        const unitP = Number(p.unit_price || 0).toFixed(2);
-                        const totalC = Number(p.total_cost || 0).toFixed(2);
-                        return `
-                        <tr>
-                            <td style="font-weight:700; border-bottom:1px solid #f1f5f9;">${p.med_name}</td>
-                            <td style="color:#64748b; border-bottom:1px solid #f1f5f9;">${p.supplier || 'N/A'}</td>
-                            <td style="color:var(--emerald); font-weight:700; border-bottom:1px solid #f1f5f9;">+ ${p.qty} Units</td>
-                            <td style="border-bottom:1px solid #f1f5f9;">KES ${unitP}</td>
-                            <td style="font-weight:700; color:var(--royal-blue); border-bottom:1px solid #f1f5f9;">KES ${totalC}</td>
-                            <td style="color:#94a3b8; text-align:right; border-bottom:1px solid #f1f5f9;">${p.date}</td>
-                        </tr>
-                        `;
-                    }).join('') : '<tr><td colspan="6" style="text-align:center; padding:40px; color:#64748b;">No recent purchases recorded.</td></tr>'}
+                <tbody id="purchasesTableBody">
+                    <tr><td colspan="6" style="text-align:center; padding:40px;">Loading purchases...</td></tr>
                 </tbody>
             </table>
+            
+            <div style="padding:16px 20px; border-top:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+                <span id="purchasesPaginationInfo" style="font-size:0.9rem; color:#64748b; font-weight:600;">Page 1 of 1</span>
+                <div style="display:flex; gap:10px;">
+                    <button id="btnPrevPurchases" class="btn-secondary" style="padding:8px 16px;"><i class="fas fa-chevron-left"></i> Prev</button>
+                    <button id="btnNextPurchases" class="btn-secondary" style="padding:8px 16px;">Next <i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
         </div>
     `;
 
     document.getElementById('newIntakeBtn').onclick = () => showIntakeModal();
+
+    // Event Listeners
+    document.getElementById('purchasesFilterBtn').onclick = () => {
+        purchaseSearchTerm = document.getElementById('purchasesSearch').value;
+        purchaseDateFrom = document.getElementById('purchasesDateFrom').value;
+        purchaseDateTo = document.getElementById('purchasesDateTo').value;
+        currentPagePurchases = 1;
+        loadPurchasesList();
+    };
+
+    document.getElementById('purchasesSearch').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') document.getElementById('purchasesFilterBtn').click();
+    });
+
+    document.getElementById('btnPrevPurchases').onclick = () => {
+        if (currentPagePurchases > 1) {
+            currentPagePurchases--;
+            renderPurchasesTable();
+        }
+    };
+
+    document.getElementById('btnNextPurchases').onclick = () => {
+        const totalPages = Math.ceil(activePurchasesList.length / 15) || 1;
+        if (currentPagePurchases < totalPages) {
+            currentPagePurchases++;
+            renderPurchasesTable();
+        }
+    };
+
+    await loadPurchasesList();
+}
+
+async function loadPurchasesList() {
+    const purRes = await window.db.getPurchases();
+    let purchases = purRes.data || [];
+    
+    purchases.sort((a, b) => {
+        if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
+        return b.id - a.id;
+    });
+
+    if (purchaseDateFrom) {
+        purchases = purchases.filter(p => new Date(p.date) >= new Date(purchaseDateFrom));
+    }
+    if (purchaseDateTo) {
+        purchases = purchases.filter(p => new Date(p.date) <= new Date(purchaseDateTo));
+    }
+    if (purchaseSearchTerm) {
+        const q = purchaseSearchTerm.toLowerCase();
+        purchases = purchases.filter(p => 
+            (p.med_name && p.med_name.toLowerCase().includes(q)) || 
+            (p.supplier && p.supplier.toLowerCase().includes(q))
+        );
+    }
+    
+    activePurchasesList = purchases;
+    
+    const totalPages = Math.ceil(activePurchasesList.length / 15) || 1;
+    if (currentPagePurchases > totalPages) currentPagePurchases = 1;
+
+    renderPurchasesTable();
+}
+
+function renderPurchasesTable() {
+    const tbody = document.getElementById('purchasesTableBody');
+    const paginationInfo = document.getElementById('purchasesPaginationInfo');
+    if (!tbody) return;
+
+    const itemsPerPage = 15;
+    const totalItems = activePurchasesList.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+    
+    const startIndex = (currentPagePurchases - 1) * itemsPerPage;
+    const pageItems = activePurchasesList.slice(startIndex, startIndex + itemsPerPage);
+
+    if (pageItems.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px; color:#64748b;">No purchases match the criteria.</td></tr>';
+        paginationInfo.innerText = \`Page 1 of 1 (0 records)\`;
+        return;
+    }
+
+    tbody.innerHTML = pageItems.map(p => {
+        const unitP = Number(p.unit_price || 0).toFixed(2);
+        const totalC = Number(p.total_cost || 0).toFixed(2);
+        return \`
+        <tr>
+            <td style="font-weight:700; border-bottom:1px solid #f1f5f9;">\${p.med_name}</td>
+            <td style="color:#64748b; border-bottom:1px solid #f1f5f9;">\${p.supplier || 'N/A'}</td>
+            <td style="color:var(--emerald); font-weight:700; border-bottom:1px solid #f1f5f9;">+ \${p.qty} Units</td>
+            <td style="border-bottom:1px solid #f1f5f9;">KES \${unitP}</td>
+            <td style="font-weight:700; color:var(--royal-blue); border-bottom:1px solid #f1f5f9;">KES \${totalC}</td>
+            <td style="color:#94a3b8; text-align:right; border-bottom:1px solid #f1f5f9;">\${p.date}</td>
+        </tr>
+        \`;
+    }).join('');
+
+    paginationInfo.innerText = \`Page \${currentPagePurchases} of \${totalPages} (\${totalItems} records)\`;
 }
 
 async function showIntakeModal() {
@@ -2560,7 +2673,7 @@ async function showIntakeModal() {
                 <input type="hidden" id="intake_med_id" value="">
             </div>
 
-            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:24px;">
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap:24px;">
                 <div class="input-group">
                     <label style="font-weight:700; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between;">
                         <span><i class="fas fa-cubes" style="font-size:0.9rem;"></i> Intake Quantity</span>
@@ -2576,6 +2689,12 @@ async function showIntakeModal() {
                         <option value="">-- Choose Supplier --</option>
                         ${suppliers.map(s => `<option value="${s.name}">${s.name}</option>`).join('')}
                     </select>
+                </div>
+                <div class="input-group">
+                    <label style="font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-file-invoice" style="font-size:0.9rem;"></i> Supplier Invoice
+                    </label>
+                    <input type="text" id="intake_invoice" class="premium-input" style="padding:14px 20px;" placeholder="e.g. INV-1002">
                 </div>
             </div>
         </div>
@@ -2742,11 +2861,15 @@ async function showIntakeModal() {
         const buyPrice = parseFloat(document.getElementById('intake_buying_price').value) || 0;
         const totalCost = qty * buyPrice;
 
+        const rawSupplier = document.getElementById('intake_sup').value || 'Unknown';
+        const invoiceRef = document.getElementById('intake_invoice').value.trim();
+        const finalSupplier = invoiceRef ? `${rawSupplier} (Inv: ${invoiceRef})` : rawSupplier;
+
         const cloudData = {
             med_id: document.getElementById('intake_med_id').value || null,
             med_name: document.getElementById('intake_med_name').value.trim(),
             qty: qty,
-            supplier: document.getElementById('intake_sup').value,
+            supplier: finalSupplier,
             unit_price: buyPrice,
             total_cost: totalCost,
             date: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD
@@ -5525,7 +5648,10 @@ async function handleBulkCSVUpload(event) {
                     continue; 
                 }
 
-                const supplier = row['Supplier'] || row['supplier'] || 'Bulk Import';
+                const rawSupplier = row['Supplier'] || row['supplier'] || 'Bulk Import';
+                const invoiceRef = row['Supplier Invoice'] || row['Invoice'] || row['invoice'] || '';
+                const supplier = invoiceRef ? `${rawSupplier} (Inv: ${invoiceRef})` : rawSupplier;
+                
                 const unitPrice = parseFloat(row['Buying Price'] || row['Buying Price (Unit Cost)'] || row['cost']) || 0;
                 const sellingPrice = parseFloat(row['Selling Price'] || row['Selling Price (Retail)'] || row['price']) || 0;
                 const expiryDate = row['Expiry Date'] || row['Expiry'] || row['expiry'] || '';

@@ -1,4 +1,4 @@
-Medicine Name,Intake Quantity,Supplier,Buying Price,Selling Price,Expiry Date,Batch Number,Barcode
-Amoxicillin 500mg,200,MedSource Kenya,15.50,30.00,2028-12-31,AMX-9980,890123456789
-Paracetamol 1000mg,500,Global Pharma,5.00,10.00,2029-01-15,PAR-1122,890123456790
-Vitamin C 500mg,100,HealthCare Inc,12.00,25.00,2027-10-31,VITC-554,890123456791
+Medicine Name,Intake Quantity,Supplier,Supplier Invoice,Buying Price,Selling Price,Expiry Date,Batch Number,Barcode
+Amoxicillin 500mg,200,MedSource Kenya,INV-1029,15.50,30.00,2028-12-31,AMX-9980,890123456789
+Paracetamol 1000mg,500,Global Pharma,INV-1029,5.00,10.00,2029-01-15,PAR-1122,890123456790
+Vitamin C 500mg,100,HealthCare Inc,INV-9932,12.00,25.00,2027-10-31,VITC-554,890123456791
