@@ -181,7 +181,7 @@ if (window.api) {
         clearReturns: async () => await callApi('returns-manage', { action: 'clear' }, 'GET'),
 
         getCredits: async () => await callApi('credits-manage', {}, 'GET'),
-        addCredit: async (data) => await callApi('sales-add', { saleObj: { ...data, payment_mode: 'Credit' }, cartItems: data.items }),
+        addCredit: async (data) => await callApi('credits-manage', { action: 'addCredit', ...data }),
         addCreditPayment: async (data) => await callApi('credits-manage', { action: 'addPayment', ...data }),
         getCreditHistory: async (creditId) => await callApi('credits-manage', { creditId }, 'GET'),
         cleanupOldCredits: async () => ({ success: true }), // Placeholder

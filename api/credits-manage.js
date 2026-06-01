@@ -28,6 +28,24 @@ module.exports = async (req, res) => {
 
     if (req.method === 'POST') {
         const data = req.body || {};
+        const action = data.action;
+
+        if (action === 'addCredit') {
+            const { sale_id, customer_name, total_amount, balance } = data;
+            const { error } = await supabase.from('credits').insert([{
+                sale_id,
+                customer_name,
+                total_amount,
+                balance,
+                status: balance <= 0 ? 'Paid' : 'Pending',
+                amount_paid: 0,
+                last_payment_date: null
+            }]);
+            if (error) return res.status(500).json({ success: false, error: error.message });
+            return res.status(200).json({ success: true });
+        }
+
+        // Default: Add Payment (for backwards compatibility if action isn't provided)
         const creditId = data.creditId || data.credit_id;
         const amount = parseFloat(data.amount);
         const paymentMode = data.paymentMode || data.payment_mode;
