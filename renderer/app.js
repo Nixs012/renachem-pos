@@ -2093,7 +2093,7 @@ async function showCustomerModal(id = null) {
 
 async function showProfileModal(id, type) {
     let person = null;
-    if (type === 'Patient') {
+    if (type.toLowerCase() === 'patient') {
         const res = await window.db.getPatients();
         person = res.data.find(p => p.id === id);
     } else {
