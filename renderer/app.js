@@ -2541,6 +2541,11 @@ async function showIntakeModal() {
                 <span style="display:block; font-size:1.4rem; letter-spacing:-0.5px;">Record New Stock Receipt</span>
                 <small style="font-size:0.8rem; color:#64748b; font-weight:400;">Log stock to update Inventory levels and POS retail prices.</small>
             </div>
+            <div style="margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+                <button onclick="document.getElementById('bulkCSVUpload').click()" class="btn-primary" style="background:#10b981; padding:10px 16px; border-radius:12px; font-weight:600;"><i class="fas fa-file-csv"></i> Bulk CSV Import</button>
+                <a href="/docs/bulk_stock_import_example.csv" download style="font-size:0.75rem; color:#64748b; text-decoration:underline; cursor:pointer;">Download Template</a>
+                <input type="file" id="bulkCSVUpload" accept=".csv" style="display:none;" onchange="handleBulkCSVUpload(event)">
+            </div>
         </h3>
 
         <div style="background:rgba(30, 58, 138, 0.02); padding:30px; border-radius:28px; border:1px solid rgba(30, 58, 138, 0.06); margin-bottom:28px;">
@@ -5483,3 +5488,92 @@ function exportInvoicesToCSV(invoices) {
     }
 }
 
+async function handleBulkCSVUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!window.Papa) {
+        showToast('CSV parsing library not loaded. Please refresh the page.', 'error');
+        return;
+    }
+
+    showToast('Parsing CSV file...', 'info');
+
+    window.Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async function(results) {
+            const rows = results.data;
+            if (rows.length === 0) {
+                return showToast('The CSV file is empty.', 'error');
+            }
+
+            let successCount = 0;
+            let errorCount = 0;
+            
+            showToast(`Processing ${rows.length} records. Please wait...`, 'info');
+
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                
+                const medName = row['Medicine Name'] || row['MedicineName'] || row['name'];
+                const qty = parseInt(row['Intake Quantity'] || row['Quantity'] || row['qty']);
+                
+                if (!medName || isNaN(qty) || qty <= 0) {
+                    errorCount++;
+                    console.warn(`Row ${i+1} failed validation: Missing name or valid qty`, row);
+                    continue; 
+                }
+
+                const supplier = row['Supplier'] || row['supplier'] || 'Bulk Import';
+                const unitPrice = parseFloat(row['Buying Price'] || row['Buying Price (Unit Cost)'] || row['cost']) || 0;
+                const sellingPrice = parseFloat(row['Selling Price'] || row['Selling Price (Retail)'] || row['price']) || 0;
+                const expiryDate = row['Expiry Date'] || row['Expiry'] || row['expiry'] || '';
+                const batchNumber = row['Batch Number'] || row['Batch'] || row['batch'] || '';
+                const barcode = row['Barcode'] || row['Barcode / SKU'] || row['barcode'] || '';
+
+                const payload = {
+                    med_name: medName,
+                    batch: batchNumber,
+                    qty: qty,
+                    supplier: supplier,
+                    unit_price: unitPrice,
+                    total_cost: unitPrice * qty,
+                    date: new Date().toLocaleDateString('en-CA'),
+                    selling_price: sellingPrice,
+                    expiry: expiryDate,
+                    barcode: barcode
+                };
+
+                try {
+                    const res = await window.db.recordStockIntake(payload);
+                    if (res && res.success) {
+                        successCount++;
+                    } else {
+                        errorCount++;
+                        console.error(`Row ${i+1} import failed:`, res);
+                    }
+                } catch (err) {
+                    errorCount++;
+                    console.error(`Row ${i+1} error:`, err);
+                }
+            }
+
+            event.target.value = '';
+
+            if (successCount > 0) {
+                showToast(`Successfully imported ${successCount} stock records!`, 'success');
+                if (typeof fetchMedicines === 'function') fetchMedicines(); 
+                document.getElementById('genericModal').style.display = 'none';
+                if (typeof renderPurchases === 'function') renderPurchases(); 
+            }
+            if (errorCount > 0) {
+                showToast(`${errorCount} records failed. Check console for details.`, 'warning');
+            }
+        },
+        error: function(err) {
+            showToast('Failed to parse CSV file.', 'error');
+            console.error('PapaParse error:', err);
+        }
+    });
+}
