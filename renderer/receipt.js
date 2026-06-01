@@ -107,7 +107,7 @@ function generateReceiptHTML(saleData, config = {}) {
 </div>`;
 }
 
-async function showReceiptModal(saleData) {
+async function showReceiptModal(saleData, fromPOS = true) {
   let config = {};
   try {
       if (window.db && window.db.getSettings) {
@@ -163,16 +163,19 @@ async function showReceiptModal(saleData) {
     
     document.getElementById('closeReceiptBtn').onclick = () => {
       document.getElementById('genericModal').style.display = 'none';
-      if (typeof window.cart !== 'undefined') {
-        window.cart = [];
-      } else if (typeof cart !== 'undefined') {
-        cart = [];
-      }
       
-      if (typeof window.renderPOS === 'function') {
-        window.renderPOS();
-      } else if (typeof renderPOS === 'function') {
-        renderPOS();
+      if (fromPOS) {
+        if (typeof window.cart !== 'undefined') {
+          window.cart = [];
+        } else if (typeof cart !== 'undefined') {
+          cart = [];
+        }
+        
+        if (typeof window.renderPOS === 'function') {
+          window.renderPOS();
+        } else if (typeof renderPOS === 'function') {
+          renderPOS();
+        }
       }
     };
   }

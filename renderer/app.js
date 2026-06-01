@@ -5430,7 +5430,7 @@ function buildSaleDataObject(sale) {
 function previewInvoiceReceipt(sale) {
     try {
         const saleData = buildSaleDataObject(sale);
-        window.showReceiptModal(saleData);
+        window.showReceiptModal(saleData, false);
 
         // Override the close listener to stay on invoices page
         const closeBtn = document.getElementById('closeReceiptBtn');
