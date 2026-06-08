@@ -2169,7 +2169,7 @@ async function showProfileModal(id, type) {
                                     <tr>
                                         <td>${s.date}</td>
                                         <td><div style="max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${itemsDesc}">${itemsDesc}</div></td>
-                                        <td style="font-weight:700; color:var(--royal-blue);">KES ${s.total.toFixed(2)}</td>
+                                        <td style="font-weight:700; color:var(--royal-blue);">KES ${Number(s.total || 0).toFixed(2)}</td>
                                         <td style="text-align:right;">
                                             <button class="action-btn-refined btn-icon-view reprint-history-btn" data-id="${s.id}" title="Reprint Receipt">
                                                 <i class="fas fa-print"></i>
