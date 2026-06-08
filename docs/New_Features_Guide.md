@@ -63,3 +63,14 @@ This document provides a step-by-step guide on how to use the latest features ad
 3. **Update Now:** Clicking "Update Now" will gracefully reload the application and pull the latest code.
 4. **Later:** Clicking "Later" dismisses the banner until the next session.
 5. **Manual Check:** Users can click their profile avatar in the sidebar and click "Check for Updates Now" under the "About & Updates" section to manually verify their version.
+
+---
+
+## 6. Supplier Invoice Tracking (Purchase & Stock)
+**What it does:** Allows you to attach specific supplier invoice numbers (e.g., `INV-1002`) to incoming stock deliveries, so you can easily search for and verify which medicines came from which exact invoice delivery later.
+
+### How to use it:
+1. **Manual Entry:** When clicking **"Record New Stock Receipt"**, you will see a new field called **"Supplier Invoice"** next to the Supplier dropdown. Type the invoice number from the physical paper receipt (e.g., `INV-1029`).
+2. **Bulk CSV Entry:** If using the **"Bulk CSV Import"**, download the latest template. You will find a new column named `Supplier Invoice`. Fill this in for the medicines arriving in that delivery.
+3. **Database Engine Integration:** When the stock receipt is saved, the backend engine automatically merges the invoice number with the supplier's name (saving it as `Supplier Name (Inv: INV-1029)`). This brilliantly tracks the invoice without requiring complex database schema changes.
+4. **Search and Verify:** Head to the **Purchase & Stock** page. You can now use the new search bar to type in any invoice number (e.g., `INV-1029`). The paginated table will instantly filter to show *only* the medicines that were received under that specific invoice!
