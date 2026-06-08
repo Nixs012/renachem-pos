@@ -2656,7 +2656,7 @@ async function showIntakeModal() {
             </div>
             <div style="margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
                 <button onclick="document.getElementById('bulkCSVUpload').click()" class="btn-primary" style="background:#10b981; padding:10px 16px; border-radius:12px; font-weight:600;"><i class="fas fa-file-csv"></i> Bulk CSV Import</button>
-                <a href="/docs/bulk_stock_import_example.csv" download style="font-size:0.75rem; color:#64748b; text-decoration:underline; cursor:pointer;">Download Template</a>
+                <a href="../docs/bulk_stock_import_example.csv" download style="font-size:0.75rem; color:#64748b; text-decoration:underline; cursor:pointer;">Download Template</a>
                 <input type="file" id="bulkCSVUpload" accept=".csv" style="display:none;" onchange="handleBulkCSVUpload(event)">
             </div>
         </h3>

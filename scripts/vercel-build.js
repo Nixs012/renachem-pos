@@ -53,6 +53,13 @@ try {
         copyFolderRecursiveSync(assetsDir, path.join(publicDir, 'assets'));
     }
 
+    // 4. Copy docs to public/docs
+    console.log('Deploying docs...');
+    const docsDir = path.join(__dirname, '..', 'docs');
+    if (fs.existsSync(docsDir)) {
+        copyFolderRecursiveSync(docsDir, path.join(publicDir, 'docs'));
+    }
+
     console.log('--- Build Successful! ---');
 } catch (error) {
     console.error('--- Build Failed! ---');
