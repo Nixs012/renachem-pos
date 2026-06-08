@@ -780,7 +780,7 @@ async function printReceipt(saleObj, cartItems, format = 'thermal') {
             </div>
             <div class="flex-row">
                 <span>Served by:</span>
-                <span>${currentUser ? currentUser.username : 'Admin'}</span>
+                <span>${(saleObj && (saleObj.cashierName || saleObj.cashier_name)) ? (saleObj.cashierName || saleObj.cashier_name) : (currentUser ? currentUser.username : 'System')}</span>
             </div>
             ${pharmacyPhone ? `<div class="flex-row"><span>Tel:</span><span>${pharmacyPhone}</span></div>` : ''}
             
@@ -827,7 +827,10 @@ async function printReceipt(saleObj, cartItems, format = 'thermal') {
             
             <div class="divider"></div>
             
-            <div class="footer">Thank you for shopping!</div>
+            <div class="footer">
+                <div>Thank you for shopping!</div>
+                <div style="font-size:12px; margin-top:8px; color:#555;">Powered by AZANIA DIGITAL LABS</div>
+            </div>
             
             <div class="cut-line">--- CUT HERE ---</div>
         </body>
@@ -4862,7 +4865,7 @@ async function viewDebtorStatement(creditId, name) {
                     <tbody>
                         ${payments.map(p => `
                             <tr>
-                                <td>${new Date(p.payment_date + ' UTC').toLocaleString()}</td>
+                                <td>${new Date(p.payment_date).toString() !== 'Invalid Date' ? new Date(p.payment_date).toLocaleString() : p.payment_date}</td>
                                 <td style="font-weight:700; color:var(--emerald);">+ KES ${Number(p.amount).toFixed(2)}</td>
                                 <td>${p.payment_mode}</td>
                                 <td>${p.received_by}</td>

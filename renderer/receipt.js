@@ -101,7 +101,7 @@ function generateReceiptHTML(saleData, config = {}) {
   <div style="text-align:center;border-top:1px dashed #000;padding-top:8px;font-size:11px;">
     <div>Thank you for choosing ${pharmacyName}</div>
     <div>Get well soon!</div>
-    <div style="margin-top:4px;color:#888;">Powered by Renachem POS</div>
+    <div style="margin-top:4px;color:#888;">Powered by AZANIA DIGITAL LABS</div>
   </div>
 
 </div>`;
