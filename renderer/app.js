@@ -560,10 +560,6 @@ async function finalizeSale() {
     mpesaAmount = total
   }
 
-  // 5. Generate invoice number
-  showToast('Processing sale...', 'success')
-  const invoiceNumber = await generateInvoiceNumber()
-
   // Find customer/patient logic
   const customerSelectEl = document.getElementById('posCustomerSelect');
   let finalCustomerName = 'Walk-in';
@@ -578,6 +574,16 @@ async function finalizeSale() {
           selectedClient = window.currentPOSClients.find(c => c.id === clientId && c.type === clientType);
       }
   }
+
+  // Prevent Walk-ins from using Credit
+  if (paymentMethod === 'credit' && finalCustomerName === 'Walk-in') {
+      showToast('Walk-in customers cannot use Credit. Please select a registered Patient or Customer.', 'error');
+      return;
+  }
+
+  // 5. Generate invoice number
+  showToast('Processing sale...', 'success')
+  const invoiceNumber = await generateInvoiceNumber()
 
   const now = new Date()
   const saleData = {
