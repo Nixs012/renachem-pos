@@ -722,7 +722,7 @@ async function printReceipt(saleObj, cartItems, format = 'thermal') {
     
     const pharmacyName = config.pharmacy_name || 'RENACHEM POS';
     const pharmacyAddress = config.pharmacy_address || '';
-    const pharmacyPhone = config.pharmacy_phone || '';
+    const pharmacyPhone = config.pharmacy_phone || '+254 724 407 638';
     
     let styles = format === 'thermal' ? `
         body { font-family: 'Courier New', Courier, monospace; width: 300px; padding: 15px; margin: 0 auto; font-size: 13px; color: #000; font-weight: 500; font-smooth: always; background: white; }

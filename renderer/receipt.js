@@ -56,7 +56,7 @@ function generateReceiptHTML(saleData, config = {}) {
   }
 
   const pharmacyName = config.pharmacy_name || 'RENACHEM PHARMACY';
-  const pharmacyPhone = config.pharmacy_phone || '[pharmacy phone]';
+  const pharmacyPhone = config.pharmacy_phone || '+254 724 407 638';
 
   return `
 <div id="receiptContent" style="font-family:monospace;max-width:300px;margin:0 auto;padding:16px;font-size:13px;">
