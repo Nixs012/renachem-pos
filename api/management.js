@@ -189,6 +189,9 @@ module.exports = async (req, res) => {
                 }
                 if (activeAction === 'resetUserPassword') {
                     const { id, password } = req.body;
+                    if (user.role !== 'admin' && String(user.id) !== String(id)) {
+                        return res.status(403).json({ success: false, error: 'Permission denied: You can only reset your own password' });
+                    }
                     const password_hash = await bcrypt.hash(password, 10);
                     const { error } = await supabase.from('users').update({ password_hash }).eq('id', id);
                     if (error) throw error;

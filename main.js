@@ -281,9 +281,12 @@ ipcMain.handle('auth:updateRole', wrapHandler(async (event, t, { id, role }) => 
 }, { adminOnly: true }));
 
 ipcMain.handle('auth:resetPassword', wrapHandler(async (event, t, { id, password }) => {
+    if (currentSessionRole !== 'Admin' && currentSessionUserId !== id) {
+        throw new Error('Permission denied: You can only reset your own password');
+    }
     db.insertAuditLog(currentSessionUserId, null, 'PASSWORD_RESET', 'AUTH', `Reset password for user ${id}`);
     return db.resetUserPassword(id, password);
-}, { adminOnly: true }));
+}, { adminOnly: false }));
 
 ipcMain.handle('auth:recoverAdminPassword', wrapHandler(async (event, { username, recoveryKey, newPassword }) => {
     const result = db.recoverAdminPassword(username, recoveryKey, newPassword);
