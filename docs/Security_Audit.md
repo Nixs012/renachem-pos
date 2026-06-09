@@ -6,7 +6,7 @@ This document outlines the current security state of the Renachem Pharmacy POS a
 
 ### 🚨 Critical: Lack of API Authorization
 **Status**: SECURE
-- **Vulnerability**: Previously, anyone with the `.netlify/functions/` URLs could fetch inventory or modify data without being logged in.
+- **Vulnerability**: Previously, anyone with the `/api/` URLs could fetch inventory or modify data without being logged in.
 - **Risk**: Total data exposure.
 - **Fix**: Implemented a **Bearer Token** system. Every function now verifies a `renachem_token` before processing data.
 
@@ -14,7 +14,8 @@ This document outlines the current security state of the Renachem Pharmacy POS a
 **Status**: SECURE
 - **Vulnerability**: A 'Cashier' could previously send a request to delete an Admin account.
 - **Risk**: Privilege escalation.
-- **Fix**: Added Role-Based Access Control (RBAC) to backend functions. Sensitive actions now require `user.role === 'Admin'`.
+- **Fix**: Added Role-Based Access Control (RBAC) to backend functions. Sensitive actions now require `user.role === 'admin'`.
+- **Update**: Refined RBAC logic allows non-admin users (Cashiers/Pharmacists) to reset their *own* passwords, while cryptographically blocking them from modifying other users' credentials.
 
 ### 🟢 Low: Database Exposure
 **Status**: SECURE
@@ -23,7 +24,7 @@ This document outlines the current security state of the Renachem Pharmacy POS a
 
 ## 2. Implemented Security Controls
 
-| Feature | Desktop (Local) | Cloud (Netlify/Supabase) |
+| Feature | Desktop (Local) | Cloud (Vercel/Supabase) |
 | :--- | :--- | :--- |
 | **Password Storage** | Bcrypt Hashing | Bcrypt Hashing |
 | **Brute Force Protection** | Account Lockout (5 attempts) | Account Lockout (15 min sync) |
@@ -34,8 +35,8 @@ This document outlines the current security state of the Renachem Pharmacy POS a
 ## 3. Recommended Actions
 
 1. **Rotation**: Periodically rotate the `SUPABASE_SERVICE_KEY` and `APP_SECRET`.
-2. **HTTPS**: Ensure the Netlify site is only accessible via HTTPS (enabled by default).
+2. **HTTPS**: Ensure the Vercel site is only accessible via HTTPS (enabled by default).
 3. **Audit Log**: Review the Audit Log regularly for suspicious user activity.
 
 ---
-*Analysis completed: 2026-04-30*
+*Analysis up to date with latest deployment*
