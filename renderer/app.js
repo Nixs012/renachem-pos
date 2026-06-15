@@ -328,7 +328,7 @@ async function renderSettings() {
                 
                 <div class="input-group" style="margin-bottom: 15px;">
                     <label>Pharmacy Name</label>
-                    <input type="text" id="set_pharmacy_name" placeholder="e.g. Renachem Pharmacy" value="${config.pharmacy_name || ''}">
+                    <input type="text" id="set_pharmacy_name" placeholder="e.g. Demo Pharmacy" value="${config.pharmacy_name || ''}">
                 </div>
                 <div class="input-group" style="margin-bottom: 15px;">
                     <label>Address / Location</label>
@@ -720,7 +720,7 @@ async function printReceipt(saleObj, cartItems, format = 'thermal') {
         settingsReq.data.forEach(s => config[s.key] = s.value);
     }
     
-    const pharmacyName = config.pharmacy_name || 'RENACHEM POS';
+    const pharmacyName = config.pharmacy_name || 'DEMO POS';
     const pharmacyAddress = config.pharmacy_address || '';
     const pharmacyPhone = config.pharmacy_phone || '+254 724 407 638';
     
@@ -909,7 +909,7 @@ async function renderDashboard() {
     const html = `
         <div class="view-header">
             <h2>Welcome, ${currentUser ? currentUser.username : 'Admin'}</h2>
-            <p>Here is what's happening at Renachem Pharmacy today.</p>
+            <p>Here is what's happening at Demo Pharmacy today.</p>
         </div>
 
         <div class="stats-grid">
@@ -1445,7 +1445,7 @@ window.handleDownloadMedicineReport = async (id) => {
         // Header
         doc.setFontSize(22);
         doc.setTextColor(30, 58, 138); // Royal Blue
-        doc.text("RENACHEM PHARMACY", 14, 22);
+        doc.text("DEMO PHARMACY", 14, 22);
         
         doc.setFontSize(10);
         doc.setTextColor(100);
@@ -1487,7 +1487,7 @@ window.handleDownloadMedicineReport = async (id) => {
         doc.setFontSize(9);
         doc.setTextColor(150);
         doc.text("This is a system-generated document for internal inventory tracking.", 14, finalY);
-        doc.text("Authorized by Renachem Pharmacy Management Suite.", 14, finalY + 5);
+        doc.text("Authorized by Demo Pharmacy Management Suite.", 14, finalY + 5);
 
         doc.save(`${med.name.replace(/\s+/g, '_')}_Report.pdf`);
         showToast('Report downloaded successfully!', 'success');
@@ -4901,7 +4901,7 @@ async function downloadStatement(name, creditId) {
         // Header
         doc.setFontSize(22);
         doc.setTextColor(30, 58, 138); // Royal Blue
-        doc.text("RENACHEM PHARMACY", 14, 22);
+        doc.text("DEMO PHARMACY", 14, 22);
         
         doc.setFontSize(12);
         doc.setTextColor(100);
@@ -4960,7 +4960,7 @@ async function downloadStatement(name, creditId) {
         const finalY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 120);
         doc.setFontSize(9);
         doc.setTextColor(150);
-        doc.text("Thank you for your continued partnership with Renachem Pharmacy.", 14, finalY + 20);
+        doc.text("Thank you for your continued partnership with Demo Pharmacy.", 14, finalY + 20);
         doc.text("This is a computer-generated document and does not require a signature.", 14, finalY + 25);
 
         doc.save(`Statement_${name.replace(/\s/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`);
@@ -4990,7 +4990,7 @@ async function printStatement(name, creditId) {
             settingsReq.data.forEach(s => config[s.key] = s.value);
         }
         
-        const pharmacyName = config.pharmacy_name || 'RENACHEM PHARMACY';
+        const pharmacyName = config.pharmacy_name || 'DEMO PHARMACY';
         const pharmacyAddress = config.pharmacy_address || '';
         const pharmacyPhone = config.pharmacy_phone || '';
 
@@ -5609,7 +5609,7 @@ function exportInvoicesToCSV(invoices) {
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        link.setAttribute("download", `Renachem_Invoices_${new Date().toLocaleDateString('en-CA')}.csv`);
+        link.setAttribute("download", `Demo_Invoices_${new Date().toLocaleDateString('en-CA')}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
