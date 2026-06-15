@@ -127,6 +127,7 @@ if (window.api) {
         },
         logout: async () => {
             localStorage.removeItem('renachem_token');
+            if (window.clearAppCache) window.clearAppCache();
             return { success: true };
         },
         createUser: async (data) => await callApi('auth-create-user', data),
@@ -140,49 +141,70 @@ if (window.api) {
         recoverAdminPassword: async (data) => await callApi('auth-recover', data)
     };
 
+    // --- SWR CACHE MANAGER ---
+    const APP_CACHE = {};
+
+    const fetchWithCache = async (cacheKey, apiCallPromiseFn) => {
+        if (APP_CACHE[cacheKey]) {
+            // Background revalidate silently
+            apiCallPromiseFn().then(res => {
+                if (res && res.success !== false) APP_CACHE[cacheKey] = res;
+            }).catch(e => console.error(`SWR fetch failed for ${cacheKey}`, e));
+            return APP_CACHE[cacheKey]; // Return cache instantly
+        }
+        const res = await apiCallPromiseFn();
+        if (res && res.success !== false) APP_CACHE[cacheKey] = res;
+        return res;
+    };
+
+    const invalidateCache = (cacheKey) => { APP_CACHE[cacheKey] = null; };
+
+    window.clearAppCache = () => {
+        for (let key in APP_CACHE) APP_CACHE[key] = null;
+    };
+
     // --- EMULATED DB MODULE ---
     window.db = {
-        getMedicines: async () => await callApi('products-get', {}, 'GET'),
-        addMedicine: async (data) => await callApi('products-add', data),
-        updateMedicine: async (id, data) => await callApi('products-update', { id, ...data }),
-        deleteMedicine: async (id) => await callApi('products-delete', { id }),
+        getMedicines: async () => await fetchWithCache('medicines', () => callApi('products-get', {}, 'GET')),
+        addMedicine: async (data) => { invalidateCache('medicines'); return await callApi('products-add', data); },
+        updateMedicine: async (id, data) => { invalidateCache('medicines'); return await callApi('products-update', { id, ...data }); },
+        deleteMedicine: async (id) => { invalidateCache('medicines'); return await callApi('products-delete', { id }); },
         bulkAddMedicines: async (medicinesArray) => {
-            for (const med of medicinesArray) {
-                await callApi('products-add', med);
-            }
+            invalidateCache('medicines');
+            for (const med of medicinesArray) await callApi('products-add', med);
             return { success: true };
         },
         
-        getPatients: async () => await callApi('clients-manage', { module: 'clients', table: 'patients' }, 'GET'),
-        addPatient: async (data) => await callApi('clients-manage', { module: 'clients', action: 'add', table: 'patients', ...data }),
-        updatePatient: async (id, data) => await callApi('clients-manage', { module: 'clients', action: 'update', table: 'patients', id, ...data }),
-        deletePatient: async (id) => await callApi('clients-manage', { module: 'clients', action: 'delete', table: 'patients', id }),
+        getPatients: async () => await fetchWithCache('patients', () => callApi('clients-manage', { module: 'clients', table: 'patients' }, 'GET')),
+        addPatient: async (data) => { invalidateCache('patients'); return await callApi('clients-manage', { module: 'clients', action: 'add', table: 'patients', ...data }); },
+        updatePatient: async (id, data) => { invalidateCache('patients'); return await callApi('clients-manage', { module: 'clients', action: 'update', table: 'patients', id, ...data }); },
+        deletePatient: async (id) => { invalidateCache('patients'); return await callApi('clients-manage', { module: 'clients', action: 'delete', table: 'patients', id }); },
         
-        getCustomers: async () => await callApi('clients-manage', { module: 'clients', table: 'customers' }, 'GET'),
-        addCustomer: async (data) => await callApi('clients-manage', { module: 'clients', action: 'add', table: 'customers', ...data }),
-        updateCustomer: async (id, data) => await callApi('clients-manage', { module: 'clients', action: 'update', table: 'customers', id, ...data }),
-        deleteCustomer: async (id) => await callApi('clients-manage', { module: 'clients', action: 'delete', table: 'customers', id }),
+        getCustomers: async () => await fetchWithCache('customers', () => callApi('clients-manage', { module: 'clients', table: 'customers' }, 'GET')),
+        addCustomer: async (data) => { invalidateCache('customers'); return await callApi('clients-manage', { module: 'clients', action: 'add', table: 'customers', ...data }); },
+        updateCustomer: async (id, data) => { invalidateCache('customers'); return await callApi('clients-manage', { module: 'clients', action: 'update', table: 'customers', id, ...data }); },
+        deleteCustomer: async (id) => { invalidateCache('customers'); return await callApi('clients-manage', { module: 'clients', action: 'delete', table: 'customers', id }); },
 
-        getSuppliers: async () => await callApi('suppliers-manage', { module: 'suppliers' }, 'GET'),
-        addSupplier: async (data) => await callApi('suppliers-manage', { module: 'suppliers', action: 'add', ...data }),
-        updateSupplier: async (id, data) => await callApi('suppliers-manage', { module: 'suppliers', action: 'update', id, ...data }),
-        deleteSupplier: async (id) => await callApi('suppliers-manage', { module: 'suppliers', action: 'delete', id }),
+        getSuppliers: async () => await fetchWithCache('suppliers', () => callApi('suppliers-manage', { module: 'suppliers' }, 'GET')),
+        addSupplier: async (data) => { invalidateCache('suppliers'); return await callApi('suppliers-manage', { module: 'suppliers', action: 'add', ...data }); },
+        updateSupplier: async (id, data) => { invalidateCache('suppliers'); return await callApi('suppliers-manage', { module: 'suppliers', action: 'update', id, ...data }); },
+        deleteSupplier: async (id) => { invalidateCache('suppliers'); return await callApi('suppliers-manage', { module: 'suppliers', action: 'delete', id }); },
 
-        getPurchases: async () => await callApi('purchases-manage', { module: 'purchases' }, 'GET'),
-        addPurchase: async (data) => await callApi('purchases-manage', { module: 'purchases', action: 'add', ...data }),
-        recordStockIntake: async (data) => await callApi('purchases-manage', { module: 'purchases', action: 'recordStockIntake', ...data }),
+        getPurchases: async () => await fetchWithCache('purchases', () => callApi('purchases-manage', { module: 'purchases' }, 'GET')),
+        addPurchase: async (data) => { invalidateCache('purchases'); invalidateCache('medicines'); return await callApi('purchases-manage', { module: 'purchases', action: 'add', ...data }); },
+        recordStockIntake: async (data) => { invalidateCache('purchases'); invalidateCache('medicines'); return await callApi('purchases-manage', { module: 'purchases', action: 'recordStockIntake', ...data }); },
         
-        getSales: async () => await callApi('sales-get', {}, 'GET'),
-        addSale: async (data) => await callApi('sales-add', { saleObj: data, cartItems: data.items }),
-        recordSaleTransaction: async (saleData, cartItems) => await callApi('sales-add', { saleObj: saleData, cartItems }),
+        getSales: async () => await fetchWithCache('sales', () => callApi('sales-get', {}, 'GET')),
+        addSale: async (data) => { invalidateCache('sales'); invalidateCache('medicines'); return await callApi('sales-add', { saleObj: data, cartItems: data.items }); },
+        recordSaleTransaction: async (saleData, cartItems) => { invalidateCache('sales'); invalidateCache('medicines'); return await callApi('sales-add', { saleObj: saleData, cartItems }); },
         
-        recordReturnTransaction: async (data) => await callApi('returns-manage', { action: 'record', ...data }),
-        getReturns: async () => await callApi('returns-manage', { action: 'get' }, 'GET'),
-        clearReturns: async () => await callApi('returns-manage', { action: 'clear' }, 'GET'),
+        recordReturnTransaction: async (data) => { invalidateCache('returns'); invalidateCache('medicines'); return await callApi('returns-manage', { action: 'record', ...data }); },
+        getReturns: async () => await fetchWithCache('returns', () => callApi('returns-manage', { action: 'get' }, 'GET')),
+        clearReturns: async () => { invalidateCache('returns'); return await callApi('returns-manage', { action: 'clear' }, 'GET'); },
 
-        getCredits: async () => await callApi('credits-manage', {}, 'GET'),
-        addCredit: async (data) => await callApi('credits-manage', { action: 'addCredit', ...data }),
-        addCreditPayment: async (data) => await callApi('credits-manage', { action: 'addPayment', ...data }),
+        getCredits: async () => await fetchWithCache('credits', () => callApi('credits-manage', {}, 'GET')),
+        addCredit: async (data) => { invalidateCache('credits'); return await callApi('credits-manage', { action: 'addCredit', ...data }); },
+        addCreditPayment: async (data) => { invalidateCache('credits'); return await callApi('credits-manage', { action: 'addPayment', ...data }); },
         getCreditHistory: async (creditId) => await callApi('credits-manage', { creditId }, 'GET'),
         cleanupOldCredits: async () => ({ success: true }), // Placeholder
         
