@@ -2959,7 +2959,7 @@ async function renderReports(subPage = 'overview') {
     if (subPage === 'overview') {
         renderFinancialOverview(content, sales);
     } else if (subPage === 'sales') {
-        renderDetailedSalesLog(content, sales, window.lastSalesSearch || '');
+        await renderDetailedSalesLog(content, window.lastSalesSearch || '');
     } else if (subPage === 'inventory') {
         renderInventoryHealth(content, medicines);
     } else if (subPage === 'expiry') {
@@ -3094,41 +3094,16 @@ function renderInventoryHealth(container, medicines) {
     `;
 }
 
-function renderDetailedSalesLog(container, sales, searchQuery = '') {
+async function renderDetailedSalesLog(container, searchQuery = '') {
     if (window.lastSalesSearch !== searchQuery) {
         paginationState.sales = 1;
         window.lastSalesSearch = searchQuery;
     }
 
-    let list = [...sales].sort((a, b) => {
-        const idA = Number(a.id) || 0;
-        const idB = Number(b.id) || 0;
-        if (idA !== idB) return idB - idA;
-        const dateA = new Date(a.date_time || a.date || 0);
-        const dateB = new Date(b.date_time || b.date || 0);
-        return dateB - dateA;
-    });
-
-    if (searchQuery) {
-        const q = searchQuery.toLowerCase().trim();
-        list = list.filter(s => {
-            if (String(s.id).toLowerCase().includes(q)) return true;
-            if ((s.customer_name || '').toLowerCase().includes(q)) return true;
-            if ((s.date_time || s.date || '').toLowerCase().includes(q)) return true;
-            if ((s.payment_mode || '').toLowerCase().includes(q)) return true;
-            try {
-                const items = JSON.parse(s.items_json || '[]');
-                if (Array.isArray(items)) {
-                    return items.some(item => (item.name || '').toLowerCase().includes(q));
-                }
-            } catch (e) {}
-            return false;
-        });
-    }
-
-    const totalItems = list.length;
-    const startIdx = (paginationState.sales - 1) * paginationState.limit;
-    const paginatedSales = list.slice(startIdx, startIdx + paginationState.limit);
+    // SERVER-SIDE FETCH
+    const res = await window.db.getSales(paginationState.sales, paginationState.limit, searchQuery);
+    const paginatedSales = res.data || [];
+    const totalItems = res.totalCount || paginatedSales.length;
 
     const hasSearch = document.getElementById('salesLogSearch');
     if (!hasSearch) {
@@ -3194,7 +3169,7 @@ function renderDetailedSalesLog(container, sales, searchQuery = '') {
             <div class="stat-card" style="padding:0; overflow:hidden; border-radius:16px;">
                 <div style="padding:20px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
                     <h4 style="margin:0;"><i class="fas fa-list-ul"></i> Detailed Transaction Repository</h4>
-                    <div style="font-size:0.85rem; color:#64748b;">Showing ${totalItems} of ${sales.length} transactions</div>
+                    <div style="font-size:0.85rem; color:#64748b;">Showing paginated results. Total transactions: ${totalItems}</div>
                 </div>
                 <div style="max-height:600px; overflow-y:auto;">
                     <table class="data-table">
@@ -3244,7 +3219,7 @@ function renderDetailedSalesLog(container, sales, searchQuery = '') {
     document.querySelectorAll('.reprint-general-btn').forEach(btn => {
         btn.onclick = async () => {
             const saleId = btn.getAttribute('data-id');
-            const sale = sales.find(s => String(s.id) === String(saleId));
+            const sale = paginatedSales.find(s => String(s.id) === String(saleId));
             if (sale) {
                 handleHistoryReprint(sale);
             }
@@ -3254,7 +3229,7 @@ function renderDetailedSalesLog(container, sales, searchQuery = '') {
     document.querySelectorAll('.return-sale-btn').forEach(btn => {
         btn.onclick = async () => {
             const saleId = btn.getAttribute('data-id');
-            const sale = sales.find(s => String(s.id) === String(saleId));
+            const sale = paginatedSales.find(s => String(s.id) === String(saleId));
             if (sale) {
                 showReturnModal(sale);
             }
@@ -3264,7 +3239,10 @@ function renderDetailedSalesLog(container, sales, searchQuery = '') {
     const searchInput = document.getElementById('salesLogSearch');
     if (searchInput) {
         searchInput.oninput = (e) => {
-            renderDetailedSalesLog(container, sales, e.target.value);
+            clearTimeout(window.salesSearchTimeout);
+            window.salesSearchTimeout = setTimeout(() => {
+                renderDetailedSalesLog(container, e.target.value);
+            }, 500);
         };
     }
 }
@@ -3757,8 +3735,9 @@ async function renderUsers(subPage = 'list') {
             ${renderPaginationControls('users', users.length)}
         `;
     } else if (subPage === 'audit') {
-        const res = await window.db.getAuditLog();
+        const res = await window.db.getAuditLog({ page: paginationState.audit, limit: paginationState.limit });
         const logs = res.data || [];
+        const totalItems = res.totalCount || logs.length;
         // Optional: verify chain while rendering
         content = `
             <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
@@ -3768,7 +3747,7 @@ async function renderUsers(subPage = 'list') {
             <div class="table-responsive">
                 <table class="data-table">
                     <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Module</th><th>Hash String</th></tr></thead>
-                    <tbody>${logs.slice((paginationState.audit - 1) * paginationState.limit, paginationState.audit * paginationState.limit).map(l => `
+                    <tbody>${logs.map(l => `
                         <tr>
                             <td style="font-size:0.8rem;">${new Date(l.timestamp).toLocaleString()}</td>
                             <td style="font-weight:600;">${l.username || 'SYSTEM'}</td>
@@ -3779,7 +3758,7 @@ async function renderUsers(subPage = 'list') {
                     `).join('') || '<tr><td colspan="5" style="text-align:center;">No audit records found</td></tr>'}</tbody>
                 </table>
             </div>
-            ${renderPaginationControls('audit', logs.length)}
+            ${renderPaginationControls('audit', totalItems)}
         `;
         
         // Trigger chain verification in background after render

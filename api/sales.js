@@ -11,6 +11,25 @@ module.exports = async (req, res) => {
     if (!user) return unauthorizedResponse(res);
 
     if (req.method === 'GET') {
+        const { page, limit, search } = req.query;
+        if (page && limit) {
+            const pageNum = parseInt(page) || 1;
+            const limitNum = parseInt(limit) || 50;
+            const start = (pageNum - 1) * limitNum;
+            const end = start + limitNum - 1;
+            
+            let query = supabase.from('sales').select('*', { count: 'exact' });
+            
+            if (search) {
+                query = query.or(`customer_name.ilike.%${search}%,mpesa_code.ilike.%${search}%,date.ilike.%${search}%`);
+            }
+            
+            const { data, count, error } = await query.order('id', { ascending: false }).range(start, end);
+            if (error) return res.status(500).json({ success: false, error: error.message });
+            return res.status(200).json({ success: true, data, totalCount: count });
+        }
+
+        // Fallback to fetch all
         const { data, error } = await supabase.from('sales').select('*').order('id', { ascending: false });
         if (error) return res.status(500).json({ success: false, error: error.message });
         return res.status(200).json({ success: true, data });

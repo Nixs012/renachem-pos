@@ -227,6 +227,22 @@ module.exports = async (req, res) => {
         // --- AUDIT LOG ---
         if (activeModule === 'audit') {
             if (method === 'GET') {
+                const { page, limit, search } = req.query;
+                if (page && limit) {
+                    const pageNum = parseInt(page) || 1;
+                    const limitNum = parseInt(limit) || 50;
+                    const start = (pageNum - 1) * limitNum;
+                    const end = start + limitNum - 1;
+
+                    let query = supabase.from('audit_log').select('*', { count: 'exact' });
+                    if (search) {
+                        query = query.or(`action.ilike.%${search}%,username.ilike.%${search}%,details.ilike.%${search}%`);
+                    }
+                    const { data, count, error } = await query.order('timestamp', { ascending: false }).range(start, end);
+                    if (error) throw error;
+                    return res.status(200).json({ success: true, data, totalCount: count });
+                }
+
                 const { data, error } = await supabase.from('audit_log').select('*').order('timestamp', { ascending: false }).limit(200);
                 if (error) throw error;
                 return res.status(200).json({ success: true, data });

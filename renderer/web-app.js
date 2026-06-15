@@ -157,7 +157,11 @@ if (window.api) {
         return res;
     };
 
-    const invalidateCache = (cacheKey) => { APP_CACHE[cacheKey] = null; };
+    const invalidateCache = (cachePrefix) => { 
+        for (let key in APP_CACHE) {
+            if (key.startsWith(cachePrefix)) APP_CACHE[key] = null;
+        }
+    };
 
     window.clearAppCache = () => {
         for (let key in APP_CACHE) APP_CACHE[key] = null;
@@ -194,7 +198,11 @@ if (window.api) {
         addPurchase: async (data) => { invalidateCache('purchases'); invalidateCache('medicines'); return await callApi('purchases-manage', { module: 'purchases', action: 'add', ...data }); },
         recordStockIntake: async (data) => { invalidateCache('purchases'); invalidateCache('medicines'); return await callApi('purchases-manage', { module: 'purchases', action: 'recordStockIntake', ...data }); },
         
-        getSales: async () => await fetchWithCache('sales', () => callApi('sales-get', {}, 'GET')),
+        getSales: async (page, limit, search) => {
+            if (!page) return await fetchWithCache('sales_all', () => callApi('sales-get', {}, 'GET'));
+            const cacheKey = `sales_p${page}_l${limit}_s${search||''}`;
+            return await fetchWithCache(cacheKey, () => callApi('sales-get', { page, limit, search: search||'' }, 'GET'));
+        },
         addSale: async (data) => { invalidateCache('sales'); invalidateCache('medicines'); return await callApi('sales-add', { saleObj: data, cartItems: data.items }); },
         recordSaleTransaction: async (saleData, cartItems) => { invalidateCache('sales'); invalidateCache('medicines'); return await callApi('sales-add', { saleObj: saleData, cartItems }); },
         
@@ -208,7 +216,13 @@ if (window.api) {
         getCreditHistory: async (creditId) => await callApi('credits-manage', { creditId }, 'GET'),
         cleanupOldCredits: async () => ({ success: true }), // Placeholder
         
-        getAuditLog: async (filters) => await callApi('audit-log', { ...filters, module: 'audit' }, 'GET'),
+        getAuditLog: async (filters = {}) => {
+            if (filters.page) {
+                const cacheKey = `audit_p${filters.page}_l${filters.limit}_s${filters.search||''}`;
+                return await fetchWithCache(cacheKey, () => callApi('settings-manage', { ...filters, module: 'audit' }, 'GET'));
+            }
+            return await fetchWithCache('audit_all', () => callApi('settings-manage', { ...filters, module: 'audit' }, 'GET'));
+        },
         insertAuditLog: async (logEntry) => await callApi('audit-log', { ...logEntry, module: 'audit' }),
         
         getSettings: async () => await callApi('settings-manage', { action: 'getSettings', module: 'settings' }, 'GET'),
