@@ -5442,6 +5442,7 @@ async function renderInvoices() {
                 const mode = (s.payment_mode || 'Cash').toUpperCase();
                 if (mode === 'SPLIT') badgeStyle = 'background:var(--split-purple);';
                 else if (mode === 'M-PESA') badgeStyle = 'background:var(--success);';
+                else if (mode === 'CREDIT') badgeStyle = 'background:var(--warning);';
 
                 return `
                     <tr>

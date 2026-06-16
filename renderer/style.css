@@ -72,6 +72,7 @@ body {
     --warning: #f59e0b;
     --danger: #ef4444;
     --info: #06b6d4;
+    --split-purple: #8b5cf6;
     --gradient-bg: linear-gradient(135deg, #e0f2fe 0%, #f1f5f9 100%);
 }
 
