@@ -5479,18 +5479,7 @@ async function renderInvoices() {
                     const idx = btn.getAttribute('data-idx');
                     const sale = activeInvoicesList[idx];
                     if (sale) {
-                        try {
-                            const saleData = buildSaleDataObject(sale);
-                            const html = window.generateReceiptHTML(saleData);
-                            const printWindow = window.open('', '_blank');
-                            printWindow.document.write('<html><body>' + html + '</body></html>');
-                            printWindow.document.close();
-                            printWindow.print();
-                            printWindow.close();
-                            showToast('Receipt sent to printer', 'success');
-                        } catch (e) {
-                            showToast('Failed to print: ' + e.message, 'error');
-                        }
+                        handleHistoryReprint(sale);
                     }
                 };
             });

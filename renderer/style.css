@@ -57,6 +57,7 @@ body {
 
 /* Enhanced color palette: Cyna blue + royal blue + elegant accents */
 :root {
+    --primary: #3b82f6;
     --cyna-blue: #00b4d8;
     --cyna-dark: #0096c7;
     --pure-white: #ffffff;
